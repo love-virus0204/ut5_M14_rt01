@@ -5,7 +5,7 @@ html_code = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RT外觀抽驗記錄表 · v13.3</title>
+<title>RT外觀抽驗記錄表 · form.html (v13.3)</title>
 <style>
   :root{ --pad-side:1rem; --label-w:80px; }
   body{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", sans-serif; background:#f7f7f7; margin:0; padding:var(--pad-side); box-sizing:border-box; }
@@ -29,10 +29,6 @@ html_code = """<!doctype html>
   .table-header, .table-row{ display:flex; gap:.5rem; padding:0 .5rem; }
   .table-header{ font-size:.95rem; font-weight:700; color:#555; font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif; text-align:center; }
   .table-header .col{ flex:1; display:flex; align-items:center; justify-content:center; }
-  .table-row{ font-size:.95rem; color:#222; align-items:center; border-bottom:1px dashed #d9d9d9; padding:.6rem .5rem; }
-  .col{ flex:1; text-align:center; }
-  .row.batch-display{ margin-top:.25rem; margin-bottom:.5rem; }
-  .submit-btn{ min-width:40%; max-width:60%; padding:.8rem 1rem; font-size:1.05rem; font-weight:700; background:#007bff; color:#fff; border:none; border-radius:8px; }
 </style>
 </head>
 <body>
@@ -109,20 +105,17 @@ html_code = """<!doctype html>
 <div id="record-list"></div>
 
 <script>
-  // 返回上一頁
   document.getElementById('backBtn').addEventListener('click', function () {
     if (history.length > 1) history.back();
   });
-  // 語言端口（預留）
   document.getElementById('langBtn').addEventListener('click', function () {
     /* data-action=open-lang-menu */
   });
-  // 備註預設空字串（保險機制）
   document.getElementById('recordForm').addEventListener('submit', function () {
     document.getElementById('remark').value = '';
   });
 
-  // === 即時組合批號顯示 ===
+  // 即時組合批號顯示
   const $prefix = document.getElementById('lot_prefix');
   const $mid    = document.getElementById('lot_mid');
   const $tail   = document.getElementById('lot_tail');
@@ -144,14 +137,12 @@ html_code = """<!doctype html>
     $mid.addEventListener(ev, composeLot);
     $tail.addEventListener(ev, composeLot);
   });
-
-  // 初始化顯示
   composeLot();
 </script>
 
 </body>
 </html>"""
 
-file_path = Path("/mnt/data/外觀抽驗記錄表_v13_3.html")
+file_path = Path("/mnt/data/form.html")
 file_path.write_text(html_code, encoding="utf-8")
 file_path
