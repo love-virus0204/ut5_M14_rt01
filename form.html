@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RT外觀抽驗記錄表 · form.html (v13.3 + AJAX · PROD)</title>
+<title>RT外觀抽驗記錄表 · form.html (v13.3 + AJAX · PROD v3)</title>
 <style>
   :root{ --pad-side:1rem; --label-w:80px; }
   body{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", sans-serif; background:#f7f7f7; margin:0; padding:var(--pad-side); box-sizing:border-box; }
@@ -48,7 +48,7 @@
   <input type="hidden" name="date_shift" id="date_shift" value="">
 
   <div class="row">
-    <div class="status" id="statusText">09/18 15:32 - 09/18-A</div>
+    <div class="status" id="statusText">--/-- --:-- - --/---</div>
   </div>
 
   <div class="row">
@@ -109,131 +109,90 @@
 <div id="record-list"></div>
 
 <script>
-  function showToast(type, msg){
-    const el = document.getElementById('toast');
-    el.className = 'toast ' + type;
-    el.textContent = msg;
-    el.style.display = 'block';
-    clearTimeout(window.__toastTimer);
-    window.__toastTimer = setTimeout(()=>{ el.style.display='none'; }, 3000);
+// Toast
+function showToast(type, msg){
+  const el = document.getElementById('toast');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>{ el.style.display='none'; }, 3000);
+}
+
+// 返回/語言端口
+document.getElementById('backBtn').addEventListener('click', function () {
+  if (history.length > 1) history.back();
+});
+document.getElementById('langBtn').addEventListener('click', function () {/* open-lang-menu */});
+
+// AJAX submit
+document.getElementById('recordForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  document.getElementById('remark').value = '';
+  const payload = {
+    ts: document.getElementById('ts').value,
+    date_shift: document.getElementById('date_shift').value,
+    inspector: document.getElementById('inspector').value.trim(),
+    part_no: document.getElementById('part_no').value.trim(),
+    lot_prefix: document.getElementById('lot_prefix').value.trim(),
+    lot_mid: document.getElementById('lot_mid').value.trim(),
+    lot_tail: document.getElementById('lot_tail').value.trim(),
+    lot_full: document.getElementById('lot_full').textContent.trim(),
+    qty: document.getElementById('qty').value.trim(),
+    remark: ""
+  };
+  if(!payload.date_shift || !payload.inspector || !payload.part_no || !payload.qty){
+    showToast('warn', '請確認：班別/抽驗者/料號/數量。'); return;
   }
-
-  document.getElementById('backBtn').addEventListener('click', function () {
-    if (history.length > 1) history.back();
-  });
-  document.getElementById('langBtn').addEventListener('click', function () {
-    /* data-action=open-lang-menu */
-  });
-  document.getElementById('recordForm').addEventListener('submit', async function (e) {
-    e.preventDefault();
-    document.getElementById('remark').value = '';
-
-    const payload = {
-      ts: document.getElementById('ts').value,
-      date_shift: document.getElementById('date_shift').value,
-      inspector: document.getElementById('inspector').value.trim(),
-      part_no: document.getElementById('part_no').value.trim(),
-      lot_prefix: document.getElementById('lot_prefix').value.trim(),
-      lot_mid: document.getElementById('lot_mid').value.trim(),
-      lot_tail: document.getElementById('lot_tail').value.trim(),
-      lot_full: document.getElementById('lot_full').textContent.trim(),
-      qty: document.getElementById('qty').value.trim(),
-      remark: ""
-    };
-
-    if(!payload.date_shift || !payload.inspector || !payload.part_no || !payload.qty){
-      showToast('warn', '請確認：班別/抽驗者/料號/數量。');
-      return;
+  const url = e.target.action;
+  try {
+    let res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    if(res.status === 201){
+      showToast('ok', '✅ 送出成功');
+      document.getElementById('lot_prefix').value='';
+      document.getElementById('lot_mid').value='';
+      document.getElementById('lot_tail').value='';
+      document.getElementById('qty').value='';
+      document.getElementById('remark').value='';
+      document.getElementById('inspector').value=document.getElementById('inspector').value;
+      composeLot(); return;
     }
-
-    const url = e.target.action;
-    try {
-      let res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if(res.status === 201){
-        showToast('ok', '✅ 送出成功');
-        document.getElementById('lot_prefix').value = '';
-        document.getElementById('lot_mid').value = '';
-        document.getElementById('lot_tail').value = '';
-        document.getElementById('qty').value = '';
-        document.getElementById('remark').value = '';
-        document.getElementById('inspector').value = document.getElementById('inspector').value;
-        composeLot();
-        return;
-      }
-
-      if(res.status === 409){
-        const c1 = confirm('⚠️ 發現同日同班同料號+批號，但抽驗者不同。要送出嗎？');
-        if(!c1) return;
-        const c2 = confirm('真的要強制寫入嗎？');
-        if(!c2) return;
-
-        res = await fetch(url + '?force=1', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if(res.status === 201){
-          showToast('ok', '✅ 已強制寫入');
-          document.getElementById('lot_prefix').value = '';
-          document.getElementById('lot_mid').value = '';
-          document.getElementById('lot_tail').value = '';
-          document.getElementById('qty').value = '';
-          document.getElementById('remark').value = '';
-          composeLot();
-          return;
-        } else {
-          showToast('err', '❌ 強制寫入失敗：' + res.status);
-          return;
-        }
-      }
-
-      showToast('err', '❌ 送出失敗，狀態碼：' + res.status);
-    } catch(err){
-      showToast('err', '❌ 送出錯誤：' + err.message);
+    if(res.status === 409){
+      const c1 = confirm('⚠️ 發現同日同班同料號+批號，但抽驗者不同。要送出嗎？'); if(!c1) return;
+      const c2 = confirm('真的要強制寫入嗎？'); if(!c2) return;
+      res = await fetch(url+'?force=1', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      if(res.status === 201){ showToast('ok','✅ 已強制寫入'); composeLot(); return; }
+      showToast('err','❌ 強制寫入失敗：'+res.status); return;
     }
-  });
+    showToast('err','❌ 送出失敗，狀態碼：'+res.status);
+  }catch(err){ showToast('err','❌ 送出錯誤：'+err.message); }
+});
 
-  const $prefix = document.getElementById('lot_prefix');
-  const $mid    = document.getElementById('lot_mid');
-  const $tail   = document.getElementById('lot_tail');
-  const $full   = document.getElementById('lot_full');
-  function composeLot() {
-    const p = ($prefix.value || '').trim();
-    const m = ($mid.value || '').trim();
-    const t = ($tail.value || '').trim();
-    let parts = [];
-    if (p) parts.push(p);
-    if (m) parts.push(m);
-    if (t) parts.push(t);
-    $full.textContent = parts.join('-');
-  }
-  ['change','input'].forEach(ev => {
-    $prefix.addEventListener(ev, composeLot);
-    $mid.addEventListener(ev, composeLot);
-    $tail.addEventListener(ev, composeLot);
-  });
-  composeLot();
-</script>
+// 批號即時組合
+const $prefix=document.getElementById('lot_prefix');
+const $mid=document.getElementById('lot_mid');
+const $tail=document.getElementById('lot_tail');
+const $full=document.getElementById('lot_full');
+function composeLot(){
+  const p=($prefix.value||'').trim();
+  const m=($mid.value||'').trim();
+  const t=($tail.value||'').trim();
+  let parts=[]; if(p) parts.push(p); if(m) parts.push(m); if(t) parts.push(t);
+  $full.textContent = parts.join('-');
+}
+['change','input'].forEach(ev=>{$prefix.addEventListener(ev,composeLot);$mid.addEventListener(ev,composeLot);$tail.addEventListener(ev,composeLot);});
+composeLot();
 
-</body>
-</html>
-<script>
+// 即時時間與班別（80 分鐘寬限）
 const TZ='Asia/Taipei';
 const statusEl=document.getElementById('statusText');
 const tsInput=document.getElementById('ts');
 const dsInput=document.getElementById('date_shift');
-
 function twNow(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
 function fmtDate(d){ const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${mm}/${dd}`;}
 function fmtTime(d){ const hh=String(d.getHours()).padStart(2,'0'); const mi=String(d.getMinutes()).padStart(2,'0'); return `${hh}:${mi}`;}
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 function setHM(base,h,m){ const d=new Date(base); d.setHours(h,m,0,0); return d; }
-
 function calcShift(d){
   const mins=d.getHours()*60+d.getMinutes();
   const t0040=40, t0840=8*60+40, t1640=16*60+40;
@@ -242,7 +201,6 @@ function calcShift(d){
   if(mins<t0040)                 return {shift:'B', start:setHM(addDays(d,-1),16,40), next:setHM(d,0,40)};
   return {shift:'C', start:setHM(d,0,40), next:setHM(d,8,40)};
 }
-
 function anchorIfNeeded(){
   const now=twNow();
   const store=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
@@ -255,7 +213,6 @@ function anchorIfNeeded(){
     dsInput.value = `${store.date}-${store.shift}`;
   }
 }
-
 function tick(){
   const now=twNow();
   const store=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
@@ -265,9 +222,9 @@ function tick(){
   tsInput.value = now.toISOString();
   if(store.until && now.getTime()>store.until) anchorIfNeeded();
 }
-
-anchorIfNeeded();
-tick();
-setInterval(tick, 30000);
+anchorIfNeeded(); tick(); setInterval(tick,30000);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ anchorIfNeeded(); tick(); }});
 </script>
+
+</body>
+</html>
