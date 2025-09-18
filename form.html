@@ -222,3 +222,52 @@
 
 </body>
 </html>
+<script>
+const TZ='Asia/Taipei';
+const statusEl=document.getElementById('statusText');
+const tsInput=document.getElementById('ts');
+const dsInput=document.getElementById('date_shift');
+
+function twNow(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
+function fmtDate(d){ const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${mm}/${dd}`;}
+function fmtTime(d){ const hh=String(d.getHours()).padStart(2,'0'); const mi=String(d.getMinutes()).padStart(2,'0'); return `${hh}:${mi}`;}
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function setHM(base,h,m){ const d=new Date(base); d.setHours(h,m,0,0); return d; }
+
+function calcShift(d){
+  const mins=d.getHours()*60+d.getMinutes();
+  const t0040=40, t0840=8*60+40, t1640=16*60+40;
+  if(mins>=t0840 && mins<t1640) return {shift:'A', start:setHM(d,8,40),  next:setHM(d,16,40)};
+  if(mins>=t1640)                return {shift:'B', start:setHM(d,16,40), next:setHM(addDays(d,1),0,40)};
+  if(mins<t0040)                 return {shift:'B', start:setHM(addDays(d,-1),16,40), next:setHM(d,0,40)};
+  return {shift:'C', start:setHM(d,0,40), next:setHM(d,8,40)};
+}
+
+function anchorIfNeeded(){
+  const now=twNow();
+  const store=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
+  if(!store.until || now.getTime()>store.until){
+    const s=calcShift(now);
+    const anchor={ date:fmtDate(now), shift:s.shift, until:s.next.getTime()+80*60000 };
+    localStorage.setItem('ds_anchor', JSON.stringify(anchor));
+    dsInput.value = `${anchor.date}-${anchor.shift}`;
+  }else{
+    dsInput.value = `${store.date}-${store.shift}`;
+  }
+}
+
+function tick(){
+  const now=twNow();
+  const store=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
+  const datePart=store.date || fmtDate(now);
+  const shiftPart=store.shift || calcShift(now).shift;
+  statusEl.textContent = `${fmtDate(now)} ${fmtTime(now)} - ${datePart}-${shiftPart}`;
+  tsInput.value = now.toISOString();
+  if(store.until && now.getTime()>store.until) anchorIfNeeded();
+}
+
+anchorIfNeeded();
+tick();
+setInterval(tick, 30000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ anchorIfNeeded(); tick(); }});
+</script>
