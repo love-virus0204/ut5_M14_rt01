@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RT外觀抽驗記錄表 · form.html (v13.3, API URL)</title>
+<title>RT外觀抽驗記錄表 · form.html (v13.3 + AJAX)</title>
 <style>
   :root{ --pad-side:1rem; --label-w:80px; }
   body{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", sans-serif; background:#f7f7f7; margin:0; padding:var(--pad-side); box-sizing:border-box; }
@@ -26,6 +26,11 @@
   hr{ border:none; border-top:1px solid #ccc; margin:1rem 0 .5rem 0; }
   .table-header{ display:flex; gap:.5rem; padding:0 .5rem; font-size:.95rem; font-weight:700; color:#555; font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif; text-align:center; }
   .table-header .col{ flex:1; display:flex; align-items:center; justify-content:center; }
+  /* 提示條 */
+  .toast{ display:none; padding:.6rem .8rem; border-radius:.5rem; margin:.5rem 0; }
+  .toast.ok{ background:#e7f6ee; color:#136c3c; }
+  .toast.warn{ background:#fff4e5; color:#8a4b00; }
+  .toast.err{ background:#fdecec; color:#8a0012; }
 </style>
 </head>
 <body>
@@ -35,6 +40,9 @@
   <header>RT外觀抽驗記錄表</header>
   <button class="icon-btn" title="返回上一頁" id="backBtn" aria-label="返回上一頁">↩️</button>
 </div>
+
+<!-- 提示訊息 -->
+<div id="toast" class="toast"></div>
 
 <form id="recordForm" method="post" action="https://love-virus0204.github.io/ut5_M14_rt01/api/records">
   <input type="hidden" name="ts" id="ts" value="">
@@ -102,21 +110,103 @@
 <div id="record-list"></div>
 
 <script>
+  function showToast(type, msg){
+    const el = document.getElementById('toast');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(()=>{ el.style.display='none'; }, 3000);
+  }
+
   document.getElementById('backBtn').addEventListener('click', function () {
     if (history.length > 1) history.back();
   });
   document.getElementById('langBtn').addEventListener('click', function () {
     /* data-action=open-lang-menu */
   });
-  document.getElementById('recordForm').addEventListener('submit', function () {
+  document.getElementById('recordForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
     document.getElementById('remark').value = '';
+
+    const payload = {
+      ts: document.getElementById('ts').value,
+      date_shift: document.getElementById('date_shift').value,
+      inspector: document.getElementById('inspector').value.trim(),
+      part_no: document.getElementById('part_no').value.trim(),
+      lot_prefix: document.getElementById('lot_prefix').value.trim(),
+      lot_mid: document.getElementById('lot_mid').value.trim(),
+      lot_tail: document.getElementById('lot_tail').value.trim(),
+      lot_full: document.getElementById('lot_full').textContent.trim(),
+      qty: document.getElementById('qty').value.trim(),
+      remark: ""
+    };
+
+    // 基本前端必填檢查（避免白跑一趟）
+    if(!payload.date_shift || !payload.inspector || !payload.part_no || !payload.qty){
+      showToast('warn', '請確認：班別/抽驗者/料號/數量。');
+      return;
+    }
+
+    const url = e.target.action;
+    try {
+      let res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if(res.status === 201){
+        showToast('ok', '✅ 送出成功');
+        // 成功後保留「料號」依你的規則，其餘清空
+        document.getElementById('lot_prefix').value = '';
+        document.getElementById('lot_mid').value = '';
+        document.getElementById('lot_tail').value = '';
+        document.getElementById('qty').value = '';
+        document.getElementById('remark').value = '';
+        document.getElementById('inspector').value = document.getElementById('inspector').value; // 工號保留
+        composeLot();
+        return;
+      }
+
+      if(res.status === 409){
+        // 二次確認：預設為否
+        const c1 = confirm('⚠️ 發現同日同班同料號+批號，但抽驗者不同。要送出嗎？');
+        if(!c1) return;
+        const c2 = confirm('真的要強制寫入嗎？');
+        if(!c2) return;
+
+        res = await fetch(url + '?force=1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if(res.status === 201){
+          showToast('ok', '✅ 已強制寫入');
+          document.getElementById('lot_prefix').value = '';
+          document.getElementById('lot_mid').value = '';
+          document.getElementById('lot_tail').value = '';
+          document.getElementById('qty').value = '';
+          document.getElementById('remark').value = '';
+          composeLot();
+          return;
+        } else {
+          showToast('err', '❌ 強制寫入失敗：' + res.status);
+          return;
+        }
+      }
+
+      showToast('err', '❌ 送出失敗，狀態碼：' + res.status);
+    } catch(err){
+      showToast('err', '❌ 送出錯誤：' + err.message);
+    }
   });
 
+  // 即時組合批號顯示
   const $prefix = document.getElementById('lot_prefix');
   const $mid    = document.getElementById('lot_mid');
   const $tail   = document.getElementById('lot_tail');
   const $full   = document.getElementById('lot_full');
-
   function composeLot() {
     const p = ($prefix.value || '').trim();
     const m = ($mid.value || '').trim();
