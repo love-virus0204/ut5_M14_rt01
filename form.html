@@ -1,0 +1,157 @@
+from pathlib import Path
+
+html_code = """<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RT外觀抽驗記錄表 · v13.3</title>
+<style>
+  :root{ --pad-side:1rem; --label-w:80px; }
+  body{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", sans-serif; background:#f7f7f7; margin:0; padding:var(--pad-side); box-sizing:border-box; }
+  .topbar{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:.5rem; margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid #ccc; }
+  .icon-btn{ background:transparent; border:none; font-size:1.4rem; cursor:pointer; line-height:1; padding:.35rem; border-radius:8px; }
+  .icon-btn:active{ background:#e8e8e8; }
+  header{ text-align:center; font-size:1.3rem; font-weight:bold; font-family: "DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif; }
+  .row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:.8rem; }
+  .row.actions{ justify-content:flex-end; }
+  .label{ flex:0 0 var(--label-w); text-align:center; color:#333; font-weight:600; margin-right:.75rem; font-family: "DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif; }
+  .value{ flex:1; margin-right:.5rem; }
+  input, select, textarea{ padding:.45rem; font-size:1rem; width:100%; box-sizing:border-box; font-family:"Comic Sans MS","Comic Sans","Comic Neue","Noto Sans TC",cursive; }
+  input, select{ height:2.6rem; }
+  #remark{ font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif; min-height:60px; resize:vertical; }
+  #remark[readonly]{ background:#f0f0f0; color:#666; }
+  .readonly{ background:#e9ecef; padding:.25rem .45rem; border-radius:4px; font-family:"Comic Sans MS","Comic Sans","Comic Neue","Noto Sans TC",cursive; min-height:2.0rem; display:flex; align-items:center; font-size:.95rem; }
+  .triple{ display:grid; grid-template-columns: .6fr 16px 1.6fr 16px .8fr; gap:.5rem; align-items:center; }
+  .sep{ text-align:center; color:#666; }
+  .status{ font-size:.95rem; color:#222; text-align:left; margin-left:.2rem; }
+  hr{ border:none; border-top:1px solid #ccc; margin:1rem 0 .5rem 0; }
+  .table-header, .table-row{ display:flex; gap:.5rem; padding:0 .5rem; }
+  .table-header{ font-size:.95rem; font-weight:700; color:#555; font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif; text-align:center; }
+  .table-header .col{ flex:1; display:flex; align-items:center; justify-content:center; }
+  .table-row{ font-size:.95rem; color:#222; align-items:center; border-bottom:1px dashed #d9d9d9; padding:.6rem .5rem; }
+  .col{ flex:1; text-align:center; }
+  .row.batch-display{ margin-top:.25rem; margin-bottom:.5rem; }
+  .submit-btn{ min-width:40%; max-width:60%; padding:.8rem 1rem; font-size:1.05rem; font-weight:700; background:#007bff; color:#fff; border:none; border-radius:8px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="icon-btn" title="更改語言" id="langBtn" data-action="open-lang-menu" aria-label="更改語言">🌐</button>
+  <header>RT外觀抽驗記錄表</header>
+  <button class="icon-btn" title="返回上一頁" id="backBtn" aria-label="返回上一頁">↩️</button>
+</div>
+
+<form id="recordForm" method="post" action="/api/records">
+  <input type="hidden" name="ts" id="ts" value="">
+  <input type="hidden" name="date_shift" id="date_shift" value="">
+
+  <div class="row">
+    <div class="status" id="statusText">09/18 15:32 - 09/18-A</div>
+  </div>
+
+  <div class="row">
+    <div class="label">抽驗者：</div>
+    <div class="value"><input type="text" id="inspector" name="inspector" placeholder="輸入 5 碼工號" autocomplete="off"></div>
+  </div>
+
+  <div class="row">
+    <div class="label">料　號：</div>
+    <div class="value"><input type="text" id="part_no" name="part_no" placeholder="請輸入料號 by 7碼" autocomplete="off"></div>
+  </div>
+
+  <div class="row">
+    <div class="label">&nbsp;</div>
+    <div class="value">
+      <div class="triple">
+        <select title="批號（左）" id="lot_prefix" name="lot_prefix">
+          <option value=""></option>
+          <option value="FA">FA</option>
+        </select>
+        <div class="sep">-</div>
+        <input type="text" title="批號（中）" id="lot_mid" name="lot_mid" placeholder="母批" autocomplete="off">
+        <div class="sep">-</div>
+        <input type="text" title="批號（右）" id="lot_tail" name="lot_tail" placeholder="子批" autocomplete="off">
+      </div>
+    </div>
+  </div>
+
+  <div class="row batch-display">
+    <div class="label">批　號：</div>
+    <div class="value readonly" id="lot_full"> </div>
+  </div>
+
+  <div class="row">
+    <div class="label">數　量：</div>
+    <div class="value"><input type="number" id="qty" name="qty" placeholder="輸入批量（>0）" inputmode="numeric"></div>
+  </div>
+
+  <div class="row">
+    <div class="label">備　註：</div>
+    <div class="value"><textarea id="remark" name="remark" placeholder="（暫不開放輸入）" readonly></textarea></div>
+  </div>
+
+  <div class="row actions">
+    <button type="submit" class="submit-btn">送出</button>
+  </div>
+</form>
+
+<hr>
+<div class="table-header">
+  <div class="col">料　號</div>
+  <div class="col">批　號</div>
+  <div class="col">數　量</div>
+</div>
+<hr>
+<div class="list-note" style="font-size:.8rem; color:#777; padding:0 .5rem .4rem;">顯示規則：倒序（最新在最上），最多 50 筆；常規 3–10 筆。</div>
+
+<div id="record-list"></div>
+
+<script>
+  // 返回上一頁
+  document.getElementById('backBtn').addEventListener('click', function () {
+    if (history.length > 1) history.back();
+  });
+  // 語言端口（預留）
+  document.getElementById('langBtn').addEventListener('click', function () {
+    /* data-action=open-lang-menu */
+  });
+  // 備註預設空字串（保險機制）
+  document.getElementById('recordForm').addEventListener('submit', function () {
+    document.getElementById('remark').value = '';
+  });
+
+  // === 即時組合批號顯示 ===
+  const $prefix = document.getElementById('lot_prefix');
+  const $mid    = document.getElementById('lot_mid');
+  const $tail   = document.getElementById('lot_tail');
+  const $full   = document.getElementById('lot_full');
+
+  function composeLot() {
+    const p = ($prefix.value || '').trim();
+    const m = ($mid.value || '').trim();
+    const t = ($tail.value || '').trim();
+    let parts = [];
+    if (p) parts.push(p);
+    if (m) parts.push(m);
+    if (t) parts.push(t);
+    $full.textContent = parts.join('-');
+  }
+
+  ['change','input'].forEach(ev => {
+    $prefix.addEventListener(ev, composeLot);
+    $mid.addEventListener(ev, composeLot);
+    $tail.addEventListener(ev, composeLot);
+  });
+
+  // 初始化顯示
+  composeLot();
+</script>
+
+</body>
+</html>"""
+
+file_path = Path("/mnt/data/外觀抽驗記錄表_v13_3.html")
+file_path.write_text(html_code, encoding="utf-8")
+file_path
