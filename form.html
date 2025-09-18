@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RT外觀抽驗記錄表 · form.html (v13.3)</title>
+<title>RT外觀抽驗記錄表 · form.html (v13.3, API URL)</title>
 <style>
   :root{ --pad-side:1rem; --label-w:80px; }
   body{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", sans-serif; background:#f7f7f7; margin:0; padding:var(--pad-side); box-sizing:border-box; }
@@ -24,8 +24,7 @@
   .sep{ text-align:center; color:#666; }
   .status{ font-size:.95rem; color:#222; text-align:left; margin-left:.2rem; }
   hr{ border:none; border-top:1px solid #ccc; margin:1rem 0 .5rem 0; }
-  .table-header, .table-row{ display:flex; gap:.5rem; padding:0 .5rem; }
-  .table-header{ font-size:.95rem; font-weight:700; color:#555; font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif; text-align:center; }
+  .table-header{ display:flex; gap:.5rem; padding:0 .5rem; font-size:.95rem; font-weight:700; color:#555; font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif; text-align:center; }
   .table-header .col{ flex:1; display:flex; align-items:center; justify-content:center; }
 </style>
 </head>
@@ -37,7 +36,7 @@
   <button class="icon-btn" title="返回上一頁" id="backBtn" aria-label="返回上一頁">↩️</button>
 </div>
 
-<form id="recordForm" method="post" action="/api/records">
+<form id="recordForm" method="post" action="https://love-virus0204.github.io/ut5_M14_rt01/api/records">
   <input type="hidden" name="ts" id="ts" value="">
   <input type="hidden" name="date_shift" id="date_shift" value="">
 
@@ -113,7 +112,6 @@
     document.getElementById('remark').value = '';
   });
 
-  // 即時組合批號顯示
   const $prefix = document.getElementById('lot_prefix');
   const $mid    = document.getElementById('lot_mid');
   const $tail   = document.getElementById('lot_tail');
@@ -129,7 +127,6 @@
     if (t) parts.push(t);
     $full.textContent = parts.join('-');
   }
-
   ['change','input'].forEach(ev => {
     $prefix.addEventListener(ev, composeLot);
     $mid.addEventListener(ev, composeLot);
