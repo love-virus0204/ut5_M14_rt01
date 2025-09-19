@@ -3,16 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RT外觀抽驗記錄表 · v13.fix</title>
+<title>RT外觀抽驗記錄表 · v13.fix2</title>
 <style>
   :root{--pad:12px;--label:92px;}
   body{background:#f7f7f7;margin:0;padding:var(--pad);font-family:"Comic Sans MS","Comic Neue","Noto Sans TC",sans-serif;}
-  /* top */
   .topbar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.5rem;padding-bottom:.5rem;border-bottom:1px solid #d9d9d9;margin-bottom:.75rem}
   .icon{background:transparent;border:none;font-size:1.35rem;line-height:1;cursor:pointer;padding:.35rem;border-radius:8px}
   .icon:active{background:#ececec}
   header{font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif;font-weight:700;text-align:center}
-  /* rows */
   .row{display:flex;align-items:center;gap:.75rem;margin:.55rem 0}
   .label{flex:0 0 var(--label);text-align:center;font-weight:700;color:#333;
          font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif}
@@ -20,20 +18,15 @@
   input,select,textarea{width:100%;box-sizing:border-box;padding:.5rem;font-size:1rem;border:1px solid #cfcfcf;border-radius:8px;background:#fff}
   textarea{min-height:68px;resize:vertical;font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif}
   #remark[readonly]{background:#f0f0f0;color:#666}
-  /* first line (時間戳與班別顯示) */
   .status{display:flex;gap:.75rem;align-items:center}
   .status .ts{min-width:130px}
   .status .ds{font-weight:700}
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
-  /* 批號三框 */
   .triple{display:grid;grid-template-columns:.55fr 16px 1.6fr 16px .9fr;gap:.5rem;align-items:center}
   .sep{text-align:center;color:#666}
-  /* 批號組合顯示 */
   .lot-box{background:#eef2f6;color:#222;border-radius:8px;padding:.3rem .5rem;display:inline-flex;min-height:2rem;align-items:center}
-  /* actions */
   .actions{justify-content:flex-end}
   .btn{border:none;background:#007bff;color:#fff;padding:.75rem 1.1rem;border-radius:10px;font-weight:700;min-width:40%}
-  /* list */
   hr{border:none;border-top:1px solid #d9d9d9;margin:.75rem 0}
   .tbl-head{display:flex;gap:.5rem;font-weight:700;color:#555;
             font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif}
@@ -42,7 +35,6 @@
   .rec .c{flex:1;display:flex;justify-content:center}
   .rec .qty{justify-content:center}
   .note{font-size:.82rem;color:#777;margin:.2rem .25rem .5rem}
-  /* 左標題更靠左（與最右同邊界）*/
   @media(min-width:340px){:root{--label:94px}}
 </style>
 </head>
@@ -54,7 +46,6 @@
   <button class="icon" id="backBtn" title="返回上一頁">↩️</button>
 </div>
 
-<!-- 狀態列：顯示 NOW() - {日期/班別} -->
 <div class="row">
   <div class="label">　</div>
   <div class="value status mono">
@@ -64,19 +55,16 @@
   </div>
 </div>
 
-<!-- 抽驗者 -->
 <div class="row">
   <div class="label">抽　驗：</div>
   <div class="value"><input id="inspector" placeholder="輸入 5 碼工號"></div>
 </div>
 
-<!-- 料號 -->
 <div class="row">
   <div class="label">料　號：</div>
   <div class="value"><input id="part_no" placeholder="請輸入 料號 by 7碼"></div>
 </div>
 
-<!-- 批號三框（標題獨列；三框同列） -->
 <div class="row">
   <div class="label">批　號：</div>
   <div class="value">
@@ -92,25 +80,21 @@
   </div>
 </div>
 
-<!-- 組合後批號顯示（反色縮小） -->
 <div class="row">
   <div class="label">　</div>
   <div class="value"><span class="lot-box mono" id="lot_full"> </span></div>
 </div>
 
-<!-- 數量 -->
 <div class="row">
   <div class="label">數　量：</div>
   <div class="value"><input id="qty" type="number" min="0" placeholder="輸入批量（>0）" inputmode="numeric"></div>
 </div>
 
-<!-- 備註（唯讀，保留欄位） -->
 <div class="row">
   <div class="label">備　註：</div>
   <div class="value"><textarea id="remark" placeholder="（暫不開放輸入）" readonly></textarea></div>
 </div>
 
-<!-- 送出 -->
 <div class="row actions">
   <div class="label">　</div>
   <div class="value" style="display:flex;justify-content:flex-end">
@@ -129,15 +113,12 @@
 <div id="list"></div>
 
 <script>
-/* ====== 常量 ====== */
 const GAS_URL  = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 const API_TOKEN= "MY_SECRET_123";
 
-/* ====== UI 基本 ====== */
 document.getElementById('backBtn').onclick=()=>{ if(history.length>1) history.back(); };
 document.getElementById('langBtn').onclick=()=>{ /* 多語端口預留 */ };
 
-/* ====== 批號即時組合 ====== */
 const $p=document.getElementById('lot_prefix');
 const $m=document.getElementById('lot_mid');
 const $t=document.getElementById('lot_tail');
@@ -149,7 +130,6 @@ function composeLot(){
 ['input','change'].forEach(ev=>{$p.addEventListener(ev,composeLot);$m.addEventListener(ev,composeLot);$t.addEventListener(ev,composeLot);});
 composeLot();
 
-/* ====== 班別與日期（依班起日；含 80 分鐘寬限） ====== */
 const TZ='Asia/Taipei';
 const dsView=document.getElementById('dsView');
 const tsView=document.getElementById('tsView');
@@ -158,18 +138,20 @@ function fmtMD(d){ const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=Str
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 function setHM(base,h,m){ const d=new Date(base); d.setHours(h,m,0,0); return d; }
 function calcShiftAnchor(now){
-  // 班起點：C=00:40, A=08:40, B=16:40；00:00–00:39 仍屬前一日 B（日期要 -1）
-  const mins=now.getHours()*60+now.getMinutes();
-  if (mins>=8*60+40 && mins<16*60+40) { // A
-    return {date:fmtMD(now), shift:'A', next:setHM(now,16,40)};
-  } else if (mins>=16*60+40) { // B 至 23:59
-    return {date:fmtMD(now), shift:'B', next:setHM(addDays(now,1),0,40)};
-  } else if (mins<40) { // 00:00–00:39 → 前一日 B
-    const y=addDays(now,-1);
-    return {date:fmtMD(y), shift:'B', next:setHM(now,0,40)};
-  } else { // 00:40–08:39 → C
-    return {date:fmtMD(now), shift:'C', next:setHM(now,8,40)};
+  const mins = now.getHours()*60 + now.getMinutes();
+  if (mins >= 8*60 + 40 && mins < 16*60 + 40) {           // A（當日）
+    return {date: fmtMD(now), shift: 'A', next: setHM(now,16,40)};
   }
+  if (mins >= 16*60 + 40) {                                // B（當日）
+    return {date: fmtMD(now), shift: 'B', next: setHM(addDays(now,1),0,40)};
+  }
+  if (mins < 40) {                                         // 00:00–00:39 → 前一日 B
+    const y = addDays(now, -1);
+    return {date: fmtMD(y), shift: 'B', next: setHM(now,0,40)};
+  }
+  // 00:40–08:39 → C（日期採前一日）
+  const y = addDays(now, -1);
+  return {date: fmtMD(y), shift: 'C', next: setHM(now,8,40)};
 }
 function anchorIfNeeded(){
   const now=twNow();
@@ -190,7 +172,6 @@ function tick(){
 }
 tick(); setInterval(tick, 30000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
 
-/* ====== 草稿：當日當班不變→保留料號/批號/數量；變更→清空（保留工號） ====== */
 const $ins=document.getElementById('inspector');
 const $part=document.getElementById('part_no');
 const $qty=document.getElementById('qty');
@@ -200,12 +181,8 @@ function loadDraft(){
   if(d.ds && ds.date===d.ds.date && ds.shift===d.ds.shift){
     $part.value=d.part||''; $p.value=d.lp||''; $m.value=d.lm||''; $t.value=d.lt||''; $qty.value=d.qty||'';
     composeLot();
-  } else {
-    $p.value=''; $m.value=''; $t.value=''; $part.value=''; $qty.value=''; composeLot();
-  }
-  // 工號常駐（輸入符合才更新）
-  const u=localStorage.getItem('inspector')||'';
-  if(u) $ins.value=u;
+  } else { $p.value=''; $m.value=''; $t.value=''; $part.value=''; $qty.value=''; composeLot(); }
+  const u=localStorage.getItem('inspector')||''; if(u) $ins.value=u;
 }
 function saveDraft(){
   const ds=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
@@ -216,7 +193,6 @@ function saveDraft(){
 $ins.addEventListener('change',()=>{ if(/^[A-Za-z0-9]{5}$/.test($ins.value||'')) localStorage.setItem('inspector',$ins.value.trim()); });
 loadDraft();
 
-/* ====== 列表：只顯示當日當班 + 同工號；倒序；最多 50 ====== */
 async function refreshList(){
   const list=document.getElementById('list'); list.innerHTML='';
   try{
@@ -226,7 +202,6 @@ async function refreshList(){
     const me=($ins.value||'').trim();
     const wanted=`${ds.date}-${ds.shift}`;
     const rows=(Array.isArray(data)?data:[]).filter(r=>r.date_shift===wanted && (!me || r.inspector===me));
-    // 倒序（GAS 已大致依 ts 倒序，這裡再保險一次）
     rows.sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
     for(const r of rows.slice(0,50)){
       const row=document.createElement('div'); row.className='rec';
@@ -240,7 +215,6 @@ async function refreshList(){
 }
 refreshList();
 
-/* ====== 送出 ====== */
 document.getElementById('submitBtn').addEventListener('click', async (e)=>{
   e.preventDefault();
   const ds=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
@@ -259,19 +233,19 @@ document.getElementById('submitBtn').addEventListener('click', async (e)=>{
   if(!payload.date_shift||!payload.inspector||!payload.part_no||!payload.qty){ alert('請確認：班別/抽驗者/料號/數量'); return; }
 
   try{
-    const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const res=await fetch(GAS_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // 避免 CORS preflight
+      body:JSON.stringify(payload)
+    });
     const data=await res.json();
     if(data.status==='ok'){
-      // 成功：若當日當班未變 → 保留料號；否則清空
       const cur=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
       const d=JSON.parse(localStorage.getItem('draft')||'{}');
       if(d.ds && d.ds.date===cur.date && d.ds.shift===cur.shift){
-        // 清空批號與數量（保留料號）
-        $p.value='';$m.value='';$t.value='';$qty.value='';composeLot();
-        saveDraft();
+        $p.value='';$m.value='';$t.value='';$qty.value='';composeLot(); saveDraft();
       }else{
-        $part.value='';$p.value='';$m.value='';$t.value='';$qty.value='';composeLot();
-        saveDraft();
+        $part.value='';$p.value='';$m.value='';$t.value='';$qty.value='';composeLot(); saveDraft();
       }
       refreshList();
       alert('✅ 已送出');
@@ -282,9 +256,7 @@ document.getElementById('submitBtn').addEventListener('click', async (e)=>{
     }else{
       alert('❌ 送出失敗：'+JSON.stringify(data));
     }
-  }catch(err){
-    alert('❌ 送出錯誤：'+err.message);
-  }
+  }catch(err){ alert('❌ 送出錯誤：'+err.message); }
 });
 </script>
 </body>
