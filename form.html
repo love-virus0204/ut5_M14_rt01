@@ -15,7 +15,8 @@
   input,select,textarea{ width:calc(100% - 90px); margin-bottom:8px; padding:5px; font-family:"Comic Sans MS",sans-serif; }
   textarea[readonly]{ background:#f2f2f2; color:#555; }
   #sendBtn{ display:block; margin-left:auto; margin-top:10px; padding:8px 20px; background:#007bff; color:#fff; border:none; border-radius:5px; }
-  hr{ margin:15px 0; }
+  .version-line{ font-size:12px; color:#666; text-align:left; margin-top:6px; }
+  hr{ margin:10px 0 15px 0; }
   table{ width:100%; border-collapse:collapse; text-align:center; font-size:14px; }
   th,td{ border-top:1px solid #ddd; padding:5px; }
 </style>
@@ -36,16 +37,14 @@
 <label class="label">抽　驗：</label><input type="text" id="inspector" placeholder="輸入 5 碼工號"><br/>
 <label class="label">料　號：</label><input type="text" id="partNo" placeholder="請輸入 料號 by 7碼"><br/>
 
-<!-- 型態（可空白或 FA，不擋送出） -->
-<div style="margin-bottom:5px;">
-  <label class="label">型　態：</label>
-  <select id="lotPrefix" style="width:100px;">
-    <option value=""></option>
-    <option value="FA">FA</option>
-  </select>
-</div>
+<!-- 型態（可空白或 FA），與其它輸入框左起點一致 -->
+<label class="label">型　態：</label>
+<select id="lotPrefix">
+  <option value=""></option>
+  <option value="FA">FA</option>
+</select><br>
 
-<!-- 批號輸入 -->
+<!-- 批號輸入（寬度與料號一致） -->
 <label class="label">批　號：</label>
 <input type="text" id="lotInput" placeholder="母批[-子批] (母批3碼英數禁O/I)"><br/>
 
@@ -54,7 +53,9 @@
 
 <button id="sendBtn">送出</button>
 
+<div class="version-line" id="verLine">val：15</div>
 <hr/>
+
 <table>
   <thead><tr><th>料　號</th><th>批　號</th><th>數　量</th></tr></thead>
   <tbody id="recordList"></tbody>
@@ -126,6 +127,14 @@ async function postJSON(url, payload){
 }
 
 /* ===== 送出：與 GAS 對齊（必傳 date/shift） ===== */
+let clearPartOnce = false; // 送出成功後，下一次點料號就清空一次
+document.getElementById('partNo').addEventListener('focus', ()=>{
+  if(clearPartOnce){
+    document.getElementById('partNo').value='';
+    clearPartOnce = false;
+  }
+});
+
 document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const inspector=document.getElementById('inspector').value.trim();
   const part=document.getElementById('partNo').value.trim().toUpperCase();
@@ -141,8 +150,8 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 
   const payload={
     token:API_TOKEN,
-    date:a.dateMD,                 // ← 必傳
-    shift:a.shift,                 // ← 必傳
+    date:a.dateMD,
+    shift:a.shift,
     inspector,
     part_no:part,
     lot_prefix:prefix,             // "" 或 "FA"
@@ -156,7 +165,10 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     const data=await postJSON(GAS_URL,payload);
     if(data.status==='ok'){
       alert(data.upsert==='update'?'✅ 已更新原記錄':'✅ 已新增');
-      document.getElementById('lotInput').value=''; document.getElementById('qty').value='';
+      // 送出成功：清空批號、數量；料號改為「下次點一下時清空」
+      document.getElementById('lotInput').value='';
+      document.getElementById('qty').value='';
+      clearPartOnce = true;
       refreshList();
     }else{
       alert('❌ 後端回覆：'+JSON.stringify(data));
