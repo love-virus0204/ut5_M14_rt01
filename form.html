@@ -1,146 +1,289 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RT 外觀抽驗記錄表</title>
-  <style>
-    body { font-family: "Comic Sans MS", sans-serif; padding: 10px; }
-    h1 { font-family: "標楷體"; text-align: center; }
-    label { display: flex; justify-content: space-between; margin: 5px 0; font-family: "標楷體"; }
-    input, select { width: 60%; font-family: "Comic Sans MS"; }
-    textarea { width: 100%; font-family: "標楷體"; }
-    .btn-container { text-align: right; margin-top: 10px; }
-    button { padding: 8px 16px; font-size: 16px; }
-    hr { margin-top: 15px; }
-    .records { font-size: 14px; margin-top: 10px; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RT外觀抽驗記錄表 · v13.fix</title>
+<style>
+  :root{--pad:12px;--label:92px;}
+  body{background:#f7f7f7;margin:0;padding:var(--pad);font-family:"Comic Sans MS","Comic Neue","Noto Sans TC",sans-serif;}
+  /* top */
+  .topbar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.5rem;padding-bottom:.5rem;border-bottom:1px solid #d9d9d9;margin-bottom:.75rem}
+  .icon{background:transparent;border:none;font-size:1.35rem;line-height:1;cursor:pointer;padding:.35rem;border-radius:8px}
+  .icon:active{background:#ececec}
+  header{font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif;font-weight:700;text-align:center}
+  /* rows */
+  .row{display:flex;align-items:center;gap:.75rem;margin:.55rem 0}
+  .label{flex:0 0 var(--label);text-align:center;font-weight:700;color:#333;
+         font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif}
+  .value{flex:1}
+  input,select,textarea{width:100%;box-sizing:border-box;padding:.5rem;font-size:1rem;border:1px solid #cfcfcf;border-radius:8px;background:#fff}
+  textarea{min-height:68px;resize:vertical;font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif}
+  #remark[readonly]{background:#f0f0f0;color:#666}
+  /* first line (時間戳與班別顯示) */
+  .status{display:flex;gap:.75rem;align-items:center}
+  .status .ts{min-width:130px}
+  .status .ds{font-weight:700}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  /* 批號三框 */
+  .triple{display:grid;grid-template-columns:.55fr 16px 1.6fr 16px .9fr;gap:.5rem;align-items:center}
+  .sep{text-align:center;color:#666}
+  /* 批號組合顯示 */
+  .lot-box{background:#eef2f6;color:#222;border-radius:8px;padding:.3rem .5rem;display:inline-flex;min-height:2rem;align-items:center}
+  /* actions */
+  .actions{justify-content:flex-end}
+  .btn{border:none;background:#007bff;color:#fff;padding:.75rem 1.1rem;border-radius:10px;font-weight:700;min-width:40%}
+  /* list */
+  hr{border:none;border-top:1px solid #d9d9d9;margin:.75rem 0}
+  .tbl-head{display:flex;gap:.5rem;font-weight:700;color:#555;
+            font-family:"DFKai-SB","BiauKai","PMingLiU","MingLiU","Noto Serif TC","KaiTi",serif}
+  .tbl-head .c{flex:1;text-align:center}
+  .rec{display:flex;gap:.5rem;padding:.35rem .25rem;border-bottom:1px dashed #e5e5e5;align-items:center}
+  .rec .c{flex:1;display:flex;justify-content:center}
+  .rec .qty{justify-content:center}
+  .note{font-size:.82rem;color:#777;margin:.2rem .25rem .5rem}
+  /* 左標題更靠左（與最右同邊界）*/
+  @media(min-width:340px){:root{--label:94px}}
+</style>
 </head>
 <body>
-  <h1>RT 外觀抽驗記錄表</h1>
 
-  <form id="recordForm">
-    <!-- 顯示時間戳記 & 當日班別 -->
-    <label>
-      <span id="timestamp"></span>
-      <span id="dateShift"></span>
-    </label>
+<div class="topbar">
+  <button class="icon" id="langBtn" title="更改語言">🌐</button>
+  <header>RT 外觀抽驗記錄表</header>
+  <button class="icon" id="backBtn" title="返回上一頁">↩️</button>
+</div>
 
-    <!-- 抽驗者 -->
-    <label>抽驗者：
-      <input type="text" id="inspector" placeholder="請輸入工號">
-    </label>
-
-    <!-- 料號 -->
-    <label>料　號：
-      <input type="text" id="partNo" placeholder="請輸入料號 by 7碼">
-    </label>
-
-    <!-- 批號 -->
-    <label>批　號：</label>
-    <div style="display:flex; gap:5px;">
-      <select id="lotPrefix">
-        <option value="">　</option>
-        <option value="FA">FA</option>
-        <option value="CM">CM</option>
-        <option value="LN">LN</option>
-      </select>
-      <input type="text" id="lotMid" maxlength="3" placeholder="母批">
-      <input type="text" id="lotTail" maxlength="2" placeholder="子批">
-    </div>
-
-    <!-- 數量 -->
-    <label>數　量：
-      <input type="number" id="qty" min="0">
-    </label>
-
-    <!-- 備註 (唯讀) -->
-    <label>備　註：</label>
-    <textarea id="remark" readonly></textarea>
-
-    <!-- 送出按鈕 -->
-    <div class="btn-container">
-      <button type="submit">送出</button>
-    </div>
-  </form>
-
-  <hr>
-  <div class="records" id="recordsList">
-    <!-- 已輸入資料將顯示在此 -->
+<!-- 狀態列：顯示 NOW() - {日期/班別} -->
+<div class="row">
+  <div class="label">　</div>
+  <div class="value status mono">
+    <span class="ts" id="tsView">--/-- --:--</span>
+    <span> - </span>
+    <span class="ds" id="dsView">--/-- - -</span>
   </div>
+</div>
+
+<!-- 抽驗者 -->
+<div class="row">
+  <div class="label">抽　驗：</div>
+  <div class="value"><input id="inspector" placeholder="輸入 5 碼工號"></div>
+</div>
+
+<!-- 料號 -->
+<div class="row">
+  <div class="label">料　號：</div>
+  <div class="value"><input id="part_no" placeholder="請輸入 料號 by 7碼"></div>
+</div>
+
+<!-- 批號三框（標題獨列；三框同列） -->
+<div class="row">
+  <div class="label">批　號：</div>
+  <div class="value">
+    <div class="triple">
+      <select id="lot_prefix">
+        <option value=""></option><option value="FA">FA</option><option value="CM">CM</option><option value="LN">LN</option>
+      </select>
+      <div class="sep">-</div>
+      <input id="lot_mid"  maxlength="3" placeholder="母批">
+      <div class="sep">-</div>
+      <input id="lot_tail" maxlength="2" placeholder="子批" inputmode="numeric">
+    </div>
+  </div>
+</div>
+
+<!-- 組合後批號顯示（反色縮小） -->
+<div class="row">
+  <div class="label">　</div>
+  <div class="value"><span class="lot-box mono" id="lot_full"> </span></div>
+</div>
+
+<!-- 數量 -->
+<div class="row">
+  <div class="label">數　量：</div>
+  <div class="value"><input id="qty" type="number" min="0" placeholder="輸入批量（>0）" inputmode="numeric"></div>
+</div>
+
+<!-- 備註（唯讀，保留欄位） -->
+<div class="row">
+  <div class="label">備　註：</div>
+  <div class="value"><textarea id="remark" placeholder="（暫不開放輸入）" readonly></textarea></div>
+</div>
+
+<!-- 送出 -->
+<div class="row actions">
+  <div class="label">　</div>
+  <div class="value" style="display:flex;justify-content:flex-end">
+    <button class="btn" id="submitBtn">送出</button>
+  </div>
+</div>
+
+<hr>
+<div class="tbl-head">
+  <div class="c">料　號</div>
+  <div class="c">批　號</div>
+  <div class="c">數　量</div>
+</div>
+<hr>
+<div class="note">顯示規則：當日當班＋同工號；倒序（最新在上），最多 50 筆。</div>
+<div id="list"></div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-const API_TOKEN = "MY_SECRET_123"; // 必須與 GAS 端設定一致
+/* ====== 常量 ====== */
+const GAS_URL  = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
+const API_TOKEN= "MY_SECRET_123";
 
-// 即時更新時間與班別
-function updateTimestamp() {
-  const now = new Date();
-  const hhmm = now.getHours() * 100 + now.getMinutes();
-  let shift = "C";
-  if (hhmm >= 840 && hhmm < 1640) shift = "A";
-  else if (hhmm >= 1640 || hhmm < 40) shift = "B";
-  document.getElementById("timestamp").textContent = now.toLocaleString("zh-TW");
-  document.getElementById("dateShift").textContent = 
-    `${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} - ${shift}`;
+/* ====== UI 基本 ====== */
+document.getElementById('backBtn').onclick=()=>{ if(history.length>1) history.back(); };
+document.getElementById('langBtn').onclick=()=>{ /* 多語端口預留 */ };
+
+/* ====== 批號即時組合 ====== */
+const $p=document.getElementById('lot_prefix');
+const $m=document.getElementById('lot_mid');
+const $t=document.getElementById('lot_tail');
+const $f=document.getElementById('lot_full');
+function composeLot(){
+  const parts=[($p.value||'').trim(),($m.value||'').trim(),($t.value||'').trim()].filter(Boolean);
+  $f.textContent = parts.join('-') || ' ';
 }
-setInterval(updateTimestamp, 60000);
-updateTimestamp();
+['input','change'].forEach(ev=>{$p.addEventListener(ev,composeLot);$m.addEventListener(ev,composeLot);$t.addEventListener(ev,composeLot);});
+composeLot();
 
-// 載入最新資料
-async function loadRecords() {
-  try {
-    const res = await fetch(`${GAS_URL}?limit=50`);
-    const data = await res.json();
-    const container = document.getElementById("recordsList");
-    container.innerHTML = data.length === 0 ? "<i>目前無資料</i>" : "";
-    data.forEach(r => {
-      const div = document.createElement("div");
-      div.textContent = `${r.date_shift} | ${r.inspector} | ${r.part_no} | ${r.lot_full} | 數量:${r.qty}`;
-      container.appendChild(div);
-    });
-  } catch (err) {
-    console.error("讀取資料失敗", err);
+/* ====== 班別與日期（依班起日；含 80 分鐘寬限） ====== */
+const TZ='Asia/Taipei';
+const dsView=document.getElementById('dsView');
+const tsView=document.getElementById('tsView');
+function twNow(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
+function fmtMD(d){ const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${mm}/${dd}`; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function setHM(base,h,m){ const d=new Date(base); d.setHours(h,m,0,0); return d; }
+function calcShiftAnchor(now){
+  // 班起點：C=00:40, A=08:40, B=16:40；00:00–00:39 仍屬前一日 B（日期要 -1）
+  const mins=now.getHours()*60+now.getMinutes();
+  if (mins>=8*60+40 && mins<16*60+40) { // A
+    return {date:fmtMD(now), shift:'A', next:setHM(now,16,40)};
+  } else if (mins>=16*60+40) { // B 至 23:59
+    return {date:fmtMD(now), shift:'B', next:setHM(addDays(now,1),0,40)};
+  } else if (mins<40) { // 00:00–00:39 → 前一日 B
+    const y=addDays(now,-1);
+    return {date:fmtMD(y), shift:'B', next:setHM(now,0,40)};
+  } else { // 00:40–08:39 → C
+    return {date:fmtMD(now), shift:'C', next:setHM(now,8,40)};
   }
 }
-loadRecords();
+function anchorIfNeeded(){
+  const now=twNow();
+  const store=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
+  if(!store.until || now.getTime()>store.until){
+    const a=calcShiftAnchor(now);
+    const until=a.next.getTime()+80*60000; // 寬限 80 分
+    localStorage.setItem('ds_anchor', JSON.stringify({date:a.date,shift:a.shift,until}));
+    return {date:a.date, shift:a.shift, until};
+  }
+  return store;
+}
+function tick(){
+  const now=twNow();
+  const ds=anchorIfNeeded();
+  tsView.textContent = `${fmtMD(now)} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  dsView.textContent = `${ds.date} - ${ds.shift}`;
+}
+tick(); setInterval(tick, 30000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
 
-// 送出表單
-document.getElementById("recordForm").addEventListener("submit", async function(e) {
-  e.preventDefault();
+/* ====== 草稿：當日當班不變→保留料號/批號/數量；變更→清空（保留工號） ====== */
+const $ins=document.getElementById('inspector');
+const $part=document.getElementById('part_no');
+const $qty=document.getElementById('qty');
+function loadDraft(){
+  const d=JSON.parse(localStorage.getItem('draft')||'{}');
+  const ds=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
+  if(d.ds && ds.date===d.ds.date && ds.shift===d.ds.shift){
+    $part.value=d.part||''; $p.value=d.lp||''; $m.value=d.lm||''; $t.value=d.lt||''; $qty.value=d.qty||'';
+    composeLot();
+  } else {
+    $p.value=''; $m.value=''; $t.value=''; $part.value=''; $qty.value=''; composeLot();
+  }
+  // 工號常駐（輸入符合才更新）
+  const u=localStorage.getItem('inspector')||'';
+  if(u) $ins.value=u;
+}
+function saveDraft(){
+  const ds=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
+  const d={ds, part:$part.value, lp:$p.value, lm:$m.value, lt:$t.value, qty:$qty.value};
+  localStorage.setItem('draft', JSON.stringify(d));
+}
+['input','change'].forEach(ev=>[$part,$p,$m,$t,$qty].forEach(el=>el.addEventListener(ev,saveDraft)));
+$ins.addEventListener('change',()=>{ if(/^[A-Za-z0-9]{5}$/.test($ins.value||'')) localStorage.setItem('inspector',$ins.value.trim()); });
+loadDraft();
 
-  const payload = {
-    token: API_TOKEN,
-    ts: new Date().toISOString(),
-    date_shift: document.getElementById("dateShift").textContent,
-    inspector: document.getElementById("inspector").value,
-    part_no: document.getElementById("partNo").value,
-    lot_prefix: document.getElementById("lotPrefix").value,
-    lot_mid: document.getElementById("lotMid").value,
-    lot_tail: document.getElementById("lotTail").value,
-    qty: document.getElementById("qty").value,
-    remark: "" // 備註目前預設空
-  };
-
-  try {
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (data.status === "ok") {
-      alert("✅ 已成功寫入 Google 試算表！");
-      loadRecords();
-    } else if (data.error === "conflict_other_inspector") {
-      alert("⚠️ 發現不同檢驗者的重複紀錄，請再次確認");
-    } else if (data.error === "unauthorized") {
-      alert("🚫 驗證失敗，請檢查 token 是否一致");
-    } else {
-      alert("❌ 發生錯誤：" + JSON.stringify(data));
+/* ====== 列表：只顯示當日當班 + 同工號；倒序；最多 50 ====== */
+async function refreshList(){
+  const list=document.getElementById('list'); list.innerHTML='';
+  try{
+    const res=await fetch(`${GAS_URL}?limit=50`);
+    const data=await res.json();
+    const ds=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
+    const me=($ins.value||'').trim();
+    const wanted=`${ds.date}-${ds.shift}`;
+    const rows=(Array.isArray(data)?data:[]).filter(r=>r.date_shift===wanted && (!me || r.inspector===me));
+    // 倒序（GAS 已大致依 ts 倒序，這裡再保險一次）
+    rows.sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+    for(const r of rows.slice(0,50)){
+      const row=document.createElement('div'); row.className='rec';
+      const c1=document.createElement('div'); c1.className='c'; c1.textContent=r.part_no||'';
+      const c2=document.createElement('div'); c2.className='c mono'; c2.textContent=r.lot_full||'';
+      const c3=document.createElement('div'); c3.className='c qty mono'; c3.textContent=r.qty||'';
+      row.appendChild(c1); row.appendChild(c2); row.appendChild(c3);
+      list.appendChild(row);
     }
-  } catch (err) {
-    alert("網路或伺服器錯誤：" + err);
+  }catch(e){ console.error(e); }
+}
+refreshList();
+
+/* ====== 送出 ====== */
+document.getElementById('submitBtn').addEventListener('click', async (e)=>{
+  e.preventDefault();
+  const ds=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
+  const payload={
+    token:API_TOKEN,
+    ts:new Date().toISOString(),
+    date_shift:`${ds.date}-${ds.shift}`,
+    inspector:($ins.value||'').trim(),
+    part_no:($part.value||'').trim(),
+    lot_prefix:($p.value||'').trim(),
+    lot_mid:($m.value||'').trim(),
+    lot_tail:($t.value||'').trim(),
+    qty:($qty.value||'').trim(),
+    remark:""
+  };
+  if(!payload.date_shift||!payload.inspector||!payload.part_no||!payload.qty){ alert('請確認：班別/抽驗者/料號/數量'); return; }
+
+  try{
+    const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await res.json();
+    if(data.status==='ok'){
+      // 成功：若當日當班未變 → 保留料號；否則清空
+      const cur=JSON.parse(localStorage.getItem('ds_anchor')||'{}');
+      const d=JSON.parse(localStorage.getItem('draft')||'{}');
+      if(d.ds && d.ds.date===cur.date && d.ds.shift===cur.shift){
+        // 清空批號與數量（保留料號）
+        $p.value='';$m.value='';$t.value='';$qty.value='';composeLot();
+        saveDraft();
+      }else{
+        $part.value='';$p.value='';$m.value='';$t.value='';$qty.value='';composeLot();
+        saveDraft();
+      }
+      refreshList();
+      alert('✅ 已送出');
+    }else if(data.error==='conflict_other_inspector'){
+      alert('⚠️ 同日同班同料號＋批號已由其他抽驗者建立，請確認。');
+    }else if(data.error==='unauthorized'){
+      alert('🚫 驗證失敗（token）。');
+    }else{
+      alert('❌ 送出失敗：'+JSON.stringify(data));
+    }
+  }catch(err){
+    alert('❌ 送出錯誤：'+err.message);
   }
 });
 </script>
