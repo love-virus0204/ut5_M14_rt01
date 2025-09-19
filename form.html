@@ -8,7 +8,9 @@
   body { font-family: "Comic Sans MS", sans-serif; margin: 10px; }
   h1 { display: flex; justify-content: space-between; align-items: center; margin: 0 0 10px 0; }
   h1 span { font-family: "標楷體", serif; font-weight: bold; }
-  .top-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+  .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .top-left { text-align: left; font-size: 14px; flex: 1; }
+  .top-center { text-align: center; font-size: 16px; font-weight: bold; flex: 1; }
   .label { font-family: "標楷體", serif; display: inline-block; width: 70px; text-align: center; }
   input, select, textarea {
     width: calc(100% - 90px);
@@ -21,8 +23,6 @@
   hr { margin: 15px 0; }
   table { width: 100%; border-collapse: collapse; text-align: center; font-size: 14px; }
   th, td { border-top: 1px solid #ddd; padding: 5px; }
-  .top-left { text-align: left; font-size: 14px; }
-  .top-center { text-align: center; font-size: 16px; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -39,12 +39,17 @@
 
 <label class="label">抽 驗：</label><input type="text" id="inspector" placeholder="輸入 5 碼工號"><br>
 <label class="label">料 號：</label><input type="text" id="partNo" placeholder="請輸入 料號 by 7碼"><br>
-<label class="label">批 號：</label>
-<select id="lotPrefix" style="width:25%">
-  <option value=""></option>
-  <option value="FA">FA</option>
-</select>
-<input type="text" id="lotInput" placeholder="母批[-子批] (母批3碼英數)" style="width:70%"><br>
+
+<!-- 第一列：下拉 -->
+<div style="margin-bottom:5px;">
+  <select id="lotPrefix" style="width:100px;">
+    <option value=""></option>
+    <option value="FA">FA</option>
+  </select>
+</div>
+<!-- 第二列：批號輸入 -->
+<label class="label">批 號：</label><input type="text" id="lotInput" placeholder="母批[-子批] (母批3碼英數禁O/I)"><br>
+
 <label class="label">數 量：</label><input type="number" id="qty" placeholder="輸入批量"><br>
 <label class="label">備 註：</label><textarea id="remark" readonly>目前不開放輸入</textarea><br>
 
@@ -64,19 +69,18 @@ const API_TOKEN = "MY_SECRET_123";
 
 document.getElementById('backBtn').onclick=()=>{ if(history.length>1) history.back(); };
 
+// --- 時間與班別 ---
 function fmtLocal(d){
   const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
   const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0');
   return `${y}-${m}-${day} ${hh}:${mm}`;
 }
-
 function calcShift(){
   const now=new Date(), mins=now.getHours()*60+now.getMinutes();
   if(mins>=520 && mins<1000) return 'A';
   if(mins>=1000 || mins<40) return 'B';
   return 'C';
 }
-
 function tick(){
   const n=new Date();
   document.getElementById('tsView').textContent=fmtLocal(n);
@@ -86,6 +90,84 @@ function tick(){
 tick();
 setInterval(tick,30000);
 
+// --- 驗證與送出 ---
+function normLot(raw){
+  let s=String(raw||'').trim().toUpperCase();
+  if(!s) return {ok:false,msg:"母批必填"};
+  const parts=s.split('-');
+  const mother=parts[0];
+  if(!/^[A-Z0-9]{3}$/.test(mother) || /[OI]/.test(mother)) return {ok:false,msg:"母批需3碼英數且不得含O/I"};
+  let child="";
+  if(parts.length>1){
+    if(!/^\d{1,2}$/.test(parts[1])) return {ok:false,msg:"子批需1~2碼數字"};
+    child=('0'+parts[1]).slice(-2);
+  }
+  return {ok:true,mother,child};
+}
+
+document.getElementById('sendBtn').addEventListener('click', async ()=>{
+  const inspector=document.getElementById('inspector').value.trim();
+  const part=document.getElementById('partNo').value.trim().toUpperCase();
+  const prefix=document.getElementById('lotPrefix').value.trim().toUpperCase();
+  const lotRaw=normLot(document.getElementById('lotInput').value);
+  const qty=Number(document.getElementById('qty').value);
+
+  if(!/^[A-Za-z0-9]{5}$/.test(inspector)) return alert("請輸入 5 碼工號");
+  if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)) return alert("料號格式錯誤");
+  if(!prefix) return alert("請選擇批號前綴");
+  if(!lotRaw.ok) return alert(lotRaw.msg);
+  if(!Number.isFinite(qty) || qty<=0) return alert("數量需大於0");
+
+  const payload={
+    token:API_TOKEN,
+    inspector,
+    part_no:part,
+    lot_prefix:prefix,
+    mother_child:`${lotRaw.mother}${lotRaw.child?'-'+lotRaw.child:''}`,
+    qty:String(qty),
+    remark:""
+  };
+
+  const btn=document.getElementById('sendBtn');
+  btn.disabled=true;
+  try{
+    const res=await fetch(GAS_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(payload)
+    });
+    const data=await res.json();
+    if(data.status==='ok'){
+      alert(data.upsert==='update'?'✅ 已更新原記錄':'✅ 已新增');
+      document.getElementById('lotInput').value='';
+      document.getElementById('qty').value='';
+      refreshList();
+    }else{
+      alert("❌ "+JSON.stringify(data));
+    }
+  }catch(err){
+    alert("送出錯誤："+err.message);
+  }finally{
+    btn.disabled=false;
+  }
+});
+
+// --- 載入列表 ---
+async function refreshList(){
+  const tbody=document.getElementById('recordList'); tbody.innerHTML='';
+  try{
+    const res=await fetch(GAS_URL);
+    const data=await res.json();
+    const rows=(Array.isArray(data)?data:[]).filter(r=>r.deleted===true);
+    rows.sort((a,b)=>String(b.submitted_at||'').localeCompare(String(a.submitted_at||'')));
+    for(const r of rows.slice(0,50)){
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${r.part_no||''}</td><td>${r.lot||''}</td><td>${r.qty||''}</td>`;
+      tbody.appendChild(tr);
+    }
+  }catch(err){console.error(err);}
+}
+refreshList();
 </script>
 </body>
 </html>
