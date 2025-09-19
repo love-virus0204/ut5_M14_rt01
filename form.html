@@ -13,6 +13,7 @@
   .top-center{ justify-self:center; font-size:16px; font-weight:bold; }
   .label{ font-family:"標楷體",serif; display:inline-block; width:70px; text-align:center; }
   input,select,textarea{ width:calc(100% - 90px); margin-bottom:8px; padding:5px; font-family:"Comic Sans MS",sans-serif; }
+  select.select-narrow{ width:calc((100% - 90px) * 0.25); }
   textarea[readonly]{ background:#f2f2f2; color:#555; }
   #sendBtn{ display:block; margin-left:auto; margin-top:10px; padding:8px 20px; background:#007bff; color:#fff; border:none; border-radius:5px; }
   .version-line{ font-size:12px; color:#666; text-align:left; margin-top:6px; }
@@ -37,14 +38,12 @@
 <label class="label">抽　驗：</label><input type="text" id="inspector" placeholder="輸入 5 碼工號"><br/>
 <label class="label">料　號：</label><input type="text" id="partNo" placeholder="請輸入 料號 by 7碼"><br/>
 
-<!-- 型態（可空白或 FA），與其它輸入框左起點一致 -->
 <label class="label">型　態：</label>
-<select id="lotPrefix">
+<select id="lotPrefix" class="select-narrow">
   <option value=""></option>
   <option value="FA">FA</option>
 </select><br>
 
-<!-- 批號輸入（寬度與料號一致） -->
 <label class="label">批　號：</label>
 <input type="text" id="lotInput" placeholder="母批[-子批] (母批3碼英數禁O/I)"><br/>
 
@@ -53,7 +52,7 @@
 
 <button id="sendBtn">送出</button>
 
-<div class="version-line" id="verLine">val：15</div>
+<div class="version-line" id="verLine">val：16.1</div>
 <hr/>
 
 <table>
@@ -65,11 +64,14 @@
 /* ===== 常數 ===== */
 const GAS_URL   = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 const API_TOKEN = "MY_SECRET_123";
+const INSPECTOR_KEY = 'inspector_id';
+const DRAFT_PREFIX  = 'rt_draft_';     // + dsKey
+const DSKEY_KEY     = 'rt_draft_dskey';
 
 /* ===== 返回 ===== */
 document.getElementById('backBtn').onclick=()=>{ if(history.length>1) history.back(); };
 
-/* ===== 顯示用：標準時間／班別（本地時間 + 80 分錨定；C 班與 00:00–00:39 的 B 班回前一日） ===== */
+/* ===== 班別錨定 ===== */
 function fmtLocal(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'),hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0');return `${y}-${m}-${day} ${hh}:${mm}`;}
 function mdOf(d){return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;}
 function addDays(d,n){const x=new Date(d); x.setDate(x.getDate()+n); return x;}
@@ -89,10 +91,77 @@ function anchorDS(){
   if(invalid){ const c=computeDS(new Date()); a={dateMD:c.dateMD,shift:c.shift,until:c.until}; localStorage.setItem(k,JSON.stringify(a)); }
   return a;
 }
+function dsKeyOf(a){ return `${a.dateMD}|${a.shift}`; }
 function tick(){ const n=new Date(); const a=anchorDS(); document.getElementById('tsView').textContent=fmtLocal(n); document.getElementById('dsView').textContent=`${a.dateMD} - ${a.shift}`; }
 tick(); setInterval(tick,30000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
 
-/* ===== 批號正規化：母批3碼英數(禁 O/I)；有 '-' 則子批1~2碼數字並左補0 ===== */
+/* ===== 工號持久化 ===== */
+function loadInspector(){
+  try{ const v=localStorage.getItem(INSPECTOR_KEY)||''; if(/^[A-Za-z0-9]{5}$/.test(v)) document.getElementById('inspector').value=v; }catch{}
+}
+function maybeSaveInspector(){
+  const v=(document.getElementById('inspector').value||'').trim();
+  if(/^[A-Za-z0-9]{5}$/.test(v)){ try{ localStorage.setItem(INSPECTOR_KEY,v); }catch{} }
+}
+document.getElementById('inspector').addEventListener('blur', maybeSaveInspector);
+document.getElementById('inspector').addEventListener('input', maybeSaveInspector);
+loadInspector();
+
+/* ===== 草稿機制（依班次） ===== */
+function draftKey(){ return DRAFT_PREFIX + dsKeyOf(anchorDS()); }
+function saveDraft(){
+  const d={
+    part: (document.getElementById('partNo').value||'').toUpperCase(),
+    lot:  (document.getElementById('lotInput').value||'').toUpperCase(),
+    qty:  document.getElementById('qty').value||'',
+    prefix:(document.getElementById('lotPrefix').value||'').toUpperCase()
+  };
+  try{ localStorage.setItem(draftKey(), JSON.stringify(d)); localStorage.setItem(DSKEY_KEY, dsKeyOf(anchorDS())); }catch{}
+}
+function loadDraft(){
+  // 若跨班（上次儲存 dsKey != 目前 dsKey），清空草稿
+  const curKey = dsKeyOf(anchorDS());
+  let lastKey=''; try{ lastKey = localStorage.getItem(DSKEY_KEY)||''; }catch{}
+  if(lastKey && lastKey!==curKey){ try{ localStorage.removeItem(DRAFT_PREFIX+lastKey); }catch{} localStorage.setItem(DSKEY_KEY, curKey); }
+
+  try{
+    const raw = localStorage.getItem(draftKey());
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    if(typeof d==='object'){
+      if(d.part)   document.getElementById('partNo').value = d.part;
+      if(d.lot)    document.getElementById('lotInput').value = d.lot;
+      if(d.qty)    document.getElementById('qty').value = d.qty;
+      if('prefix' in d) document.getElementById('lotPrefix').value = d.prefix||'';
+    }
+  }catch{}
+}
+function clearDraftKeepPart(){
+  // 保留料號；清空批號/數量；保存
+  const part = (document.getElementById('partNo').value||'').toUpperCase();
+  document.getElementById('lotInput').value='';
+  document.getElementById('qty').value='';
+  try{
+    localStorage.setItem(draftKey(), JSON.stringify({part, lot:'', qty:'', prefix:(document.getElementById('lotPrefix').value||'').toUpperCase()}));
+    localStorage.setItem(DSKEY_KEY, dsKeyOf(anchorDS()));
+  }catch{}
+}
+function clearDraftAllExceptLangAndInspector(){
+  document.getElementById('partNo').value='';
+  document.getElementById('lotInput').value='';
+  document.getElementById('qty').value='';
+  document.getElementById('lotPrefix').value='';
+  try{ localStorage.removeItem(draftKey()); localStorage.setItem(DSKEY_KEY, dsKeyOf(anchorDS())); }catch{}
+}
+// 初始化載入草稿
+loadDraft();
+
+// 草稿即時保存（當日當班不變時）
+['partNo','lotInput','qty','lotPrefix'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', saveDraft);
+});
+
+/* ===== 批號正規化 ===== */
 function normLotInput(raw){
   let s=String(raw||'').trim().toUpperCase();
   if(!s) return {ok:false,msg:"母批必填"};
@@ -102,7 +171,7 @@ function normLotInput(raw){
   return {ok:true,mother,child};
 }
 
-/* ===== 列表（有效資料 deleted===true；倒序；最多50） ===== */
+/* ===== 清單 ===== */
 async function refreshList(){
   const tbody=document.getElementById('recordList'); tbody.innerHTML='';
   try{
@@ -116,7 +185,7 @@ async function refreshList(){
 }
 refreshList();
 
-/* ===== 強化錯誤訊息 ===== */
+/* ===== 傳送輔助 ===== */
 async function postJSON(url, payload){
   let res,text;
   try{ res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}); }
@@ -126,22 +195,27 @@ async function postJSON(url, payload){
   try{ return JSON.parse(text); }catch(e){ throw new Error(`回應非 JSON：${text.slice(0,200)}`); }
 }
 
-/* ===== 送出：與 GAS 對齊（必傳 date/shift） ===== */
-let clearPartOnce = false; // 送出成功後，下一次點料號就清空一次
+/* ===== 送出 ===== */
+let clearPartOnce = false;
 document.getElementById('partNo').addEventListener('focus', ()=>{
   if(clearPartOnce){
     document.getElementById('partNo').value='';
     clearPartOnce = false;
+    saveDraft(); // 同步草稿變更
   }
 });
 
 document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const inspector=document.getElementById('inspector').value.trim();
   const part=document.getElementById('partNo').value.trim().toUpperCase();
-  const prefix=document.getElementById('lotPrefix').value.trim().toUpperCase(); // 允許空字串或 "FA"
+  const prefix=document.getElementById('lotPrefix').value.trim().toUpperCase(); // "" 或 "FA"
   const lotChk=normLotInput(document.getElementById('lotInput').value);
   const qty=Number(document.getElementById('qty').value);
-  const a=anchorDS(); // 取得錨定的 date/shift
+  const a=anchorDS();
+
+  // 若班別鍵變動（例如錨定過期），依規則清光（保留工號）
+  const stored = localStorage.getItem(DSKEY_KEY)||'';
+  if(stored && stored!==dsKeyOf(a)){ clearDraftAllExceptLangAndInspector(); }
 
   if(!/^[A-Za-z0-9]{5}$/.test(inspector)) return alert("請輸入 5 碼工號");
   if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)) return alert("料號格式錯誤（如 A58K052）");
@@ -150,11 +224,10 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 
   const payload={
     token:API_TOKEN,
-    date:a.dateMD,
-    shift:a.shift,
+    date:a.dateMD, shift:a.shift,
     inspector,
     part_no:part,
-    lot_prefix:prefix,             // "" 或 "FA"
+    lot_prefix:prefix,
     mother_child:`${lotChk.mother}${lotChk.child?'-'+lotChk.child:''}`,
     qty:String(qty),
     remark:""
@@ -165,10 +238,9 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     const data=await postJSON(GAS_URL,payload);
     if(data.status==='ok'){
       alert(data.upsert==='update'?'✅ 已更新原記錄':'✅ 已新增');
-      // 送出成功：清空批號、數量；料號改為「下次點一下時清空」
-      document.getElementById('lotInput').value='';
-      document.getElementById('qty').value='';
-      clearPartOnce = true;
+      maybeSaveInspector();
+      clearDraftKeepPart();     // 保留料號、清空批號與數量並保存草稿
+      clearPartOnce = true;     // 下次點料號時清空
       refreshList();
     }else{
       alert('❌ 後端回覆：'+JSON.stringify(data));
