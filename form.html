@@ -36,15 +36,18 @@
 <label class="label">抽　驗：</label><input type="text" id="inspector" placeholder="輸入 5 碼工號"><br>
 <label class="label">料　號：</label><input type="text" id="partNo" placeholder="請輸入 料號 by 7碼"><br>
 
-<!-- 第一列：下拉 -->
+<!-- 批號前綴：可選（"" 或 "FA"），不擋送出 -->
 <div style="margin-bottom:5px;">
+  <label class="label">型　態：</label>
   <select id="lotPrefix" style="width:100px;">
     <option value=""></option>
     <option value="FA">FA</option>
   </select>
 </div>
-<!-- 第二列：批號輸入 -->
-<label class="label">批　號：</label><input type="text" id="lotInput" placeholder="母批[-子批] (母批3碼英數禁O/I)"><br>
+
+<!-- 批號輸入 -->
+<label class="label">批　號：</label>
+<input type="text" id="lotInput" placeholder="母批[-子批] (母批3碼英數禁O/I)"><br>
 
 <label class="label">數　量：</label><input type="number" id="qty" placeholder="輸入批量"><br>
 <label class="label">備　註：</label><textarea id="remark" readonly>目前不開放輸入</textarea><br>
@@ -63,29 +66,30 @@ const API_TOKEN = "MY_SECRET_123";
 
 document.getElementById('backBtn').onclick=()=>{ if(history.length>1) history.back(); };
 
-/* ===== 時間 / 班別（本地時間 + 80 分錨定） ===== */
+/* === 時間/班別（本地時間 + 80 分錨定；C 班與 00:00–00:39 的 B 班回前一日） === */
 function fmtLocal(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'),hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0');return `${y}-${m}-${day} ${hh}:${mm}`;}
 function mdOf(d){return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;}
 function addDays(d,n){const x=new Date(d); x.setDate(x.getDate()+n); return x;}
 function computeDS(now){
   const mins=now.getHours()*60+now.getMinutes();
   let dateMD,shift,next;
-  if(mins>=520 && mins<1000){ dateMD=mdOf(now);           shift='A'; next=new Date(now.getFullYear(),now.getMonth(),now.getDate(),16,40,0); }
-  else if(mins>=1000){        dateMD=mdOf(now);           shift='B'; next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,40,0); }
+  if(mins>=520 && mins<1000){ dateMD=mdOf(now);            shift='A'; next=new Date(now.getFullYear(),now.getMonth(),now.getDate(),16,40,0); }
+  else if(mins>=1000){        dateMD=mdOf(now);            shift='B'; next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,40,0); }
   else if(mins<40){           dateMD=mdOf(addDays(now,-1));shift='B'; next=new Date(now.getFullYear(),now.getMonth(),now.getDate(),8,40,0); }
   else{                       dateMD=mdOf(addDays(now,-1));shift='C'; next=new Date(now.getFullYear(),now.getMonth(),now.getDate(),8,40,0); }
-  return {dateMD,shift,nextUntil: next.getTime()+80*60000};
+  return {dateMD,shift,until: next.getTime()+80*60000};
 }
 function anchorDS(){
-  const k='ds_anchor'; const now=Date.now();
+  const k='ds_anchor', now=Date.now();
   let a; try{ a=JSON.parse(localStorage.getItem(k)||'{}'); }catch{ a={}; }
-  if(!a.until || now>a.until){ const c=computeDS(new Date()); a={dateMD:c.dateMD,shift:c.shift,until:c.nextUntil}; localStorage.setItem(k,JSON.stringify(a)); }
+  const invalid=!a||typeof a!=='object'||!a.dateMD||!a.shift||!a.until||now>a.until;
+  if(invalid){ const c=computeDS(new Date()); a={dateMD:c.dateMD,shift:c.shift,until:c.until}; localStorage.setItem(k,JSON.stringify(a)); }
   return a;
 }
 function tick(){ const n=new Date(); const a=anchorDS(); document.getElementById('tsView').textContent=fmtLocal(n); document.getElementById('dsView').textContent=`${a.dateMD} - ${a.shift}`; }
 tick(); setInterval(tick,30000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
 
-/* ===== 批號正規化 ===== */
+/* === 批號正規化：母批3碼英數(禁 O/I)；有 '-' 則子批1~2碼數字並左補0 === */
 function normLotInput(raw){
   let s=String(raw||'').trim().toUpperCase();
   if(!s) return {ok:false,msg:"母批必填"};
@@ -95,7 +99,7 @@ function normLotInput(raw){
   return {ok:true,mother,child};
 }
 
-/* ===== 列表 ===== */
+/* === 列表（有效資料 deleted===true；倒序；最多50） === */
 async function refreshList(){
   const tbody=document.getElementById('recordList'); tbody.innerHTML='';
   try{
@@ -109,46 +113,51 @@ async function refreshList(){
 }
 refreshList();
 
-/* ===== 送出（必選 FA；強化錯誤回報） ===== */
+/* === 強化錯誤訊息 === */
 async function postJSON(url, payload){
   let res,text;
-  try{
-    res = await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
-  }catch(net){ throw new Error(`網路錯誤：${net.message}`); }
-  text = await res.text();
+  try{ res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}); }
+  catch(e){ throw new Error(`網路錯誤：${e.message}`); }
+  text=await res.text();
   if(!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} — ${text.slice(0,200)}`);
   try{ return JSON.parse(text); }catch(e){ throw new Error(`回應非 JSON：${text.slice(0,200)}`); }
 }
 
+/* === 送出：prefix 可為 "" 或 "FA"，**不擋** === */
 document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const inspector=document.getElementById('inspector').value.trim();
   const part=document.getElementById('partNo').value.trim().toUpperCase();
-  const prefix=document.getElementById('lotPrefix').value.trim().toUpperCase(); // 必選
+  const prefix=document.getElementById('lotPrefix').value.trim().toUpperCase(); // 允許空字串
   const lotChk=normLotInput(document.getElementById('lotInput').value);
   const qty=Number(document.getElementById('qty').value);
 
   if(!/^[A-Za-z0-9]{5}$/.test(inspector)) return alert("請輸入 5 碼工號");
   if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)) return alert("料號格式錯誤（如 A58K052）");
-  if(!prefix) return alert("請選擇批號前綴（FA）");
   if(!lotChk.ok) return alert(lotChk.msg);
   if(!Number.isFinite(qty) || qty<=0) return alert("數量需大於 0");
 
-  const payload={ token:API_TOKEN, inspector, part_no:part, lot_prefix:prefix, mother_child:`${lotChk.mother}${lotChk.child?'-'+lotChk.child:''}`, qty:String(qty), remark:"" };
+  const payload={
+    token:API_TOKEN,
+    inspector,
+    part_no:part,
+    lot_prefix:prefix, // 可能為 ""（表示非 FA）
+    mother_child:`${lotChk.mother}${lotChk.child?'-'+lotChk.child:''}`,
+    qty:String(qty),
+    remark:""
+  };
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true;
   try{
     const data=await postJSON(GAS_URL,payload);
     if(data.status==='ok'){
       alert(data.upsert==='update'?'✅ 已更新原記錄':'✅ 已新增');
-      document.getElementById('lotInput').value=''; document.getElementById('qty').value=''; refreshList();
+      document.getElementById('lotInput').value=''; document.getElementById('qty').value='';
+      refreshList();
     }else{
       alert('❌ 後端回覆：'+JSON.stringify(data));
     }
-  }catch(err){
-    alert('送出錯誤：'+err.message);
-  }finally{
-    btn.disabled=false;
-  }
+  }catch(err){ alert('送出錯誤：'+err.message); }
+  finally{ btn.disabled=false; }
 });
 </script>
 </body>
