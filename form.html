@@ -1,127 +1,54 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RT 外觀抽驗記錄表</title>
 <style>
-  body{font-family:"Comic Sans MS",sans-serif;margin:10px;}
-  h1{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px 0}
-  h1 span{font-family:"標楷體",serif;font-weight:bold}
-  .top-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:10px}
-  .top-left{justify-self:start;font-size:14px}
-  .top-center{justify-self:center;font-size:16px;font-weight:bold}
-  .row{display:flex;align-items:center;margin-bottom:8px}
-  .label{font-family:"標楷體",serif;min-width:72px;text-align:center;margin-right:8px}
-  .ctrl{flex:1}
-  input,select,textarea{width:100%;padding:6px;font-family:"Comic Sans MS",sans-serif}
-  select.narrow{flex:0 0 25%;max-width:160px}  /* 型態下拉固定 25% */
-  textarea[readonly]{background:#f2f2f2;color:#555}
-  #sendBtn{display:block;margin-left:auto;margin-top:10px;padding:8px 20px;background:#007bff;color:#fff;border:none;border-radius:6px}
-  .version-line{font-size:12px;color:#666;margin-top:6px}
-  hr{margin:10px 0 15px 0}
-  table{width:100%;border-collapse:collapse;text-align:center;font-size:14px}
-  th,td{border-top:1px solid #ddd;padding:6px}
+  body { font-family: "Comic Sans MS", sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+  .container { max-width: 480px; margin: auto; padding: 10px; background: white; box-shadow: 0 0 5px rgba(0,0,0,0.2); }
+  .title { font-family: "標楷體"; font-size: 1.4em; text-align: center; margin: 5px 0; font-weight: bold; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; margin-bottom: 5px; }
+  label { font-family: "標楷體"; display: inline-block; width: 5em; text-align: justify; text-align-last: justify; }
+  input, select, textarea { width: 70%; padding: 5px; margin: 3px 0; font-family: "Comic Sans MS"; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .row select { width: 25%; } /* 下拉框縮小 */
+  .row input.lot-input { width: calc(70% - 30px); } /* 批號輸入框對齊料號 */
+  .submit-row { text-align: right; margin-top: 10px; }
+  .submit-btn { background: #007bff; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-size: 1em; }
+  hr { margin: 10px 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+  th, td { border-top: 1px solid #ccc; text-align: center; padding: 2px 0; }
+  .note { font-size: 0.8em; color: gray; }
 </style>
 </head>
 <body>
-  <h1>
-    <span>🌐</span>
-    <span>RT 外觀抽驗記錄表</span>
-    <button id="backBtn" style="background:none;border:none;font-size:18px">↩️</button>
-  </h1>
+<div class="container">
+  <div class="title">RT 外觀抽驗記錄表</div>
 
-  <div class="top-row">
-    <div id="tsView" class="top-left"></div>
-    <div id="dsView" class="top-center"></div>
-    <div></div>
+  <div class="topbar">
+    <div id="tsView"></div>
+    <div id="dsView" style="text-align:center; flex-grow:1;"></div>
+    <button onclick="history.back()">⤴</button>
   </div>
 
-  <div class="row">
-    <div class="label">檢驗員：</div>
-    <div class="ctrl"><input id="inspector" type="text" placeholder="輸入 5 碼工號"/></div>
-  </div>
+  <div class="row"><label>檢驗員：</label><input type="text" id="inspector" maxlength="5" placeholder="輸入 5 碼工號"></div>
+  <div class="row"><label>料　號：</label><input type="text" id="partNo" placeholder="請輸入 料號 by 7碼"></div>
 
   <div class="row">
-    <div class="label">料　號：</div>
-    <div class="ctrl"><input id="partNo" type="text" placeholder="請輸入 料號 by 7碼"/></div>
-  </div>
-
-  <div class="row">
-    <div class="label">型　態：</div>
-    <select id="lotPrefix" class="narrow">
-      <option value=""></option>
+    <label>型　態：</label>
+    <select id="lotPrefix">
+      <option value=""> </option>
       <option value="FA">FA</option>
     </select>
+    <input type="text" class="lot-input" id="lotInput" placeholder="母批[-子批] (母批3碼英數禁O/I)">
   </div>
 
-  <div class="row">
-    <div class="label">批　號：</div>
-    <div class="ctrl"><input id="lotInput" type="text" placeholder="母批[-子批]（母批3碼英數禁 O/I）"/></div>
-  </div>
+  <div class="row"><label>批　號：</label><input type="text" id="lotFull" readonly></div>
+  <div class="row"><label>數　量：</label><input type="number" id="qty" min="1" placeholder="輸入批量"></div>
+  <div class="row"><label>備　註：</label><textarea id="remark" readonly>目前不開放輸入</textarea></div>
 
-  <div class="row">
-    <div class="label">數　量：</div>
-    <div class="ctrl"><input id="qty" type="number" placeholder="輸入批量"/></div>
-  </div>
+  <div class="submit-row"><button class="submit-btn" onclick="handleSubmit()">送出</button></div>
 
-  <div class="row">
-    <div class="label">備　註：</div>
-    <div class="ctrl"><textarea id="remark" readonly>目前不開放輸入</textarea></div>
-  </div>
-
-  <button id="sendBtn">送出</button>
-  <div class="version-line" id="verLine">val：17.1</div>
-
-  <hr/>
-  <table>
-    <thead><tr><th>料　號</th><th>批　號</th><th>數　量</th></tr></thead>
-    <tbody id="recordList"></tbody>
-  </table>
-
-<script>
-const GAS_URL   = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-const API_TOKEN = "MY_SECRET_123";
-
-/* ===== 工具 ===== */
-const $ = id => document.getElementById(id);
-function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g," ")}
-function canon(s){return fw2hw(s).trim().toUpperCase()}
-function normLotKey(s){return canon(s).replace(/^FA-/, "")}
-function buildKey(date,shift,part,lot){return `${canon(date)}|${canon(shift)}|${canon(part)}|${normLotKey(lot)}`}
-
-/* ===== 班別錨定與時間 ===== */
-function mdOf(d){return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`}
-function computeDS(now){
-  const m=now.getHours()*60+now.getMinutes(); let dateMD,shift,next;
-  if(m>=520 && m<1000){dateMD=mdOf(now);shift='A';next=new Date(now.getFullYear(),now.getMonth(),now.getDate(),16,40)}
-  else if(m>=1000){dateMD=mdOf(now);shift='B';next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,40)}
-  else if(m<40){dateMD=mdOf(new Date(now.getFullYear(),now.getMonth(),now.getDate()-1));shift='B';next=new Date(now.getFullYear(),now.getMonth(),now.getDate(),8,40)}
-  else{dateMD=mdOf(new Date(now.getFullYear(),now.getMonth(),now.getDate()-1));shift='C';next=new Date(now.getFullYear(),now.getMonth(),now.getDate(),8,40)}
-  return {dateMD,shift,until: next.getTime()+80*60000}
-}
-function anchorDS(){
-  const k='ds_anchor', now=Date.now(); let a; try{a=JSON.parse(localStorage.getItem(k)||'{}')}catch{a={}}
-  if(!a.dateMD || now>a.until){const c=computeDS(new Date());a={dateMD:c.dateMD,shift:c.shift,until:c.until};localStorage.setItem(k,JSON.stringify(a))}
-  return a;
-}
-function tick(){
-  const n=new Date(), a=anchorDS();
-  $('tsView').textContent=n.toLocaleString('zh-TW');
-  $('dsView').textContent=`${a.dateMD} - ${a.shift}`;
-}
-tick(); setInterval(tick,30000);
-
-/* ===== 草稿/工號 ===== */
-const INSPECTOR_KEY='inspector_id';           // 永久保存工號
-const DSKEY_KEY='rt_draft_dskey';
-const DRAFT_PREFIX='rt_draft_';
-function dsKeyOf(a){return `${a.dateMD}|${a.shift}`}
-function draftKey(){return DRAFT_PREFIX+dsKeyOf(anchorDS())}
-function loadInspector(){ const v=localStorage.getItem(INSPECTOR_KEY)||''; if(v) $('inspector').value=v; }
-function saveInspector(){ const v=canon($('inspector').value); if(/^[A-Z0-9]{5}$/.test(v)){ $('inspector').value=v; localStorage.setItem(INSPECTOR_KEY,v); } }
-$('inspector').addEventListener('change',saveInspector);
-$('inspector').addEventListener('input',e=>{ if(e.target.value.length===5) saveInspector(); });
-
-function saveDraft(){
-  const d={part:$('partNo').value, lot:$('lotInput').value, qty:$('qty').value, prefix:$('
+  <hr>
+  <table
