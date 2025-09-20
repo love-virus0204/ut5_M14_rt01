@@ -13,13 +13,9 @@
   .dsbar{font-weight:700;text-align:center;color:#0a66ff;margin:10px 0}
   .sec{margin-top:12px}
   .sech{font-weight:700;color:#0a66ff;margin:8px 0 6px 0;border-left:4px solid #0a66ff;padding-left:8px}
-
-  /* 三欄卡片（料號／批號／數量） */
-  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-  .card{border:1px solid #e5e5e5;border-radius:10px;padding:8px 10px;text-align:center}
-  .cap{font-size:12px;color:#666;margin-bottom:4px}
-  .val{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
+  table{width:100%;border-collapse:collapse}
+  th,td{border-top:1px solid #eee;text-align:center;padding:8px 6px}
+  th{background:#f4f6fb;color:#333}
   .muted{color:#888;text-align:center;margin-top:6px}
   .err{color:#c62828;text-align:center;margin-top:6px}
   .foot{margin-top:12px;font-size:12px;color:#666;text-align:center}
@@ -33,120 +29,99 @@
 
   <div id="sec1" class="sec">
     <div id="sech1" class="sech">—</div>
-    <div id="list1"></div>
+    <table>
+      <thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead>
+      <tbody id="list1"></tbody>
+    </table>
   </div>
 
   <div id="sec2" class="sec">
     <div id="sech2" class="sech">—</div>
-    <div id="list2"></div>
+    <table>
+      <thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead>
+      <tbody id="list2"></tbody>
+    </table>
   </div>
 
   <div id="sec3" class="sec">
     <div id="sech3" class="sech">—</div>
-    <div id="list3"></div>
+    <table>
+      <thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead>
+      <tbody id="list3"></tbody>
+    </table>
   </div>
 
   <div id="msg" class="muted"></div>
-  <div class="foot">last3shift v0.2</div>
+  <div class="foot">last3shift v0.3</div>
 </div>
 
 <script>
-/* === GAS 讀取端點（只讀） === */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 
-/* === 時間/班別規則（00:40/08:40/16:40；C 班顯示前一日） === */
+/* 台北時間 MM/dd */
 function mdOf(d){ return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d); }
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 
+/* 00:40/08:40/16:40；C 班顯示前一日，00:00–00:39 = 前一日 B */
 function computeCurrentDS(){
   const now = new Date();
   const tzNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
-  const h = tzNow.getHours(), m = tzNow.getMinutes();
-  const mins = h*60+m;
-  let dateMD, shift;
-  if (mins >= 40 && mins < 520) { dateMD = mdOf(addDays(tzNow,-1)); shift = 'C'; }
-  else if (mins >= 520 && mins < 1000) { dateMD = mdOf(tzNow); shift = 'A'; }
-  else if (mins >= 1000) { dateMD = mdOf(tzNow); shift = 'B'; }
-  else { dateMD = mdOf(addDays(tzNow,-1)); shift = 'B'; }
-  return { dateMD, shift, tzNow };
+  const h = tzNow.getHours(), m = tzNow.getMinutes(), mins = h*60+m;
+  if (mins >= 40 && mins < 520) return { dateMD: mdOf(addDays(tzNow,-1)), shift:'C', tzNow };
+  if (mins >= 520 && mins < 1000) return { dateMD: mdOf(tzNow),          shift:'A', tzNow };
+  if (mins >= 1000)               return { dateMD: mdOf(tzNow),          shift:'B', tzNow };
+  return { dateMD: mdOf(addDays(tzNow,-1)), shift:'B', tzNow }; // 00:00–00:39
 }
 
-/* 依目前 DS 推導最近三個班（順序：最新→較新→最舊） */
+/* 依目前 DS 推導最近三班（最新→較新→最舊），跨 08:40 前已 -1 天 */
 function last3DS(cur){
   const d = cur.dateMD, s = cur.shift;
-  const prevDate = mdOf(addDays(cur.tzNow,-1));
-  if (s === 'B') return [{date:d,shift:'B'},{date:d,shift:'A'},{date:prevDate,shift:'C'}];
-  if (s === 'A') return [{date:d,shift:'A'},{date:prevDate,shift:'C'},{date:prevDate,shift:'B'}];
-  return [{date:d,shift:'C'},{date:d,shift:'B'},{date:d,shift:'A'}]; // s==='C'
+  const prev = mdOf(addDays(cur.tzNow,-1));
+  if (s==='B') return [{date:d,shift:'B'},{date:d,shift:'A'},{date:prev,shift:'C'}];
+  if (s==='A') return [{date:d,shift:'A'},{date:prev,shift:'C'},{date:prev,shift:'B'}];
+  return [{date:d,shift:'C'},{date:d,shift:'B'},{date:d,shift:'A'}]; // s==='C' (d已是前一日)
 }
 
-/* 讀取某 DS（含已刪/未刪），前端只篩選 deleted===true 顯示 */
 async function fetchDS(date, shift){
-  const u = `${GAS_URL}?scope=all&date=${encodeURIComponent(date)}&shift=${encodeURIComponent(shift)}`;
-  const r = await fetch(u);
+  const r = await fetch(`${GAS_URL}?scope=all&date=${encodeURIComponent(date)}&shift=${encodeURIComponent(shift)}`);
   const j = await r.json();
   if (!Array.isArray(j)) throw new Error(JSON.stringify(j));
   return j.filter(x => x.deleted === true);
 }
 
-/* 渲染某一段（以 3 卡片呈現） */
-function renderCards(containerId, rows){
-  const el = document.getElementById(containerId);
-  el.innerHTML = '';
-  if (!rows.length){
-    el.innerHTML = `<div class="muted">（無資料）</div>`;
-    return;
-  }
-  rows.forEach((x)=>{
-    const wrap = document.createElement('div');
-    wrap.className = 'grid';
-    // 料號
-    const c1 = document.createElement('div');
-    c1.className = 'card';
-    c1.innerHTML = `<div class="cap">料號</div><div class="val">${x.part_no||''}</div>`;
-    // 批號
-    const c2 = document.createElement('div');
-    c2.className = 'card';
-    c2.innerHTML = `<div class="cap">批號</div><div class="val">${x.lot||''}</div>`;
-    // 數量
-    const c3 = document.createElement('div');
-    c3.className = 'card';
-    c3.innerHTML = `<div class="cap">數量</div><div class="val">${x.qty||''}</div>`;
-    wrap.appendChild(c1); wrap.appendChild(c2); wrap.appendChild(c3);
-    el.appendChild(wrap);
+function renderRows(tbodyId, rows){
+  const tb = document.getElementById(tbodyId);
+  tb.innerHTML = rows.length ? '' : `<tr><td colspan="3" class="muted">（無資料）</td></tr>`;
+  rows.forEach(x=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${x.part_no||''}</td><td>${x.lot||''}</td><td>${x.qty||''}</td>`;
+    tb.appendChild(tr);
   });
 }
 
-/* 主流程 */
 (async function(){
   try{
     const cur = computeCurrentDS();
-    const ds3 = last3DS(cur);
+    const ds3 = last3DS(cur);            // [最新, 較新, 最舊]
+    const start = ds3[2], end = ds3[0];  // 起迄 = 最舊 ~ 最新
 
-    // 最近三個班字串（最新→最舊）
     document.getElementById('dsbar').textContent =
       `最近三個班：${ds3.map(d=>`${d.date}${d.shift}`).join('，')}`;
-
-    // 起迄班別（最舊 ~ 最新）
-    const start = ds3[2], end = ds3[0];
     document.getElementById('range').textContent =
       `起迄班別：${start.date} ${start.shift} ~ ${end.date} ${end.shift}`;
 
-    // 三段標題
     document.getElementById('sech1').textContent = `${ds3[0].date} ${ds3[0].shift}`;
     document.getElementById('sech2').textContent = `${ds3[1].date} ${ds3[1].shift}`;
     document.getElementById('sech3').textContent = `${ds3[2].date} ${ds3[2].shift}`;
 
-    // 取數與渲染
     const [r1,r2,r3] = await Promise.all([
       fetchDS(ds3[0].date, ds3[0].shift),
       fetchDS(ds3[1].date, ds3[1].shift),
       fetchDS(ds3[2].date, ds3[2].shift),
     ]);
-
-    renderCards('list1', r1);
-    renderCards('list2', r2);
-    renderCards('list3', r3);
+    renderRows('list1', r1);
+    renderRows('list2', r2);
+    renderRows('list3', r3);
   }catch(e){
     const m = document.getElementById('msg');
     m.className='err'; m.textContent='讀取失敗：'+ String(e);
