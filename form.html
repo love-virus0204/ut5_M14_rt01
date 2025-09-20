@@ -5,60 +5,57 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>RT 外觀抽驗記錄表</title>
 <style>
-  /* === LOCKED: 基礎樣式 v17.3 === */
   :root{--maxw:520px}
   body{margin:0;background:#f5f5f5;font-family:"Comic Sans MS",sans-serif}
-  .wrap{max-width:var(--maxw);margin:8px auto;padding:10px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .wrap{max-width:var(--maxw);margin:8px auto;padding:10px 14px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
   .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:4px 0 8px 0}
-  .topbar{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  .top-left{min-width:44%;text-align:left;font-size:12px}
-  .top-center{flex:1;text-align:center;font-weight:700}
-  .back-btn{background:none;border:none;font-size:18px;line-height:1;padding:2px 6px}
-
-  .row{display:flex;align-items:center;gap:10px;margin:6px 0}
-  .label{font-family:"標楷體",serif;min-width:72px;text-align:center}
-  .ctrl{flex:1}
-  input,select,textarea{width:100%;padding:7px;border:1px solid #ccc;border-radius:6px;font-family:"Comic Sans MS",sans-serif}
+  /* 頂列：左語言、右返回 */
+  .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .tool-btn{background:none;border:0;font-size:18px;line-height:1;padding:2px 6px}
+  /* 當日當班：單獨一行靠左 */
+  .ds-line{font-weight:700;margin:6px 0 8px 0;text-align:left}
+  /* 表單列：兩欄 Grid（左固定、右彈性） */
+  .row{display:grid;grid-template-columns:92px 1fr;align-items:center;column-gap:10px;margin:6px 0}
+  .label{font-family:"標楷體",serif;text-align:center}
+  .ctrl{width:100%}
+  .ctrl input,.ctrl select,.ctrl textarea{width:100%;box-sizing:border-box;padding:7px;border:1px solid #ccc;border-radius:6px;font-family:"Comic Sans MS",sans-serif}
+  .row.lot-type .ctrl{display:grid;grid-template-columns:25% 1fr;column-gap:8px}
+  .row.lot-type select{min-width:80px}
   textarea[readonly]{background:#f2f2f2;color:#555}
-
-  /* 型態下拉 25%；其餘輸入與料號同寬 */
-  .row.lot-type .ctrl{display:flex;gap:8px}
-  .row.lot-type select{flex:0 0 25%;max-width:160px}
-  .row.lot-type .spacer{flex:1}
-
   .submit{display:flex;justify-content:flex-end;margin-top:10px}
   .btn{background:#0a66ff;color:#fff;border:0;border-radius:8px;padding:10px 18px}
-
   hr{margin:10px 0}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
-  .ver{font-size:12px;color:#666}
+  /* 底部資訊列：左=版本、中=時間、右留白 */
+  .bottom-info{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;margin:6px 0}
+  .ver-left{justify-self:start;font-size:12px;color:#666}
+  .time-center{justify-self:center;font-size:12px;color:#333}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <!-- 頂列：左語言、標題置中（單獨行）、右返回 -->
+  <div class="toolbar">
+    <button class="tool-btn" id="langBtn" title="語言">🌐</button>
+    <button class="tool-btn" id="backBtn" title="返回" onclick="history.back()">↩️</button>
+  </div>
   <div class="title">RT 外觀抽驗記錄表</div>
 
-  <!-- === LOCKED: 時間顯示與班別錨定 v17.3 === -->
-  <div class="topbar">
-    <div id="tsView" class="top-left"></div>
-    <div id="dsView" class="top-center"></div>
-    <button class="back-btn" onclick="history.back()" title="返回">↩️</button>
-  </div>
+  <!-- 當日當班：單獨一行靠左（刷新時計算，不在送出時重算） -->
+  <div id="dsView" class="ds-line"></div>
 
-  <!-- 檢驗員 -->
+  <!-- 表單區 -->
   <div class="row">
     <div class="label">檢驗員：</div>
     <div class="ctrl"><input id="inspector" maxlength="5" placeholder="輸入 5 碼工號"></div>
   </div>
 
-  <!-- 料號 -->
   <div class="row">
     <div class="label">料　號：</div>
     <div class="ctrl"><input id="partNo" maxlength="7" placeholder="請輸入 料號 by 7碼"></div>
   </div>
 
-  <!-- 型態（下拉 25%） -->
   <div class="row lot-type">
     <div class="label">型　態：</div>
     <div class="ctrl">
@@ -66,23 +63,20 @@
         <option value=""></option>
         <option value="FA">FA</option>
       </select>
-      <div class="spacer"></div>
+      <div></div>
     </div>
   </div>
 
-  <!-- 批號（★你指定要顯示「批　號：」，可輸入那一列） -->
   <div class="row">
     <div class="label">批　號：</div>
     <div class="ctrl"><input id="lotInput" placeholder="母批[-子批]（母批3碼英數禁 O/I）"></div>
   </div>
 
-  <!-- 數量 -->
   <div class="row">
     <div class="label">數　量：</div>
     <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入批量"></div>
   </div>
 
-  <!-- 備註唯讀 -->
   <div class="row">
     <div class="label">備　註：</div>
     <div class="ctrl"><textarea id="remark" readonly>目前不開放輸入</textarea></div>
@@ -91,7 +85,15 @@
   <div class="submit"><button id="sendBtn" class="btn">送出</button></div>
 
   <hr>
-  <div class="ver">版本：v17.3（LOCKED）</div>
+
+  <!-- 底部資訊列：左=版本號(靠左)；中=即時時間(置中)；右留白 -->
+  <div class="bottom-info">
+    <div id="versionTag" class="ver-left">版本：v17.4（LOCKED）</div>
+    <div id="tsView" class="time-center"></div>
+    <div></div>
+  </div>
+
+  <!-- 清單（倒序，最多50筆） -->
   <table>
     <thead><tr><th>料　號</th><th>批　號</th><th>數　量</th></tr></thead>
     <tbody id="recordList"></tbody>
@@ -99,57 +101,66 @@
 </div>
 
 <script>
-/* === LOCKED: 常數與工具 v17.3 === */
+/* === 常數與工具：沿用既有（LOCKED） === */
 const GAS_URL="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 const API_TOKEN="MY_SECRET_123";
-const INSPECTOR_KEY="inspector_id";  // 永久保存工號
+const INSPECTOR_KEY="inspector_id";
 function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g," ")}
 function CANON(s){return fw2hw(s).trim().toUpperCase()}
 function normLotKey(s){return CANON(s).replace(/^FA-/, "")}
 function buildKey(date,shift,part,lotDisp){return `${CANON(date)}|${CANON(shift)}|${CANON(part)}|${normLotKey(lotDisp)}`}
 
-/* === LOCKED: 台北時間（每秒） + 班別錨定（含80min寬限） v17.3 === */
 function twNowStr(){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())}
 function mdOf(d){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d)}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
-function computeDS(now){
-  const tzNow=new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
-  const mins=tzNow.getHours()*60+tzNow.getMinutes();
-  let dateMD,shift,next;
-  if(mins>=520 && mins<1000){dateMD=mdOf(tzNow);shift='A';next=new Date(tzNow.getFullYear(),tzNow.getMonth(),tzNow.getDate(),16,40)}
-  else if(mins>=1000){dateMD=mdOf(tzNow);shift='B';next=new Date(tzNow.getFullYear(),tzNow.getMonth(),tzNow.getDate()+1,0,40)}
-  else if(mins<40){dateMD=mdOf(addDays(tzNow,-1));shift='B';next=new Date(tzNow.getFullYear(),tzNow.getMonth(),tzNow.getDate(),8,40)}
-  else{dateMD=mdOf(addDays(tzNow,-1));shift='C';next=new Date(tzNow.getFullYear(),tzNow.getMonth(),tzNow.getDate(),8,40)}
-  return {dateMD,shift,until:next.getTime()+80*60000}
-}
-function anchorDS(){
-  const k='ds_anchor', now=Date.now(); let a; try{a=JSON.parse(localStorage.getItem(k)||'{}')}catch{a={}}
-  if(!a.dateMD||!a.shift||!a.until||now>a.until){const c=computeDS(new Date());a={dateMD:c.dateMD,shift:c.shift,until:c.until};localStorage.setItem(k,JSON.stringify(a))}
-  return a
-}
-function tick(){ const a=anchorDS(); document.getElementById('tsView').textContent=twNowStr(); document.getElementById('dsView').textContent=`${a.dateMD} - ${a.shift}` }
-setInterval(tick,1000); tick();
 
-/* === LOCKED: 草稿（工號常駐；料號/批號/數量依班次） v17.3 === */
-const DSKEY_KEY='rt_draft_dskey', DRAFT_PREFIX='rt_draft_';
-function dsKey(){const a=anchorDS();return `${a.dateMD}|${a.shift}`}
-function draftKey(){return DRAFT_PREFIX+dsKey()}
+/* === v17.4：班別規則 00:40 / 08:40 / 16:40；頁面刷新時計算一次 === */
+function computeShiftByClock(){
+  const now = new Date();
+  const tzNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
+  const h = tzNow.getHours(), m = tzNow.getMinutes();
+  const mins = h*60+m;
+  let dateMD, shift;
+  if (mins >= 40 && mins < 520) { dateMD = mdOf(tzNow); shift = 'C'; }
+  else if (mins >= 520 && mins < 1000) { dateMD = mdOf(tzNow); shift = 'A'; }
+  else if (mins >= 1000) { dateMD = mdOf(tzNow); shift = 'B'; }
+  else { dateMD = mdOf(addDays(tzNow,-1)); shift = 'B'; } // 00:00-00:39 算前一日 B
+  return { dateMD, shift };
+}
+let currentDS = computeShiftByClock();
+document.getElementById('dsView').textContent = `${currentDS.dateMD} - ${currentDS.shift}`;
+
+/* === 工號常駐 & 草稿（依當前 DS） === */
 function saveInspector(){const v=CANON(document.getElementById('inspector').value); if(/^[A-Z0-9]{5}$/.test(v)) localStorage.setItem(INSPECTOR_KEY,v)}
 function loadInspector(){const v=localStorage.getItem(INSPECTOR_KEY)||''; if(v) document.getElementById('inspector').value=v}
+const DSK='rt_draft_ds', DP='rt_draft_';
+function dsKey(){return `${currentDS.dateMD}|${currentDS.shift}`}
+function draftKey(){return DP+dsKey()}
 function saveDraft(){
-  const d={part:document.getElementById('partNo').value, lot:document.getElementById('lotInput').value, qty:document.getElementById('qty').value, prefix:document.getElementById('lotPrefix').value};
-  localStorage.setItem(draftKey(),JSON.stringify(d)); localStorage.setItem(DSKEY_KEY,dsKey())
+  const d={part:partNo.value, lot:lotInput.value, qty:qty.value, prefix:lotPrefix.value};
+  localStorage.setItem(draftKey(),JSON.stringify(d)); localStorage.setItem(DSK,dsKey());
 }
 function loadDraft(){
   loadInspector();
-  const cur=dsKey(), last=localStorage.getItem(DSKEY_KEY)||''; if(last&&last!==cur) localStorage.removeItem(DRAFT_PREFIX+last);
+  const last=localStorage.getItem(DSK)||''; if(last && last!==dsKey()) localStorage.removeItem(DP+last);
   const raw=localStorage.getItem(draftKey()); if(!raw) return; const d=JSON.parse(raw);
-  document.getElementById('partNo').value=d.part||''; document.getElementById('lotInput').value=d.lot||''; document.getElementById('qty').value=d.qty||''; document.getElementById('lotPrefix').value=d.prefix||''
+  partNo.value=d.part||''; lotInput.value=d.lot||''; qty.value=d.qty||''; lotPrefix.value=d.prefix||'';
 }
-['inspector','partNo','lotInput','lotPrefix','qty'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{if(id==='inspector')saveInspector(); else saveDraft()}))
+const inspector=document.getElementById('inspector');
+const partNo=document.getElementById('partNo');
+const lotPrefix=document.getElementById('lotPrefix');
+const lotInput=document.getElementById('lotInput');
+const qty=document.getElementById('qty');
+['inspector','partNo','lotInput','lotPrefix','qty'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{if(id==='inspector')saveInspector(); else saveDraft();})
+});
 loadDraft();
 
-/* === 列表 === */
+/* === 底部時間：每秒更新（台北） === */
+function tick(){ document.getElementById('tsView').textContent = twNowStr(); }
+setInterval(tick,1000); tick();
+
+/* === 清單 === */
 async function refreshList(){
   const tb=document.getElementById('recordList'); tb.innerHTML='';
   try{
@@ -165,33 +176,31 @@ refreshList();
 
 /* === 送出 === */
 let clearPartOnce=false;
-document.getElementById('partNo').addEventListener('focus',()=>{ if(clearPartOnce){document.getElementById('partNo').value=''; clearPartOnce=false; saveDraft()} })
+partNo.addEventListener('focus',()=>{ if(clearPartOnce){ partNo.value=''; clearPartOnce=false; saveDraft(); } });
 
 document.getElementById('sendBtn').addEventListener('click', async ()=>{
-  const a=anchorDS();
-  const inspector=CANON(document.getElementById('inspector').value);
-  const part=CANON(document.getElementById('partNo').value);
-  const prefix=CANON(document.getElementById('lotPrefix').value);
-  const lotMC=CANON(document.getElementById('lotInput').value);
+  const inspectorVal=CANON(inspector.value);
+  const part=CANON(partNo.value);
+  const prefix=CANON(lotPrefix.value);
+  const lotMC=CANON(lotInput.value);
   const lotDisp = prefix ? `${prefix}-${lotMC}` : lotMC;
-  const qty=Number(document.getElementById('qty').value);
+  const q=Number(qty.value);
 
-  if(!/^[A-Z0-9]{5}$/.test(inspector)) return alert('請輸入 5 碼工號');
+  if(!/^[A-Z0-9]{5}$/.test(inspectorVal)) return alert('請輸入 5 碼工號');
   if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)) return alert('料號格式錯誤（如 A58K052）');
   if(!lotMC) return alert('批號必填');
-  if(!(qty>0)) return alert('數量需 > 0');
+  if(!(q>0)) return alert('數量需 > 0');
 
-  const key = buildKey(a.dateMD,a.shift,part,lotDisp); // 顯示實際 Key 方便檢查
-  console.log('KEY =>', key);
-
+  // 用刷新時計算的 currentDS（不在此重算）
+  const key = buildKey(currentDS.dateMD, currentDS.shift, part, lotDisp);
   const payload={
     token:API_TOKEN,
     key,
-    date:a.dateMD, shift:a.shift,
+    date:currentDS.dateMD, shift:currentDS.shift,
     part_no:part,
-    lot_prefix:prefix, mother_child:lotMC, // 後端也支援 lot_full；這裡保留原結構
-    qty:String(qty),
-    inspector:inspector,
+    lot_prefix:prefix, mother_child:lotMC,
+    qty:String(q),
+    inspector:inspectorVal,
     remark:""
   };
 
@@ -201,11 +210,8 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     const data=await res.json();
     if(data.status==='ok'){
       alert(data.upsert==='update'?'✅ 已更新':'✅ 已新增');
-      // 成功：保留料號，清空批號/數量（依你規則）
-      document.getElementById('lotInput').value='';
-      document.getElementById('qty').value='';
-      saveDraft();
-      clearPartOnce=true; // 下次點料號才清空
+      lotInput.value=''; qty.value=''; saveDraft();
+      clearPartOnce=true;
       refreshList();
     }else{
       alert('❌ 後端：'+JSON.stringify(data));
@@ -213,6 +219,9 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   }catch(err){ alert('送出錯誤：'+err.message); }
   finally{ btn.disabled=false; }
 });
+
+/* 語言鈎子（保留，不實作切換） */
+document.getElementById('langBtn').addEventListener('click',()=>alert('多國語言預留：未啟用'));
 </script>
 </body>
 </html>
