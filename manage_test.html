@@ -1,72 +1,110 @@
 <!doctype html><html lang="zh-Hant"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QR 驗證測試（多CDN備援）</title>
+<title>QR 驗證（原生）</title>
 <style>
- body{font-family:sans-serif;margin:0;background:#f7f7f7} main{max-width:680px;margin:20px auto;padding:0 16px;text-align:center}
- .btn{padding:10px 14px;border-radius:8px;background:#1677ff;color:#fff;border:0;margin:5px}
- #reader{width:100%;max-width:360px;margin:12px auto} #log{color:#c62828;white-space:pre-wrap;margin-top:8px}
+ body{font-family:-apple-system,Segoe UI,Roboto,Noto Sans TC,sans-serif;margin:0;background:#f7f7f7}
+ main{max-width:680px;margin:20px auto;padding:0 16px;text-align:center}
+ .btn{padding:10px 14px;border-radius:10px;border:0;background:#1677ff;color:#fff;margin:6px}
+ #log{white-space:pre-wrap;color:#c62828;margin-top:8px}
+ #video{width:100%;max-width:420px;border-radius:12px;background:#000}
  .ok{color:#0a7b33;font-weight:700}
-</style>
-</head><body><main>
-<h2>QR 驗證測試（多CDN備援）</h2>
-<button id="go" class="btn" disabled>載入中…</button>
-<div id="reader"></div><div id="log"></div>
-<div id="ok" style="display:none" class="ok">✅ 驗證通過</div>
+</style></head><body><main>
+<h2>QR 驗證（不依賴外部庫）</h2>
+<button id="start" class="btn">開始掃描（後鏡頭）</button>
+<button id="stop" class="btn" style="background:#666" disabled>停止</button>
+<br>
+<video id="video" playsinline muted></video>
+<canvas id="canvas" style="display:none"></canvas>
+<div id="log"></div>
+<div id="ok" class="ok" style="display:none">✅ 驗證通過</div>
+
+<hr>
+<p>相機有問題？改用拍照上傳：</p>
+<input id="file" type="file" accept="image/*" capture="environment">
 </main>
 
 <script>
-const TOKEN="f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
-const log = m => document.getElementById('log').textContent = m;
+const TOKEN = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
 
-// 多CDN備援載入
-const CDNS = [
-  "https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js",
-  "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.10/html5-qrcode.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.10/html5-qrcode.min.js"
-];
-(function loadLib(i=0){
-  if(i>=CDNS.length){ log("❌ 無法載入 html5-qrcode（CDN 都失敗）"); return; }
-  const s=document.createElement('script');
-  s.src=CDNS[i]; s.defer=true;
-  s.onload=()=>{ if(typeof Html5Qrcode==="function"){ enable(); } else { loadLib(i+1); } };
-  s.onerror=()=>loadLib(i+1);
-  document.head.appendChild(s);
-})();
+const log = m => document.getElementById('log').textContent = m||"";
+const ok  = ()=>{ document.getElementById('ok').style.display='block'; setTimeout(()=>location.href='./manage.html', 1200); };
 
-function enable(){
-  const btn=document.getElementById('go');
-  btn.textContent="開始掃描（後鏡頭）";
-  btn.disabled=false;
-  btn.addEventListener('click', startOnce, {once:true});
-}
+const video = document.getElementById('video');
+const canvas= document.getElementById('canvas');
+let stream=null, detector=null, scanning=false, rafId=null;
 
-let qr=null, running=false;
-async function pickRearCamera(){
-  try{ await navigator.mediaDevices.getUserMedia({video:true}); }catch(_){}
-  const list = await Html5Qrcode.getCameras();
-  if(!list || !list.length) throw new Error("找不到相機裝置");
-  const prefer = list.find(d=>/back|rear|environment/i.test(d.label||"")) || list[list.length-1];
-  return prefer.id;
-}
-async function startOnce(){
-  if(running) return;
+async function startCam(){
   try{
-    const camId = await pickRearCamera();
-    qr = new Html5Qrcode("reader",{verbose:false});
-    await qr.start(
-      { deviceId:{ exact: camId } },
-      { fps:10, qrbox:{width:260,height:260} },
-      txt=>{
-        if((txt||"").trim()===TOKEN){
-          stop(); document.getElementById('ok').style.display='block';
-        }else log("掃到內容但不匹配。");
+    if(!('BarcodeDetector' in window)){
+      log('此裝置不支援 BarcodeDetector，請用「拍照上傳」或換新版 Chrome/Edge。'); return;
+    }
+    detector = new BarcodeDetector({ formats: ['qr_code'] });
+    // 要求後鏡頭
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal:'environment' } , width:{ideal:1280}, height:{ideal:720} },
+      audio: false
+    });
+    video.srcObject = stream; await video.play();
+    scanning = true;
+    tick();
+    document.getElementById('start').disabled = true;
+    document.getElementById('stop').disabled  = true; // 掃到才停，避免誤觸
+    log('相機啟動，請對準 QR。');
+  }catch(e){
+    log('啟動相機失敗：'+ e);
+  }
+}
+function stopCam(){
+  scanning=false;
+  if(rafId) cancelAnimationFrame(rafId);
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  video.srcObject=null;
+  document.getElementById('start').disabled=false;
+  document.getElementById('stop').disabled=true;
+  log('已停止掃描');
+}
+async function tick(){
+  if(!scanning) return;
+  try{
+    const w = video.videoWidth, h = video.videoHeight;
+    if(w && h){
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+      const bitmap = await createImageBitmap(canvas);
+      const codes = await detector.detect(bitmap);
+      if(codes && codes.length){
+        const txt = (codes[0].rawValue||"").trim();
+        if(txt === TOKEN){
+          ok(); stopCam(); return;
+        }
       }
-    );
-    running=true; document.getElementById('go').disabled=true; log("");
-  }catch(e){ log("啟動相機失敗：\n"+e); }
+    }
+  }catch(_){}
+  rafId = requestAnimationFrame(tick);
 }
-async function stop(){
-  if(qr && running){ try{ await qr.stop(); await qr.clear(); }catch(_){} running=false; }
-}
+
+// 拍照上傳解析（同樣用 BarcodeDetector），無需外部庫
+document.getElementById('file').addEventListener('change', async (ev)=>{
+  const f = ev.target.files && ev.target.files[0]; if(!f) return;
+  try{
+    if(!('BarcodeDetector' in window)){ log('此瀏覽器不支援相片解析，請改用支援的瀏覽器。'); return; }
+    detector = detector || new BarcodeDetector({ formats: ['qr_code'] });
+    const img = await createImageBitmap(f);
+    const off = document.createElement('canvas'); off.width = img.width; off.height = img.height;
+    off.getContext('2d').drawImage(img, 0, 0);
+    const codes = await detector.detect(off);
+    if(codes && codes.length){
+      const txt = (codes[0].rawValue||"").trim();
+      if(txt === TOKEN){ ok(); return; }
+      log('已讀取到 QR，但內容不匹配。');
+    }else{
+      log('這張相片讀不到 QR，請換一張試試。');
+    }
+  }catch(e){ log('解析失敗：'+e); }
+});
+
+document.getElementById('start').addEventListener('click', startCam);
+document.getElementById('stop').addEventListener('click', stopCam);
 </script>
 </body></html>
