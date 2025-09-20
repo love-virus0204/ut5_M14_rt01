@@ -1,17 +1,38 @@
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>檢查 Html5Qrcode</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
-</head>
-<body>
+<!doctype html><html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR 驗證測試（多CDN備援）</title>
+<style>
+ body{font-family:sans-serif;margin:0;background:#f7f7f7} main{max-width:680px;margin:20px auto;padding:0 16px;text-align:center}
+ .btn{padding:10px 14px;border-radius:8px;background:#1677ff;color:#fff;border:0;margin:5px}
+ #reader{width:100%;max-width:360px;margin:12px auto} #log{color:#c62828;white-space:pre-wrap;margin-top:8px}
+ .ok{color:#0a7b33;font-weight:700}
+</style>
+</head><body><main>
+<h2>QR 驗證測試（多CDN備援）</h2>
+<button id="go" class="btn" disabled>載入中…</button>
+<div id="reader"></div><div id="log"></div>
+<div id="ok" style="display:none" class="ok">✅ 驗證通過</div>
+</main>
+
 <script>
-if (typeof Html5Qrcode === "function") {
-  document.body.innerHTML = "<h3 style='color:green'>✅ Html5Qrcode 載入成功！</h3>";
-} else {
-  document.body.innerHTML = "<h3 style='color:red'>❌ 載入失敗：Html5Qrcode 未定義</h3>";
-}
-</script>
-</body>
-</html>
+const TOKEN="f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+const log = m => document.getElementById('log').textContent = m;
+
+// 多CDN備援載入
+const CDNS = [
+  "https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js",
+  "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.10/html5-qrcode.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.10/html5-qrcode.min.js"
+];
+(function loadLib(i=0){
+  if(i>=CDNS.length){ log("❌ 無法載入 html5-qrcode（CDN 都失敗）"); return; }
+  const s=document.createElement('script');
+  s.src=CDNS[i]; s.defer=true;
+  s.onload=()=>{ if(typeof Html5Qrcode==="function"){ enable(); } else { loadLib(i+1); } };
+  s.onerror=()=>loadLib(i+1);
+  document.head.appendChild(s);
+})();
+
+function enable(){
+  const btn=document.getElementById('go');
+  btn.textContent="開始掃描（後鏡頭）
