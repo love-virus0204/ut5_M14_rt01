@@ -8,7 +8,9 @@
   :root{--maxw:560px;}
   body{margin:0;background:#f6f7f9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;color:#222}
   .wrap{max-width:var(--maxw);margin:16px auto;padding:12px 14px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06);border-radius:12px}
-  h1{font-size:18px;margin:0 0 6px 0;text-align:center}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  h1{font-size:18px;margin:0;text-align:left}
+  .btn{padding:8px 12px;border-radius:10px;border:1px solid #d0d0d0;background:#fff;cursor:pointer}
   .sub{font-size:14px;text-align:center;color:#444;margin:0 0 10px 0;font-weight:700}
   .dsbar{font-weight:700;text-align:center;color:#0a66ff;margin:10px 0}
   table{width:95%;margin:0 auto;border-collapse:collapse}
@@ -22,7 +24,11 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Rt外觀記錄表-查尋</h1>
+  <header>
+    <h1>Rt外觀記錄表-查尋</h1>
+    <button class="btn" onclick="location.href='./index.html'">返回</button>
+  </header>
+
   <p id="range" class="sub">起迄班別：—</p>
   <div id="dsbar" class="dsbar">最近三個班：—</div>
 
@@ -32,21 +38,16 @@
   </table>
 
   <div id="msg" class="muted"></div>
-  <div class="foot">last3shift v0.5</div>
+  <div class="foot">last3shift v0.6</div>
 </div>
 
 <script>
-/* === 你的 GAS 讀取端點（只讀，不改後端） === */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-
-/* 工具 */
 const canon = s => String(s||'').trim().toUpperCase();
 
-/* 台北時間 MM/dd */
 function mdOf(d){ return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d); }
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 
-/* 00:40/08:40/16:40；C 班顯示前一日，00:00–00:39 = 前一日 B */
 function computeCurrentDS(){
   const now = new Date();
   const tzNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
@@ -54,27 +55,25 @@ function computeCurrentDS(){
   if (mins >= 40 && mins < 520) return { dateMD: mdOf(addDays(tzNow,-1)), shift:'C', tzNow };
   if (mins >= 520 && mins < 1000) return { dateMD: mdOf(tzNow),          shift:'A', tzNow };
   if (mins >= 1000)               return { dateMD: mdOf(tzNow),          shift:'B', tzNow };
-  return { dateMD: mdOf(addDays(tzNow,-1)), shift:'B', tzNow }; // 00:00–00:39
+  return { dateMD: mdOf(addDays(tzNow,-1)), shift:'B', tzNow };
 }
 
-/* 最近三班（最新→較新→最舊），跨 08:40 前已 -1 天 */
 function last3DS(cur){
   const d = cur.dateMD, s = cur.shift;
   const prev = mdOf(addDays(cur.tzNow,-1));
   if (s==='B') return [{date:d,shift:'B'},{date:d,shift:'A'},{date:prev,shift:'C'}];
   if (s==='A') return [{date:d,shift:'A'},{date:prev,shift:'C'},{date:prev,shift:'B'}];
-  return [{date:d,shift:'C'},{date:d,shift:'B'},{date:d,shift:'A'}]; // s==='C'
+  return [{date:d,shift:'C'},{date:d,shift:'B'},{date:d,shift:'A'}];
 }
 
-/* 依「唯一日期集合」各抓一次（不帶 shift），回來再前端篩三班 */
-async function fetchByDates(dates){
-  const arr = await Promise.all(dates.map(d =>
-    fetch(`${GAS_URL}?scope=all&date=${encodeURIComponent(d)}`).then(r=>r.json())
+async function fetchByTriples(ds3){
+  const arr = await Promise.all(ds3.map(d =>
+    fetch(`${GAS_URL}?scope=all&date=${encodeURIComponent(d.date)}&shift=${encodeURIComponent(d.shift)}`)
+      .then(r=>r.json())
   ));
   return arr.flat();
 }
 
-/* 篩到只剩「最近三班」且有效（deleted===true），並去重 */
 function filterForDS(allRows, ds3){
   const want = new Set(ds3.map(d => `${canon(d.date)}|${canon(d.shift)}`));
   const filtered = allRows.filter(r =>
@@ -88,15 +87,11 @@ function filterForDS(allRows, ds3){
   return [...uniq.values()];
 }
 
-/* 渲染：單一表頭＋分組列（09/19 A 等） */
 function renderGrouped(tbodyId, ds3, rows){
   const tb = document.getElementById(tbodyId);
   tb.innerHTML = '';
-  // 依 ds3 順序（最新→較新→最舊）分組輸出
   ds3.forEach(({date,shift})=>{
-    const grp = document.createElement('tr');
-    grp.innerHTML = `<td class="group" colspan="3">${date} ${shift}</td>`;
-    tb.appendChild(grp);
+    tb.insertAdjacentHTML('beforeend', `<tr><td class="group" colspan="3">${date} ${shift}</td></tr>`);
     const part = rows.filter(r => canon(r.date)===canon(date) && canon(r.shift)===canon(shift));
     if(!part.length){
       tb.insertAdjacentHTML('beforeend','<tr><td colspan="3" class="muted">（無資料）</td></tr>');
@@ -108,22 +103,18 @@ function renderGrouped(tbodyId, ds3, rows){
   });
 }
 
-/* 主流程 */
 (async function(){
   try{
     const cur = computeCurrentDS();
-    const ds3 = last3DS(cur);                 // [最新, 較新, 最舊]
-    const dates = [...new Set(ds3.map(d=>d.date))]; // 唯一日期（1~2天）
+    const ds3 = last3DS(cur);
+    const start = ds3[2], end = ds3[0];
 
-    // 顯示「最近三個班」與「起迄班別（最舊 ~ 最新）」
     document.getElementById('dsbar').textContent =
       `最近三個班：${ds3.map(d=>`${d.date}${d.shift}`).join('，')}`;
-    const start = ds3[2], end = ds3[0];
     document.getElementById('range').textContent =
       `起迄班別：${start.date} ${start.shift} ~ ${end.date} ${end.shift}`;
 
-    // 取數、前端篩三班、渲染
-    const all = await fetchByDates(dates);
+    const all = await fetchByTriples(ds3);
     const rows = filterForDS(all, ds3);
     renderGrouped('list', ds3, rows);
   }catch(e){
