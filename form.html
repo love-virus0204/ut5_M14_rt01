@@ -51,4 +51,103 @@
   <div class="submit-row"><button class="submit-btn" onclick="handleSubmit()">送出</button></div>
 
   <hr>
-  <table
+  <table id="history"><thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead><tbody></tbody></table>
+  <div class="note">顯示規則：當日當班+同工號；倒序（最新在最上），最多 50 筆。</div>
+</div>
+
+<script>
+// ===== 台北時間 & 班別顯示 =====
+function twNowStr(){
+  return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',
+    year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',
+    hour12:false}).format(new Date());
+}
+function computeShift(date){
+  const h = date.getHours(), m = date.getMinutes(), t = h*60+m;
+  if(t>=840 && t<1000) return "A";
+  if(t>=1000 || t<40) return "B";
+  return "C";
+}
+function anchorDS(){
+  const now = new Date();
+  const dateShift = computeShift(now);
+  const dateMD = now.toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit',timeZone:'Asia/Taipei'});
+  return {dateMD,shift:dateShift};
+}
+function tick(){
+  document.getElementById('tsView').textContent = twNowStr();
+  const a = anchorDS();
+  document.getElementById('dsView').textContent = `${a.dateMD} - ${a.shift}`;
+}
+setInterval(tick,1000); tick();
+
+// ===== 草稿機制 =====
+function loadDraft(){
+  const d = JSON.parse(localStorage.getItem("draft")||"{}");
+  if(d.inspector) document.getElementById("inspector").value = d.inspector;
+  if(d.partNo) document.getElementById("partNo").value = d.partNo;
+}
+function saveDraft(){
+  const d = {
+    inspector:document.getElementById("inspector").value.toUpperCase(),
+    partNo:document.getElementById("partNo").value.toUpperCase()
+  };
+  localStorage.setItem("draft",JSON.stringify(d));
+}
+document.getElementById("inspector").addEventListener("change",saveDraft);
+document.getElementById("partNo").addEventListener("change",saveDraft);
+
+// ===== 表單送出 =====
+function buildKey(){
+  const a = anchorDS();
+  const lotPrefix = document.getElementById("lotPrefix").value;
+  const lot = document.getElementById("lotInput").value;
+  return `${a.dateMD}-${a.shift}-${document.getElementById("partNo").value}-${lotPrefix}${lot}`.toUpperCase();
+}
+
+async function handleSubmit(){
+  const inspector = document.getElementById("inspector").value.trim().toUpperCase();
+  const partNo = document.getElementById("partNo").value.trim().toUpperCase();
+  const lotPrefix = document.getElementById("lotPrefix").value;
+  const lot = document.getElementById("lotInput").value.trim().toUpperCase();
+  const qty = parseInt(document.getElementById("qty").value);
+  if(!inspector || inspector.length!==5){alert("請輸入正確檢驗員工號");return;}
+  if(!partNo || partNo.length!==7){alert("請輸入正確料號(7碼)");return;}
+  if(!lot || lot.length<3){alert("請輸入3碼母批");return;}
+  if(!qty || qty<=0){alert("請輸入批量");return;}
+
+  const key = buildKey();
+  const payload = {
+    date: anchorDS().dateMD,
+    shift: anchorDS().shift,
+    part_no: partNo,
+    lot_full: (lotPrefix?lotPrefix+"-":"")+lot,
+    qty: qty,
+    sample: Math.min(qty,20),
+    z8:0,z9:0,z10:0,z11:0,z12:0,z13:0,z14:0,
+    inspector: inspector,
+    remark: "",
+    status: true,
+    admin_id:"",
+    deleted_at:"",
+    timestamp: new Date().toISOString(),
+    key: key
+  };
+
+  try{
+    const res = await fetch("YOUR_GAS_DEPLOY_URL",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    const result = await res.json();
+    if(result.status==="ok"){alert("✅送出成功");document.getElementById("lotInput").value="";document.getElementById("qty").value="";}
+    else alert("❌後端回覆："+JSON.stringify(result));
+  }catch(e){alert("❌送出錯誤："+e);}
+}
+
+loadDraft();
+</script>
+</body>
+</html>
