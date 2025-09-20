@@ -1,9 +1,11 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
+<meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>RT 外觀抽驗記錄表</title>
+
+<!-- 保持既有版面；僅更新批號規則與版本號 v17.6.5 -->
 <style>
   :root{--maxw:520px; --labelw:92px;}
   body{margin:0;background:#f5f5f5;font-family:"Comic Sans MS",sans-serif}
@@ -16,7 +18,7 @@
   .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:0}
 
   /* 當日當班：單獨一行、視覺內縮到輸入列左邊界 */
-  .ds-line{font-weight:700;margin:8px 0 10px 0; padding-left:20px;} /* 原：padding-left:var(--labelw); */
+  .ds-line{font-weight:700;margin:8px 0 10px 0; padding-left:20px;}
 
   /* 表單列：兩欄 Grid（左固定、右彈性） */
   .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;column-gap:10px;margin:6px 0}
@@ -59,7 +61,7 @@
 
   <!-- 表單區 -->
   <div class="row">
-    <div class="label">檢驗員：</div>
+    <div class="label">檢　驗：</div>
     <div class="ctrl"><input id="inspector" maxlength="5" placeholder="輸入 5 碼工號"></div>
   </div>
 
@@ -81,7 +83,7 @@
 
   <div class="row">
     <div class="label">批　號：</div>
-    <div class="ctrl"><input id="lotInput" placeholder="母批[-子批]（母批3碼英數禁 O/I）"></div>
+    <div class="ctrl"><input id="lotInput" placeholder="母批(3碼) 或 母批-子批(3-2)；禁 I / O"></div>
   </div>
 
   <div class="row">
@@ -101,11 +103,11 @@
   <!-- 分隔線以下統一置中：版本＋時間＋表格 -->
   <div class="post">
     <div class="bottom-info">
-      <div id="versionTag" class="ver-left">版本：v17.6.4</div>
+      <div id="versionTag" class="ver-left">版本：v17.6.5</div>
       <div id="tsView" class="time-right"></div>
     </div>
 
-    <!-- 清單（倒序，最多50筆） -->
+    <!-- 清單（倒序，最多50筆；草稿機制） -->
     <table>
       <thead><tr><th>料　號</th><th>批　號</th><th>數　量</th></tr></thead>
       <tbody id="recordList"></tbody>
@@ -114,7 +116,7 @@
 </div>
 
 <script>
-/* === 常數與工具（LOCKED） === */
+/* === 常數與工具 === */
 const GAS_URL="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 const API_TOKEN="MY_SECRET_123";
 const INSPECTOR_KEY="inspector_id";
@@ -143,7 +145,7 @@ function computeShiftByClock(){
 let currentDS = computeShiftByClock();
 document.getElementById('dsView').textContent = `${currentDS.dateMD} - ${currentDS.shift}`;
 
-/* === 工號常駐 & 草稿（依當前 DS；既有行為保留） === */
+/* === 工號常駐 & 輸入草稿（依當前 DS；既有行為保留） === */
 function saveInspector(){const v=CANON(document.getElementById('inspector').value); if(/^[A-Z0-9]{5}$/.test(v)) localStorage.setItem(INSPECTOR_KEY,v)}
 function loadInspector(){const v=localStorage.getItem(INSPECTOR_KEY)||''; if(v) document.getElementById('inspector').value=v}
 const DSK='rt_draft_ds', DP='rt_draft_';
@@ -175,31 +177,38 @@ const qty=document.getElementById('qty');
 });
 loadDraft();
 
-/* === 前端補零：blur 與送出前正規化（FA 前綴不在此處理） === */
-function normalizeLotInputText(txt){
-  txt = CANON(txt);
-  let mother='', child='';
-  const parts = txt.split('-');
-  mother = parts[0] || '';
-  child  = parts[1] || '';
-  if (/[OI]/.test(mother)) return null; // 禁 O/I
-  if (mother) mother = mother.padStart(3,'0');
-  if (child)  child  = child.padStart(2,'0');
-  return child ? `${mother}-${child}` : mother;
+/* === 批號解析（母批必輸入3碼；不補零。子批可省略；若有則左補0至2碼；均禁 I/O） === */
+function parseLot(input){
+  const s = CANON(input).replace(/\s+/g,'');
+  if (!s) return { ok:false, msg:'母批必填（3碼）' };
+
+  if (s.includes('-')) {
+    const [m, cRaw] = s.split('-', 2);
+    if (!m || !/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return { ok:false, msg:'母批需正好 3 碼，且不可含 I/O' };
+    if (!cRaw) return { ok:false, msg:'有連字號時必須輸入子批（1~2 碼）' };
+    if (!/^[A-HJ-NP-Z0-9]{1,2}$/.test(cRaw)) return { ok:false, msg:'子批需 1~2 碼，且不可含 I/O' };
+    return { ok:true, mother:m, child:cRaw.padStart(2,'0'), hasChild:true };
+  } else {
+    const m = s;
+    if (!/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return { ok:false, msg:'母批需正好 3 碼，且不可含 I/O' };
+    return { ok:true, mother:m, child:'', hasChild:false };
+  }
 }
+
+/* === 批號輸入框 blur：僅做格式化顯示（不補母批；子批有輸入才補0） === */
 lotInput.addEventListener('blur', ()=>{
-  const v = normalizeLotInputText(lotInput.value);
-  if (v===null) { alert('母批不可含 O / I'); lotInput.focus(); return; }
-  if (v!==undefined && v!==null) { lotInput.value = v; saveDraft(); }
+  const v = lotInput.value;
+  const r = parseLot(v);
+  if (!r.ok) { alert(r.msg); lotInput.focus(); return; }
+  lotInput.value = r.mother + (r.hasChild ? '-' + r.child : '');
+  saveDraft();
 });
 
-/* === ★★★ 清單改為草稿機制（最小改動） ★★★ */
+/* === 草稿清單（當班倒序，最多 50 筆） === */
 const LIST_NS='rt_draft_list_v1';
 function listDsKey(){return `${currentDS.dateMD}|${currentDS.shift}`}
 function listKey(){return `${LIST_NS}:${listDsKey()}`}
-function listGet(){
-  try{ return JSON.parse(localStorage.getItem(listKey())||'[]'); }catch{ return []; }
-}
+function listGet(){ try{ return JSON.parse(localStorage.getItem(listKey())||'[]'); }catch{ return []; } }
 function listSet(arr){
   localStorage.setItem(listKey(), JSON.stringify(arr.slice(0,50)));
   localStorage.setItem(`${LIST_NS}:LAST_DS`, listDsKey());
@@ -238,8 +247,6 @@ function upsertDraftList({part_no, lot, qty, inspector}){
   listSet(arr);
   renderDraftList();
 }
-
-/* === 初次渲染清單（由草稿，而非呼叫後端） === */
 renderDraftList();
 
 /* === 送出 === */
@@ -251,26 +258,33 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const part=CANON(partNo.value);
   const prefix=CANON(lotPrefix.value);
 
-  // 批號補零正規化
-  const lotNorm = normalizeLotInputText(lotInput.value);
-  if (lotNorm===null) return alert('母批不可含 O / I');
-  if (!lotNorm) return alert('批號必填');
-  lotInput.value = lotNorm; // 回寫顯示
-  const lotDisp = prefix ? `${prefix}-${lotNorm}` : lotNorm;
+  // 批號解析（母批必 3 碼；子批可省略，若有補至 2 碼；禁 I/O）
+  const lotParsed = parseLot(lotInput.value);
+  if (!lotParsed.ok) return alert(lotParsed.msg);
 
+  // 顯示回填（保持欄位與最終送出一致）
+  lotInput.value = lotParsed.mother + (lotParsed.hasChild ? '-' + lotParsed.child : '');
+
+  // 驗證其餘欄位
   const q=Number(qty.value);
-
   if(!/^[A-Z0-9]{5}$/.test(inspectorVal)) return alert('請輸入 5 碼工號');
   if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)) return alert('料號格式錯誤（如 A58K052）');
   if(!(q>0)) return alert('數量需 > 0');
 
+  // 組合 lot（顯示/清單用；含 FA 時加前綴）
+  const lotDisp = prefix 
+    ? `${prefix}-${lotParsed.mother}${lotParsed.hasChild?'-'+lotParsed.child:''}`
+    : `${lotParsed.mother}${lotParsed.hasChild?'-'+lotParsed.child:''}`;
+
+  // 送後端 payload（維持你原有結構欄位命名）
   const key = buildKey(currentDS.dateMD, currentDS.shift, part, lotDisp);
   const payload={
     token:API_TOKEN,
     key,
     date:currentDS.dateMD, shift:currentDS.shift,
     part_no:part,
-    lot_prefix:prefix, mother_child:lotNorm,
+    lot_prefix:prefix,
+    mother_child: lotParsed.hasChild ? `${lotParsed.mother}-${lotParsed.child}` : lotParsed.mother,
     qty:String(q),
     inspector:inspectorVal,
     remark:""
@@ -283,10 +297,10 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     if(data.status==='ok'){
       alert(data.upsert==='update'?'✅ 已更新':'✅ 已新增');
 
-      // ★ 送出成功 → 寫入草稿清單（覆蓋相同料號+批號）
+      // 成功 → 寫入草稿清單（覆蓋同料號+批號）
       upsertDraftList({part_no:part, lot:lotDisp, qty:String(q), inspector:inspectorVal});
 
-      // 你既有的草稿輸入欄位行為：清空批號/數量，保留料號；點擊料號一次清空
+      // 送出後：保留料號；清空批號&數量；點擊料號一次清空
       lotInput.value=''; qty.value=''; saveDraft();
       clearPartOnce=true;
     }else{
