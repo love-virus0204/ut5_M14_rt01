@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>RT 外觀抽驗記錄表</title>
 
-<!-- v17.6.7：移除前端「備註」列；後端仍寫入 remark:""。其餘維持 v17.6.6 -->
+<!-- v17.6.8：在 v17.6.6 基礎上，改 placeholder、送出成功綠字提示、傳送中「……」動畫 -->
 <style>
   :root{--maxw:520px; --labelw:92px;}
   body{margin:0;background:#f5f5f5;font-family:"Comic Sans MS",sans-serif}
@@ -15,20 +15,49 @@
   .tool-right{justify-self:end}
   .tool-btn{background:none;border:0;font-size:18px;line-height:1;padding:2px 6px;cursor:pointer}
   .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:0}
+
+  /* 當日當班：單獨一行、視覺內縮到輸入列左邊界 */
   .ds-line{font-weight:700;margin:8px 0 10px 0; padding-left:20px;}
+
+  /* 表單列：兩欄 Grid（左固定、右彈性） */
   .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;column-gap:10px;margin:6px 0}
   .label{font-family:"標楷體",serif;text-align:center}
   .ctrl{width:100%}
-  .ctrl input,.ctrl select{width:100%;box-sizing:border-box;padding:7px;border:1px solid #ccc;border-radius:6px;font-family:"Comic Sans MS",sans-serif}
+  .ctrl input,.ctrl select,.ctrl textarea{width:100%;box-sizing:border-box;padding:7px;border:1px solid #ccc;border-radius:6px;font-family:"Comic Sans MS",sans-serif}
   .row.lot-type .ctrl{display:grid;grid-template-columns:25% 1fr;column-gap:8px}
   .row.lot-type select{min-width:80px}
+  textarea[readonly]{background:#f2f2f2;color:#555}
+
+  /* 批號欄位錯誤訊息（醒目字體；修正完成即隱藏） */
   .field-error{display:none;color:#d93025;font-weight:700;font-size:13px;margin-top:4px}
-  .submit{display:flex;justify-content:flex-end;margin-top:10px}
+
+  /* 送出列：左側顯示成功訊息／傳送中動畫，右側是按鈕 */
+  .submit{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
   .btn{background:#0a66ff;color:#fff;border:0;border-radius:8px;padding:10px 18px;cursor:pointer}
+
+  /* 成功訊息（綠字，5s 自動隱藏） */
+  .ok-msg{display:none;color:#1a7f37;font-weight:700;font-size:13px}
+  .ok-msg.show{display:block;opacity:1;transition:opacity .4s}
+  .ok-msg.fade{opacity:0}
+
+  /* 傳送中 …… 動畫 */
+  .dots{display:none;font-size:13px;color:#333;margin-left:8px}
+  .dots span{opacity:0;animation:blink 1s infinite;}
+  .dots span:nth-child(1){animation-delay:0s}
+  .dots span:nth-child(2){animation-delay:.2s}
+  .dots span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,100%{opacity:0}50%{opacity:1}}
+
   hr{margin:10px 0}
+
+  /* 分隔線以下統一置中容器 */
   .post{width:95%;margin:0 auto}
+
+  /* 表格樣式（交由 .post 控制置中與寬度） */
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
+
+  /* 底部資訊列：兩欄（左=版本號靠左，右=時間靠右） */
   .bottom-info{display:grid;grid-template-columns:1fr 1fr;align-items:center;margin:6px 0}
   .ver-left{justify-self:start;font-size:12px;color:#666}
   .time-right{justify-self:end;font-size:12px;color:#333;text-align:right}
@@ -36,14 +65,17 @@
 </head>
 <body>
 <div class="wrap">
+  <!-- 頂列：左語言 / 中標題 / 右返回 -->
   <div class="toolbar">
     <div class="tool-left"><button class="tool-btn" id="langBtn" title="語言">🌐</button></div>
     <h1 class="title">RT 外觀抽驗記錄表</h1>
     <div class="tool-right"><button class="tool-btn" id="backBtn" title="返回" onclick="location.href='index.html'">↩️</button></div>
   </div>
 
+  <!-- 當日當班（單獨一行、內縮） -->
   <div id="dsView" class="ds-line"></div>
 
+  <!-- 表單區 -->
   <div class="row">
     <div class="label">檢　驗：</div>
     <div class="ctrl"><input id="inspector" maxlength="5" placeholder="輸入 5 碼工號"></div>
@@ -51,7 +83,7 @@
 
   <div class="row">
     <div class="label">料　號：</div>
-    <div class="ctrl"><input id="partNo" maxlength="7" placeholder="請輸入 料號 by 7碼"></div>
+    <div class="ctrl"><input id="partNo" maxlength="7" placeholder="輸入 7碼料號"></div>
   </div>
 
   <div class="row lot-type">
@@ -68,26 +100,39 @@
   <div class="row">
     <div class="label">批　號：</div>
     <div class="ctrl">
-      <input id="lotInput" placeholder="母批(3碼) 或 母批-子批(3-2)；禁 I / O">
+      <input id="lotInput" placeholder="母批(3碼) or 母批-子批(3-2)；禁 I / O">
       <div id="lotError" class="field-error"></div>
     </div>
   </div>
 
   <div class="row">
     <div class="label">數　量：</div>
-    <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入批量"></div>
+    <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入 批量"></div>
   </div>
 
-  <div class="submit"><button id="sendBtn" class="btn">送出</button></div>
+  <div class="row">
+    <div class="label">備　註：</div>
+    <div class="ctrl"><textarea id="remark" readonly>目前不開放輸入</textarea></div>
+  </div>
+
+  <div class="submit">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div id="okMsg" class="ok-msg"></div>
+      <div id="loadingDots" class="dots">傳送中<span>.</span><span>.</span><span>.</span></div>
+    </div>
+    <button id="sendBtn" class="btn">送出</button>
+  </div>
 
   <hr>
 
+  <!-- 分隔線以下統一置中：版本＋時間＋表格 -->
   <div class="post">
     <div class="bottom-info">
-      <div id="versionTag" class="ver-left">版本：v17.6.7</div>
+      <div id="versionTag" class="ver-left">版本：v17.6.8</div>
       <div id="tsView" class="time-right"></div>
     </div>
 
+    <!-- 清單（倒序，最多50筆；草稿機制） -->
     <table>
       <thead><tr><th>料　號</th><th>批　號</th><th>數　量</th></tr></thead>
       <tbody id="recordList"></tbody>
@@ -96,7 +141,7 @@
 </div>
 
 <script>
-/* === 常數與工具 === */
+/* === 常數與工具（維持 v17.6.6） === */
 const GAS_URL="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 const API_TOKEN="MY_SECRET_123";
 const INSPECTOR_KEY="inspector_id";
@@ -152,6 +197,8 @@ const lotPrefix=document.getElementById('lotPrefix');
 const lotInput=document.getElementById('lotInput');
 const lotError=document.getElementById('lotError');
 const qty=document.getElementById('qty');
+const okMsg=document.getElementById('okMsg');
+const loadingDots=document.getElementById('loadingDots');
 ['inspector','partNo','lotInput','lotPrefix','qty'].forEach(id=>{
   document.getElementById(id).addEventListener('input',()=>{if(id==='inspector')saveInspector(); else saveDraft();})
 });
@@ -162,6 +209,22 @@ function setLotError(msg){
   if(!lotError) return;
   if (msg){ lotError.textContent = msg; lotError.style.display = 'block'; }
   else { lotError.textContent = ''; lotError.style.display = 'none'; }
+}
+
+/* === 送出行為提示：綠字成功、dots 動畫 === */
+let okTimer=null;
+function showOk(msg){
+  if(!okMsg) return;
+  if(okTimer){ clearTimeout(okTimer); okTimer=null; }
+  okMsg.textContent = msg||'';
+  okMsg.classList.add('show');
+  okMsg.classList.remove('fade');
+  okTimer = setTimeout(()=>{ okMsg.classList.add('fade'); }, 4600);
+  setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; }, 5000);
+}
+function showLoading(on){
+  if(!loadingDots) return;
+  loadingDots.style.display = on ? 'inline-block' : 'none';
 }
 
 /* === 批號解析：母批3碼(禁 I/O)；子批可省略，有則補0至2碼(禁 I/O) === */
@@ -246,6 +309,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const part=CANON(partNo.value);
   const prefix=CANON(lotPrefix.value);
 
+  // 批號解析（如不合法：不彈窗，欄位下方紅字）
   const lotParsed = parseLot(lotInput.value);
   if (!lotParsed.ok){ setLotError(lotParsed.msg); lotInput.focus(); return; }
   setLotError('');
@@ -256,10 +320,12 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)) return alert('料號格式錯誤（如 A58K052）');
   if(!(q>0)) return alert('數量需 > 0');
 
+  // lot 顯示（含 FA）
   const lotDisp = prefix 
     ? `${prefix}-${lotParsed.mother}${lotParsed.hasChild?'-'+lotParsed.child:''}`
     : `${lotParsed.mother}${lotParsed.hasChild?'-'+lotParsed.child:''}`;
 
+  // payload
   const key = buildKey(currentDS.dateMD, currentDS.shift, part, lotDisp);
   const payload={
     token:API_TOKEN,
@@ -270,23 +336,33 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     mother_child: lotParsed.hasChild ? `${lotParsed.mother}-${lotParsed.child}` : lotParsed.mother,
     qty:String(q),
     inspector:inspectorVal,
-    remark:""  // 後端保留欄位，固定送空字串
+    remark:""
   };
 
-  const btn=document.getElementById('sendBtn'); btn.disabled=true;
+  const btn=document.getElementById('sendBtn');
+  btn.disabled=true; showLoading(true);
+
   try{
     const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
     const data=await res.json();
     if(data.status==='ok'){
-      alert(data.upsert==='update'?'✅ 已更新':'✅ 已新增');
+      // ✅ 不彈窗：用綠字顯示 5 秒
+      showOk(data.upsert==='update' ? '✅ 已更新' : '✅ 已新增');
+
+      // 成功 → 寫入草稿清單（覆蓋同料號+批號）
       upsertDraftList({part_no:part, lot:lotDisp, qty:String(q), inspector:inspectorVal});
+
+      // 送出後：保留料號；清空批號&數量；點擊料號一次清空
       lotInput.value=''; qty.value=''; saveDraft();
       clearPartOnce=true;
     }else{
       alert('❌ 後端：'+JSON.stringify(data));
     }
-  }catch(err){ alert('送出錯誤：'+err.message); }
-  finally{ btn.disabled=false; }
+  }catch(err){
+    alert('送出錯誤：'+err.message);
+  }finally{
+    btn.disabled=false; showLoading(false);
+  }
 });
 
 /* 語言鈎子（保留，不實作切換） */
