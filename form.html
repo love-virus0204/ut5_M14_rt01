@@ -107,7 +107,7 @@
 
   <div class="post">
     <div class="bottom-info">
-      <div id="versionTag" class="ver-left">版本：v17.7.7</div>
+      <div id="versionTag" class="ver-left">版本：v17.7.8</div>
       <div id="tsView" class="time-right"></div>
     </div>
     <table>
@@ -132,6 +132,11 @@ function buildKey(dateMD,shift,part,lotDisp){return `${CANON(dateMD)}|${CANON(sh
 function twNowStr(){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())}
 function mdOf(d){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d)}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+
+/* 容錯：前後端一致性（布林/大小寫/數值） */
+function asTrue(v){ return String(v).toLowerCase() === 'true'; }
+function eqQty(a,b){ return String(Number(a)) === String(Number(b)); }
+function eqUpper(a,b){ return String(a||'').toUpperCase() === String(b||'').toUpperCase(); }
 
 /* ==== 班別錨定（0040/0840/1640）==== */
 function computeShiftByClock(){
@@ -335,14 +340,15 @@ async function refreshAllDraftStrikes(){
       const key = buildKey(currentDS.dateMD, currentDS.shift, x.part_no, x.lot);
       const row = rows.find(r => String(r.key).toUpperCase() === String(key).toUpperCase());
       let strike=false;
-      if(!row) strike=true;
-      else{
+      if(!row){
+        strike=true; // 找不到同筆
+      }else{
         const faInRow = /^FA-/.test(String(row.lot||'').toUpperCase());
         const faInNow = /^FA-/.test(String(x.lot||'').toUpperCase());
-        if (row.deleted !== true) strike = true;
-        if (String(row.qty) !== String(x.qty)) strike = true;
-        if (String(row.inspector||'').toUpperCase() !== String(x.inspector||'').toUpperCase()) strike = true;
-        if (faInRow !== faInNow) strike = true;
+        if (!asTrue(row.deleted)) strike = true;                 // 被軟刪（容錯字串/布林）
+        if (!eqQty(row.qty, x.qty)) strike = true;               // 數量不同
+        if (!eqUpper(row.inspector, x.inspector)) strike = true; // 檢驗員不同
+        if (faInRow !== faInNow) strike = true;                  // FA 前綴是否一致
       }
       x.strike = strike;
     });
@@ -418,7 +424,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     hideCenter(); showOk(data.upsert==='update' ? '✅ 已更新' : '✅ 已新增');
 
     upsertDraftList({part_no:part, lot:lotDisp, qty:String(q), inspector:inspectorVal});
-    await refreshAllDraftStrikes();   // 送出後全量對比一次
+    await refreshAllDraftStrikes();   // 送出後全量對比
 
     lotInput.value=''; qty.value='';
     saveDraft();
