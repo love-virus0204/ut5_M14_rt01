@@ -1,153 +1,160 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RT 外觀抽驗記錄表</title>
+<title>RT外觀抽驗記錄表</title>
 <style>
-  body { font-family: "Comic Sans MS", sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
-  .container { max-width: 480px; margin: auto; padding: 10px; background: white; box-shadow: 0 0 5px rgba(0,0,0,0.2); }
-  .title { font-family: "標楷體"; font-size: 1.4em; text-align: center; margin: 5px 0; font-weight: bold; }
-  .topbar { display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; margin-bottom: 5px; }
-  label { font-family: "標楷體"; display: inline-block; width: 5em; text-align: justify; text-align-last: justify; }
-  input, select, textarea { width: 70%; padding: 5px; margin: 3px 0; font-family: "Comic Sans MS"; }
-  .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-  .row select { width: 25%; } /* 下拉框縮小 */
-  .row input.lot-input { width: calc(70% - 30px); } /* 批號輸入框對齊料號 */
-  .submit-row { text-align: right; margin-top: 10px; }
-  .submit-btn { background: #007bff; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-size: 1em; }
-  hr { margin: 10px 0; }
-  table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-  th, td { border-top: 1px solid #ccc; text-align: center; padding: 2px 0; }
-  .note { font-size: 0.8em; color: gray; }
+  body { font-family: "Comic Sans MS", sans-serif; margin: 10px; }
+  h1 { font-family: "DFKai-sb", serif; text-align: center; margin-bottom: 5px; }
+  label { font-family: "DFKai-sb", serif; display: inline-block; width: 70px; text-align: center; }
+  .row { display: flex; align-items: center; margin-bottom: 6px; }
+  .row input, .row select { flex: 1; padding: 6px; font-family: "Comic Sans MS", sans-serif; }
+  .lot-select { flex: 0 0 25%; margin-right: 5px; }
+  #versionTag { font-size: 0.8em; color: gray; margin: 5px 0 0 2px; }
+  #recordsTable { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 0.9em; }
+  #recordsTable th, #recordsTable td { border-bottom: 1px solid #ddd; text-align: center; padding: 4px; }
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="title">RT 外觀抽驗記錄表</div>
-
-  <div class="topbar">
-    <div id="tsView"></div>
-    <div id="dsView" style="text-align:center; flex-grow:1;"></div>
-    <button onclick="history.back()">⤴</button>
+  <div class="header">
+    <h1>RT外觀抽驗記錄表</h1>
+    <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+      <div id="timestamp" style="text-align:left;font-size:0.9em;"></div>
+      <div id="dateShift" style="text-align:center;font-size:1em;font-weight:bold;"></div>
+    </div>
   </div>
 
-  <div class="row"><label>檢驗員：</label><input type="text" id="inspector" maxlength="5" placeholder="輸入 5 碼工號"></div>
-  <div class="row"><label>料　號：</label><input type="text" id="partNo" placeholder="請輸入 料號 by 7碼"></div>
+  <div class="row">
+    <label>檢驗員：</label>
+    <input id="inspector" maxlength="5" placeholder="輸入 5 碼工號">
+  </div>
+
+  <div class="row">
+    <label>料　號：</label>
+    <input id="partNo" maxlength="7" placeholder="請輸入 料號 by 7碼">
+  </div>
 
   <div class="row">
     <label>型　態：</label>
-    <select id="lotPrefix">
+    <select id="lotPrefix" class="lot-select">
       <option value=""> </option>
       <option value="FA">FA</option>
     </select>
-    <input type="text" class="lot-input" id="lotInput" placeholder="母批[-子批] (母批3碼英數禁O/I)">
+    <input id="lotCombined" maxlength="7" placeholder="母批[-子批] (母批3碼英數禁O/I)">
   </div>
 
-  <div class="row"><label>批　號：</label><input type="text" id="lotFull" readonly></div>
-  <div class="row"><label>數　量：</label><input type="number" id="qty" min="1" placeholder="輸入批量"></div>
-  <div class="row"><label>備　註：</label><textarea id="remark" readonly>目前不開放輸入</textarea></div>
+  <div class="row">
+    <label>數　量：</label>
+    <input id="qty" type="number" min="1" placeholder="輸入批量">
+  </div>
 
-  <div class="submit-row"><button class="submit-btn" onclick="handleSubmit()">送出</button></div>
+  <div class="row">
+    <label>備　註：</label>
+    <input id="remark" value="目前不開放輸入" disabled>
+  </div>
+
+  <div class="row" style="justify-content:flex-end;">
+    <button id="submitBtn" style="padding:6px 20px;">送出</button>
+  </div>
 
   <hr>
-  <table id="history"><thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead><tbody></tbody></table>
-  <div class="note">顯示規則：當日當班+同工號；倒序（最新在最上），最多 50 筆。</div>
-</div>
+  <div id="versionTag">版本：v17.2</div>
+  <table id="recordsTable">
+    <thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead>
+    <tbody id="recordsBody"></tbody>
+  </table>
 
 <script>
-// ===== 台北時間 & 班別顯示 =====
-function twNowStr(){
-  return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',
-    year:'numeric',month:'2-digit',day:'2-digit',
-    hour:'2-digit',minute:'2-digit',second:'2-digit',
-    hour12:false}).format(new Date());
-}
-function computeShift(date){
-  const h = date.getHours(), m = date.getMinutes(), t = h*60+m;
-  if(t>=840 && t<1000) return "A";
-  if(t>=1000 || t<40) return "B";
-  return "C";
-}
-function anchorDS(){
+const STORAGE_KEY = "RT_FORM_DRAFT_v17";
+const inspectorField = document.getElementById("inspector");
+const partNoField = document.getElementById("partNo");
+const lotPrefix = document.getElementById("lotPrefix");
+const lotCombined = document.getElementById("lotCombined");
+const qtyField = document.getElementById("qty");
+const dateShiftEl = document.getElementById("dateShift");
+const timestampEl = document.getElementById("timestamp");
+
+// ===== 即時時間與當班判斷 =====
+function updateClock() {
   const now = new Date();
-  const dateShift = computeShift(now);
-  const dateMD = now.toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit',timeZone:'Asia/Taipei'});
-  return {dateMD,shift:dateShift};
+  timestampEl.textContent = now.toLocaleString("zh-TW", {hour12:false});
 }
-function tick(){
-  document.getElementById('tsView').textContent = twNowStr();
-  const a = anchorDS();
-  document.getElementById('dsView').textContent = `${a.dateMD} - ${a.shift}`;
+setInterval(updateClock, 1000); updateClock();
+
+function calcShift() {
+  const now = new Date();
+  let hour = now.getHours(), min = now.getMinutes();
+  let shift = "A";
+  if (hour>=8 && (hour<16 || (hour==16 && min<40))) shift="A";
+  else if ((hour>16 || (hour==16&&min>=40)) || hour<0) shift="B";
+  if (hour<8 || (hour==0 && min<40)) shift="C";
+  const dateStr = now.toLocaleDateString("zh-TW",{month:"2-digit",day:"2-digit"});
+  dateShiftEl.textContent = `${dateStr} - ${shift}`;
+  return {date:dateStr,shift};
 }
-setInterval(tick,1000); tick();
+let currentShift = calcShift();
 
 // ===== 草稿機制 =====
 function loadDraft(){
-  const d = JSON.parse(localStorage.getItem("draft")||"{}");
-  if(d.inspector) document.getElementById("inspector").value = d.inspector;
-  if(d.partNo) document.getElementById("partNo").value = d.partNo;
+  const d = JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");
+  if(d.inspector) inspectorField.value = d.inspector;
+  if(d.partNo) partNoField.value = d.partNo;
+  if(d.lotPrefix) lotPrefix.value = d.lotPrefix;
+  if(d.lotCombined) lotCombined.value = d.lotCombined;
+  if(d.qty) qtyField.value = d.qty;
 }
 function saveDraft(){
-  const d = {
-    inspector:document.getElementById("inspector").value.toUpperCase(),
-    partNo:document.getElementById("partNo").value.toUpperCase()
-  };
-  localStorage.setItem("draft",JSON.stringify(d));
+  localStorage.setItem(STORAGE_KEY,JSON.stringify({
+    inspector: inspectorField.value.toUpperCase(),
+    partNo: partNoField.value.toUpperCase(),
+    lotPrefix: lotPrefix.value,
+    lotCombined: lotCombined.value.toUpperCase(),
+    qty: qtyField.value
+  }));
 }
-document.getElementById("inspector").addEventListener("change",saveDraft);
-document.getElementById("partNo").addEventListener("change",saveDraft);
+[inspectorField,partNoField,lotPrefix,lotCombined,qtyField].forEach(el=>{
+  el.addEventListener("input",saveDraft);
+});
+loadDraft();
 
-// ===== 表單送出 =====
-function buildKey(){
-  const a = anchorDS();
-  const lotPrefix = document.getElementById("lotPrefix").value;
-  const lot = document.getElementById("lotInput").value;
-  return `${a.dateMD}-${a.shift}-${document.getElementById("partNo").value}-${lotPrefix}${lot}`.toUpperCase();
-}
+// ===== 送出處理 =====
+document.getElementById("submitBtn").addEventListener("click", async ()=>{
+  const inspector = inspectorField.value.trim().toUpperCase();
+  const partNo = partNoField.value.trim().toUpperCase();
+  const lot = lotCombined.value.trim().toUpperCase();
+  const prefix = lotPrefix.value;
+  if(!inspector || inspector.length!==5){ alert("請輸入5碼檢驗員工號"); return; }
+  if(!partNo || partNo.length!==7){ alert("料號需7碼"); return; }
+  if(!lot || lot.length<3){ alert("請輸入完整母批/子批"); return; }
+  const fullLot = (prefix?prefix+"-":"")+lot;
+  const qty = parseInt(qtyField.value)||0;
+  if(qty<=0){ alert("數量需>0"); return; }
 
-async function handleSubmit(){
-  const inspector = document.getElementById("inspector").value.trim().toUpperCase();
-  const partNo = document.getElementById("partNo").value.trim().toUpperCase();
-  const lotPrefix = document.getElementById("lotPrefix").value;
-  const lot = document.getElementById("lotInput").value.trim().toUpperCase();
-  const qty = parseInt(document.getElementById("qty").value);
-  if(!inspector || inspector.length!==5){alert("請輸入正確檢驗員工號");return;}
-  if(!partNo || partNo.length!==7){alert("請輸入正確料號(7碼)");return;}
-  if(!lot || lot.length<3){alert("請輸入3碼母批");return;}
-  if(!qty || qty<=0){alert("請輸入批量");return;}
-
-  const key = buildKey();
-  const payload = {
-    date: anchorDS().dateMD,
-    shift: anchorDS().shift,
-    part_no: partNo,
-    lot_full: (lotPrefix?lotPrefix+"-":"")+lot,
-    qty: qty,
-    sample: Math.min(qty,20),
-    z8:0,z9:0,z10:0,z11:0,z12:0,z13:0,z14:0,
-    inspector: inspector,
-    remark: "",
-    status: true,
-    admin_id:"",
-    deleted_at:"",
-    timestamp: new Date().toISOString(),
-    key: key
-  };
-
-  try{
+  const key = `${currentShift.date}|${currentShift.shift}|${partNo}|${fullLot}`;
+  try {
     const res = await fetch("YOUR_GAS_DEPLOY_URL",{
       method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload)
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ date:currentShift.date, shift:currentShift.shift,
+        part_no:partNo, lot_full:fullLot, qty:qty, inspector:inspector, key:key })
     });
-    const result = await res.json();
-    if(result.status==="ok"){alert("✅送出成功");document.getElementById("lotInput").value="";document.getElementById("qty").value="";}
-    else alert("❌後端回覆："+JSON.stringify(result));
-  }catch(e){alert("❌送出錯誤："+e);}
-}
+    if(!res.ok) throw new Error("伺服器錯誤");
+    alert("✅已送出/更新");
+    lotCombined.value=""; qtyField.value=""; saveDraft();
+    loadRecords(); //刷新清單
+  } catch(e){
+    alert("❌送出失敗："+e.message);
+  }
+});
 
-loadDraft();
+// ===== 模擬清單 (可改為呼叫 GAS 讀取) =====
+function loadRecords(){
+  const tbody = document.getElementById("recordsBody");
+  tbody.innerHTML = "";
+  // 假資料移除：後端成功送出後填充
+}
+loadRecords();
 </script>
 </body>
 </html>
