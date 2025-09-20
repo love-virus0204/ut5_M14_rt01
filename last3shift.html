@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>最近三個班（純顯示）</title>
+<style>
+  :root{--maxw:560px;}
+  body{margin:0;background:#f6f7f9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;color:#222}
+  .wrap{max-width:var(--maxw);margin:16px auto;padding:12px 14px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06);border-radius:12px}
+  h1{font-size:18px;margin:0 0 8px 0;text-align:center}
+  .dsbar{font-weight:700;text-align:center;color:#444;margin-bottom:10px}
+  .sec{margin-top:12px}
+  .sech{font-weight:700;color:#0a66ff;margin:8px 0 6px 0;border-left:4px solid #0a66ff;padding-left:8px}
+  .row{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;padding:6px 8px;border-top:1px solid #eee}
+  .idx{color:#888;text-align:center}
+  .val{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .muted{color:#888}
+  .err{color:#c62828}
+  .foot{margin-top:10px;font-size:12px;color:#666;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>最近三個班（純顯示）</h1>
+  <div id="dsbar" class="dsbar">載入中…</div>
+
+  <div id="sec1" class="sec">
+    <div id="sech1" class="sech">—</div>
+    <div id="list1"></div>
+  </div>
+
+  <div id="sec2" class="sec">
+    <div id="sech2" class="sech">—</div>
+    <div id="list2"></div>
+  </div>
+
+  <div id="sec3" class="sec">
+    <div id="sech3" class="sech">—</div>
+    <div id="list3"></div>
+  </div>
+
+  <div id="msg" class="muted"></div>
+  <div class="foot">v0.1 (display only)</div>
+</div>
+
+<script>
+/* === 你的 GAS 讀取端點（只讀） === */
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
+
+/* === 時間/班別規則（00:40/08:40/16:40；C 班顯示前一日） === */
+function mdOf(d){ return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d); }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+
+function computeCurrentDS(){
+  const now = new Date();
+  const tzNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
+  const h = tzNow.getHours(), m = tzNow.getMinutes();
+  const mins = h*60+m;
+  let dateMD, shift;
+  if (mins >= 40 && mins < 520) { dateMD = mdOf(addDays(tzNow,-1)); shift = 'C'; }    // 00:40–08:39 → 前一天 C
+  else if (mins >= 520 && mins < 1000) { dateMD = mdOf(tzNow); shift = 'A'; }         // 08:40–16:39 → 今日 A
+  else if (mins >= 1000) { dateMD = mdOf(tzNow); shift = 'B'; }                        // 16:40–23:59 → 今日 B
+  else { dateMD = mdOf(addDays(tzNow,-1)); shift = 'B'; }                              // 00:00–00:39 → 前一天 B
+  return { dateMD, shift, tzNow };
+}
+
+/* 依目前 DS 推導最近三個班（符合你的例子） */
+function last3DS(cur){
+  const d = cur.dateMD, s = cur.shift;
+  // 取得前一天日期字串
+  const prevDate = mdOf(addDays(cur.tzNow,-1));
+  if (s === 'B') return [{date:d,shift:'B'},{date:d,shift:'A'},{date:prevDate,shift:'C'}];
+  if (s === 'A') return [{date:d,shift:'A'},{date:prevDate,shift:'C'},{date:prevDate,shift:'B'}];
+  // s === 'C'（C 班的 date 已是前一日）
+  return [{date:d,shift:'C'},{date:d,shift:'B'},{date:d,shift:'A'}];
+}
+
+/* 讀取某 DS（含已刪/未刪），前端只篩選 deleted===true 顯示 */
+async function fetchDS(date, shift){
+  const u = `${GAS_URL}?scope=all&date=${encodeURIComponent(date)}&shift=${encodeURIComponent(shift)}`;
+  const r = await fetch(u);
+  const j = await r.json();
+  if (!Array.isArray(j)) throw new Error(JSON.stringify(j));
+  return j.filter(x => x.deleted === true); // 只顯示有效
+}
+
+/* 渲染一段列表 */
+function renderList(containerId, rows){
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  if (!rows.length){
+    el.innerHTML = `<div class="muted" style="padding:6px 8px;border-top:1px solid #eee">（無資料）</div>`;
+    return;
+  }
+  rows.forEach((x,i)=>{
+    const idx = String(i+1).padStart(2,'0');
+    const part = x.part_no || '';
+    const lot  = x.lot || '';
+    const qty  = x.qty || '';
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<div class="idx">${idx}</div><div class="val">${part} ／ ${lot} ／ ${qty}</div>`;
+    el.appendChild(row);
+  });
+}
+
+/* 主流程 */
+(async function(){
+  try{
+    const cur = computeCurrentDS();
+    const ds3 = last3DS(cur);
+    const bar = document.getElementById('dsbar');
+    bar.textContent = `最近三個班：${ds3.map(d=>`${d.date}${d.shift}`).join('，')}`;
+
+    // 三段標題
+    document.getElementById('sech1').textContent = `${ds3[0].date} ${ds3[0].shift}`;
+    document.getElementById('sech2').textContent = `${ds3[1].date} ${ds3[1].shift}`;
+    document.getElementById('sech3').textContent = `${ds3[2].date} ${ds3[2].shift}`;
+
+    // 依序抓取並渲染
+    const [r1,r2,r3] = await Promise.all([
+      fetchDS(ds3[0].date, ds3[0].shift),
+      fetchDS(ds3[1].date, ds3[1].shift),
+      fetchDS(ds3[2].date, ds3[2].shift),
+    ]);
+    renderList('list1', r1);
+    renderList('list2', r2);
+    renderList('list3', r3);
+  }catch(e){
+    document.getElementById('msg').className='err';
+    document.getElementById('msg').textContent='讀取失敗：'+ String(e);
+  }
+})();
+</script>
+</body>
+</html>
