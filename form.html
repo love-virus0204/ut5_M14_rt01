@@ -107,7 +107,7 @@
 
   <div class="post">
     <div class="bottom-info">
-      <div id="versionTag" class="ver-left">版本：v17.7.8</div>
+      <div id="versionTag" class="ver-left">版本：v17.7.9</div>
       <div id="tsView" class="time-right"></div>
     </div>
     <table>
@@ -153,6 +153,14 @@ function computeShiftByClock(){
 }
 let currentDS = computeShiftByClock();
 $('#dsView').textContent = `${currentDS.dateMD} - ${currentDS.shift}`;
+
+/* 直接用載入時的當日當班換 yyyy/MM/dd（不再重算） */
+function ymdFromCurrentDS(){
+  const [mm,dd] = currentDS.dateMD.split('/');
+  const tzNow = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
+  const y = tzNow.getFullYear();
+  return `${y}/${mm}/${dd}`;
+}
 
 /* ==== 即時時鐘 ==== */
 function tick(){ $('#tsView').textContent = twNowStr(); }
@@ -326,10 +334,10 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; }, 5000);
 }
 
-/* ==== 後端比對：全量草稿對比 ==== */
+/* ==== 後端比對：全量草稿對比（用載入時當日當班換算的 ymd） ==== */
 async function refreshAllDraftStrikes(){
   try{
-    const ymd = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replace(/\//g,'/');
+    const ymd = ymdFromCurrentDS(); // 以 currentDS.dateMD 組 yyyy/MM/dd
     const url = `${API_URL}?action=list&date=${encodeURIComponent(ymd)}&shift=${encodeURIComponent(currentDS.shift)}&t=${Date.now()}`;
     const r = await fetch(url, {method:'GET', cache:'no-store'});
     const js = await r.json();
@@ -345,7 +353,7 @@ async function refreshAllDraftStrikes(){
       }else{
         const faInRow = /^FA-/.test(String(row.lot||'').toUpperCase());
         const faInNow = /^FA-/.test(String(x.lot||'').toUpperCase());
-        if (!asTrue(row.deleted)) strike = true;                 // 被軟刪（容錯字串/布林）
+        if (!asTrue(row.deleted)) strike = true;                 // 被軟刪
         if (!eqQty(row.qty, x.qty)) strike = true;               // 數量不同
         if (!eqUpper(row.inspector, x.inspector)) strike = true; // 檢驗員不同
         if (faInRow !== faInNow) strike = true;                  // FA 前綴是否一致
@@ -386,11 +394,10 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   if(!(q>0)){ alert('數量需 > 0'); return; }
 
   const key = buildKey(currentDS.dateMD, currentDS.shift, part, lotDisp);
-  const todayYMD = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replace(/\//g,'/');
-
+  const ymd = ymdFromCurrentDS(); // 與草稿對比一致
   const params = new URLSearchParams({
     action:'upsert',
-    date: todayYMD,
+    date: ymd,
     shift: currentDS.shift,
     part_no: part,
     lot: lotDisp,
