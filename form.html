@@ -15,6 +15,7 @@
   .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:0;font-size:1.4rem}
   @media (max-width: 400px){ .title{font-size:1.2rem} }
 
+  /* 當日當班：單獨一行、視覺內縮到輸入列左邊界 */
   .ds-line{font-weight:700;margin:8px 0 10px 0; padding-left:20px;}
 
   .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;column-gap:10px;margin:6px 0}
@@ -107,7 +108,7 @@
 
   <div class="post">
     <div class="bottom-info">
-      <div id="versionTag" class="ver-left">版本：v17.7.9</div>
+      <div id="versionTag" class="ver-left">版本：v17.8.0</div>
       <div id="tsView" class="time-right"></div>
     </div>
     <table>
@@ -118,27 +119,18 @@
 </div>
 
 <script>
-/* ==== 後端 API ==== */
+/* ===== 後端 API ===== */
 const API_URL = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 
-/* ==== 工具 ==== */
+/* ===== 工具 ===== */
 const $ = s => document.querySelector(s);
 function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g," ")}
 function CANON(s){return fw2hw(s).trim().toUpperCase()}
-function hasFA(s){ return /^FA-/.test(CANON(s)); }
-function normLotKey(s){return CANON(s).replace(/^FA-/, "")}
-function buildKey(dateMD,shift,part,lotDisp){return `${CANON(dateMD)}|${CANON(shift)}|${CANON(part)}|${normLotKey(lotDisp)}`}
-
 function twNowStr(){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())}
 function mdOf(d){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d)}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
 
-/* 容錯：前後端一致性（布林/大小寫/數值） */
-function asTrue(v){ return String(v).toLowerCase() === 'true'; }
-function eqQty(a,b){ return String(Number(a)) === String(Number(b)); }
-function eqUpper(a,b){ return String(a||'').toUpperCase() === String(b||'').toUpperCase(); }
-
-/* ==== 班別錨定（0040/0840/1640）==== */
+/* ===== 班別錨定（0040/0840/1640）===== */
 function computeShiftByClock(){
   const now = new Date();
   const tzNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
@@ -154,7 +146,7 @@ function computeShiftByClock(){
 let currentDS = computeShiftByClock();
 $('#dsView').textContent = `${currentDS.dateMD} - ${currentDS.shift}`;
 
-/* 直接用載入時的當日當班換 yyyy/MM/dd（不再重算） */
+/* 由當班錨定換 yyyy/MM/dd（不再重算） */
 function ymdFromCurrentDS(){
   const [mm,dd] = currentDS.dateMD.split('/');
   const tzNow = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
@@ -162,11 +154,11 @@ function ymdFromCurrentDS(){
   return `${y}/${mm}/${dd}`;
 }
 
-/* ==== 即時時鐘 ==== */
+/* ===== 即時時鐘 ===== */
 function tick(){ $('#tsView').textContent = twNowStr(); }
 setInterval(tick,1000); tick();
 
-/* ==== DOM ==== */
+/* ===== DOM ===== */
 const inspector = $('#inspector');
 const inspectorError = $('#inspectorError');
 const partNo = $('#partNo');
@@ -177,7 +169,7 @@ const lotError = $('#lotError');
 const qty = $('#qty');
 const okMsg = $('#okMsg');
 
-/* ==== 錯誤訊息（即時回饋）==== */
+/* ===== 錯誤顯示 ===== */
 function setFieldError(inputEl, hintEl, msg){
   if(!inputEl || !hintEl) return;
   if (msg){
@@ -231,13 +223,11 @@ lotInput.addEventListener('blur', ()=>{
   lotInput.value = r.mother + (r.hasChild ? '-' + r.child : '');
 });
 
-/* 數量 */
-function calcSample(q){ const n=Number(q||0); return isFinite(n)&&n>0 ? Math.min(20,n) : 0; }
-
-/* ==== 草稿（當班）：料號/批號/數量/前綴 + 檢驗員 ==== */
+/* ===== 草稿（Inspector 常駐 + 當班草稿）===== */
 const INSPECTOR_KEY="inspector_id";
 function saveInspector(){const v=CANON($('#inspector').value); if(/^[A-Z0-9]{5}$/.test(v)) localStorage.setItem(INSPECTOR_KEY,v)}
 function loadInspector(){const v=localStorage.getItem(INSPECTOR_KEY)||''; if(v) $('#inspector').value=v}
+
 const DSK='rt_draft_ds', DP='rt_draft_';
 function dsKey(){return `${currentDS.dateMD}|${currentDS.shift}`}
 function draftKey(){return DP+dsKey()}
@@ -256,8 +246,8 @@ function loadDraft(){
 });
 loadDraft();
 
-/* ==== 草稿清單（顯示 3 欄）==== */
-const LIST_NS='rt_draft_list_v1';
+/* ===== 草稿清單（以 Key2 對比）===== */
+const LIST_NS='rt_draft_list_v2_key2';
 function listDsKey(){return `${currentDS.dateMD}|${currentDS.shift}`}
 function listKey(){return `${LIST_NS}:${listDsKey()}`}
 function listGet(){ try{ return JSON.parse(localStorage.getItem(listKey())||'[]'); }catch{ return []; } }
@@ -275,10 +265,6 @@ function listRotateIfNeeded(){
   }
   localStorage.setItem(`${LIST_NS}:LAST_DS`, cur);
 }
-function draftRowKey(part_no, lot){
-  const norm = normLotKey(lot);
-  return `${CANON(part_no)}|${CANON(norm)}`;
-}
 function renderDraftList(){
   listRotateIfNeeded();
   const tb=$('#recordList'); tb.innerHTML='';
@@ -294,19 +280,22 @@ function renderDraftList(){
     tb.appendChild(tr);
   });
 }
-function upsertDraftList({part_no, lot, qty, inspector}){
-  listRotateIfNeeded();
-  const arr = listGet();
-  const key = draftRowKey(part_no, lot);
-  const idx = arr.findIndex(x => draftRowKey(x.part_no, x.lot) === key);
-  const item = {part_no, lot, qty, inspector, submitted_at: new Date().toISOString(), strike:false};
-  if(idx>=0) arr[idx]=item; else arr.unshift(item);
-  listSet(arr);
-  renderDraftList();
-}
 renderDraftList();
 
-/* ==== 中央浮層狀態 ==== */
+/* 建立 LOT 顯示值與 Key/Key2 */
+function buildLotDisp(prefix, motherChild){
+  return prefix ? `${prefix}-${motherChild}` : motherChild;
+}
+function buildKey(dateMD,shift,part,lotDisp){
+  const lotNoFA = String(lotDisp||'').toUpperCase().replace(/^FA-/, '');
+  return `${dateMD}|${shift}|${part}|${lotNoFA}`;
+}
+function buildKey2(dateMD,shift,part,lotDisp,qty,deletedTrue){
+  const sFlag = deletedTrue ? 'T' : 'F';
+  return `${dateMD}|${shift}|${part}|${lotDisp}|${qty}|${sFlag}`;
+}
+
+/* 中央浮層 */
 function ensureCenterBox(){
   let box = $("#center-status");
   if (!box){
@@ -334,41 +323,32 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; }, 5000);
 }
 
-/* ==== 後端比對：全量草稿對比（用載入時當日當班換算的 ymd） ==== */
-async function refreshAllDraftStrikes(){
+/* 以 Key2 全量對比（載入一次、送出後一次） */
+async function refreshDraftStrikesByKey2(){
   try{
-    const ymd = ymdFromCurrentDS(); // 以 currentDS.dateMD 組 yyyy/MM/dd
+    const ymd = ymdFromCurrentDS();
     const url = `${API_URL}?action=list&date=${encodeURIComponent(ymd)}&shift=${encodeURIComponent(currentDS.shift)}&t=${Date.now()}`;
     const r = await fetch(url, {method:'GET', cache:'no-store'});
     const js = await r.json();
     const rows = js.rows || [];
 
+    // 建 key2 Set
+    const setK2 = new Set(rows.map(x => String(x.key2||'').toUpperCase()));
+
     const arr = listGet();
     arr.forEach(x=>{
-      const key = buildKey(currentDS.dateMD, currentDS.shift, x.part_no, x.lot);
-      const row = rows.find(r => String(r.key).toUpperCase() === String(key).toUpperCase());
-      let strike=false;
-      if(!row){
-        strike=true; // 找不到同筆
-      }else{
-        const faInRow = /^FA-/.test(String(row.lot||'').toUpperCase());
-        const faInNow = /^FA-/.test(String(x.lot||'').toUpperCase());
-        if (!asTrue(row.deleted)) strike = true;                 // 被軟刪
-        if (!eqQty(row.qty, x.qty)) strike = true;               // 數量不同
-        if (!eqUpper(row.inspector, x.inspector)) strike = true; // 檢驗員不同
-        if (faInRow !== faInNow) strike = true;                  // FA 前綴是否一致
-      }
-      x.strike = strike;
+      const hit = setK2.has(String(x.key2||'').toUpperCase());
+      x.strike = !hit;
     });
     listSet(arr);
     renderDraftList();
   }catch(e){ /* 忽略錯誤，避免誤判 */ }
 }
 
-/* 首次載入就比對一次 */
-refreshAllDraftStrikes();
+/* 送出後或載入時都比對一次 */
+refreshDraftStrikesByKey2();
 
-/* ==== 送出（GET upsert） ==== */
+/* 送出（GET upsert） */
 let clearPartOnce=false;
 partNo.addEventListener('focus',()=>{ if(clearPartOnce){ partNo.value=''; clearPartOnce=false; saveDraft(); } });
 
@@ -387,14 +367,17 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const r = parseLot(lotInput.value);
   if (!r.ok){ setFieldError(lotInput, lotError, r.msg); lotInput.focus(); return; }
   setFieldError(lotInput, lotError, '');
-  lotInput.value = r.mother + (r.hasChild ? '-' + r.child : '');
-  const lotDisp = prefix ? `${prefix}-${lotInput.value}` : lotInput.value;
+  const motherChild = r.mother + (r.hasChild ? '-' + r.child : '');
+  lotInput.value = motherChild;
 
   const q=Number(qty.value);
   if(!(q>0)){ alert('數量需 > 0'); return; }
 
+  const lotDisp = buildLotDisp(prefix, motherChild);
   const key = buildKey(currentDS.dateMD, currentDS.shift, part, lotDisp);
-  const ymd = ymdFromCurrentDS(); // 與草稿對比一致
+  const key2= buildKey2(currentDS.dateMD, currentDS.shift, part, lotDisp, String(q), true);
+  const ymd = ymdFromCurrentDS();
+
   const params = new URLSearchParams({
     action:'upsert',
     date: ymd,
@@ -408,6 +391,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     z7:'0', z8:'0', z9:'0', z10:'0', z11:'0', z12:'0', z13:'0',
     deleted:'true',
     key,
+    key2, // 後端仍會依自身規則重算，但帶上方便除錯
     t: Date.now().toString()
   });
 
@@ -416,10 +400,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 
   try{
     const res=await fetch(`${API_URL}?${params.toString()}`,{
-      method:'GET',
-      cache:'no-store',
-      mode:'cors',
-      redirect:'follow'
+      method:'GET', cache:'no-store', mode:'cors', redirect:'follow'
     });
     const data = await res.json();
 
@@ -430,8 +411,13 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 
     hideCenter(); showOk(data.upsert==='update' ? '✅ 已更新' : '✅ 已新增');
 
-    upsertDraftList({part_no:part, lot:lotDisp, qty:String(q), inspector:inspectorVal});
-    await refreshAllDraftStrikes();   // 送出後全量對比
+    // 草稿清單以 Key2 存
+    upsertDraftListK2({
+      part_no:part, lot:lotDisp, qty:String(q),
+      key2: buildKey2(currentDS.dateMD, currentDS.shift, part, lotDisp, String(q), true)
+    });
+
+    await refreshDraftStrikesByKey2();
 
     lotInput.value=''; qty.value='';
     saveDraft();
@@ -443,6 +429,17 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     btn.disabled=false;
   }
 });
+
+/* 草稿清單：改以 Key2 為主鍵 */
+function upsertDraftListK2({part_no, lot, qty, key2}){
+  listRotateIfNeeded();
+  const arr = listGet();
+  const idx = arr.findIndex(x => String(x.key2||'').toUpperCase()===String(key2||'').toUpperCase());
+  const item = {part_no, lot, qty, key2, strike:false, submitted_at:new Date().toISOString()};
+  if(idx>=0) arr[idx]=item; else arr.unshift(item);
+  listSet(arr);
+  renderDraftList();
+}
 
 /* 多國語言預留 */
 document.getElementById('langBtn').addEventListener('click',()=>alert('多國語言預留：未啟用'));
