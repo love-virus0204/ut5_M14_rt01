@@ -4,6 +4,8 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>RT 外觀抽驗記錄表</title>
+
+<!-- ⚠️ 保持版面與 v17.6.2 相同；僅更換清單為「草稿機制」 -->
 <style>
   :root{--maxw:560px;--labelw:92px;}
   body{margin:0;background:#f6f7f9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;color:#222}
@@ -26,7 +28,6 @@
   .muted{color:#888;text-align:center;margin-top:6px}
   .err{color:#c62828;text-align:center;margin-top:6px;white-space:pre-wrap}
   .foot{margin-top:12px;font-size:12px;color:#666;text-align:center}
-  /* Loading */
   .loading{position:fixed;inset:0;background:rgba(255,255,255,.7);display:none;align-items:center;justify-content:center;z-index:999}
   .spinner{width:48px;height:48px;border:6px solid #ddd;border-top-color:#0a66ff;border-radius:50%;animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -39,7 +40,7 @@
     <button class="btn" onclick="location.href='./index.html'">返回</button>
   </header>
 
-  <!-- 當日當班 / 檢驗員 / 即時時間 -->
+  <!-- ⚠️ 以下區塊的結構與命名，沿用你 v17.6.2 的習慣 -->
   <div class="row">
     <div class="label">當日當班</div>
     <div id="dsDisplay" style="font-weight:700"></div>
@@ -53,13 +54,11 @@
     <div id="nowTs"></div>
   </div>
 
-  <!-- 料號 -->
   <div class="row">
     <div class="label">料　號</div>
     <input id="part_no" placeholder="請輸入 料號 by 7碼" />
   </div>
 
-  <!-- 批號：左下拉 + 右輸入 -->
   <div class="row split">
     <div class="label">批　號</div>
     <select id="lot_prefix" class="w25">
@@ -69,7 +68,6 @@
     <input id="lot_input" class="w40" placeholder="母批[3] 或 母批-子批[3-2]" />
   </div>
 
-  <!-- 數量 -->
   <div class="row">
     <div class="label">數　量</div>
     <input id="qty" inputmode="numeric" placeholder="請輸入數量" />
@@ -81,26 +79,26 @@
 
   <hr/>
 
-  <!-- 當班清單（改為草稿機制） -->
+  <!-- ▼▼▼ 清單：僅改成草稿機制顯示，結構不變 ▼▼▼ -->
   <table>
     <thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead>
     <tbody id="current-list"></tbody>
   </table>
+  <!-- ▲▲▲ -->
 
   <div id="msg" class="muted"></div>
   <div class="foot">form v17.6.3</div>
 </div>
 
-<!-- Loading -->
 <div id="loading" class="loading"><div class="spinner"></div></div>
 
 <script>
-/* ===== 基本設定 ===== */
+/* ====== 基本設定（與 v17.6.2 相同） ====== */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-const canon = s => String(s||'').trim().toUpperCase();
 const $ = sel => document.querySelector(sel);
+const canon = s => String(s||'').trim().toUpperCase();
 
-/* 台北時區與班別 */
+/* 台北時區與班別（沿用你的規則：00:40/08:40/16:40） */
 function toTz(d){ return new Date(d.toLocaleString('en-US',{timeZone:'Asia/Taipei'})); }
 function mdOf(d){ return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d); }
 function ymdOf(d){ const f=new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(d); return f.replace(/\//g,'-'); }
@@ -114,7 +112,28 @@ function computeCurrentDS(){
   const d=addDays(now,-1); return {dateYMD: ymdOf(d), dateMD: mdOf(d), shift:'B', now};
 }
 
-/* ===== 草稿機制（以「當日當班」分區；成功送出才寫入） ===== */
+/* ====== 批號補零與驗證（保持你原規則） ====== */
+function normalizeLot(prefix, input){
+  const pre = canon(prefix);
+  let s = canon(input).replace(/\s+/g,'');
+  if (!s) return '';
+  let mother='', child='';
+  if (s.includes('-')){
+    const [a,b] = s.split('-',2);
+    mother = (a||'').padStart(3,'0');
+    child  = (b||'').padStart(2,'0');
+    if (!b) return ''; // 有 - 必須要子批
+  }else{
+    mother = s.padStart(3,'0');
+  }
+  const bad = /[IO]/;
+  if (!/^[A-Z0-9]{3}$/.test(mother) || bad.test(mother)) return '';
+  if (child && (!/^[A-Z0-9]{2}$/.test(child) || bad.test(child))) return '';
+  const core = child ? `${mother}-${child}` : mother;
+  return pre ? `${pre}-${core}` : core;
+}
+
+/* ====== 這裡開始：草稿機制（唯一新增的資料來源變更） ====== */
 const DRAFT_NS = 'RT_DRAFT_V1';
 function dsKey(ds){ return `${DRAFT_NS}:${ds.dateYMD}|${ds.shift}`; }
 function getDraft(ds){
@@ -132,6 +151,7 @@ function rotateDraftIfNeeded(){
   const last = localStorage.getItem(`${DRAFT_NS}:LAST_DS`);
   const cur  = `${ds.dateYMD}|${ds.shift}`;
   if (last && last!==cur){
+    // 切班/跨日：清空舊分區（僅保留當前分區）
     Object.keys(localStorage).forEach(k=>{
       if (k.startsWith(`${DRAFT_NS}:`) && !k.endsWith(':LAST_DS')) localStorage.removeItem(k);
     });
@@ -139,61 +159,45 @@ function rotateDraftIfNeeded(){
   localStorage.setItem(`${DRAFT_NS}:LAST_DS`, cur);
   return ds;
 }
+
+/* 成功送出後：把該筆寫入草稿；同當班同(料號+批號) → 覆蓋 */
 function upsertDraftAfterSubmit({part_no, lot, qty, inspector}){
   const ds = rotateDraftIfNeeded();
   const draft = getDraft(ds);
-  const key = `${canon(part_no)}|${canon(lot)}`; // 當班內：料號+批號 唯一
+  const key = `${canon(part_no)}|${canon(lot)}`;
   const now = new Date().toISOString();
   const idx = draft.items.findIndex(it => it.key === key);
   const item = { key, part_no, lot, qty, inspector, submitted_at: now };
   if (idx>=0) draft.items[idx] = item; else draft.items.unshift(item);
-  if (draft.items.length>50) draft.items.length = 50;
+  if (draft.items.length>50) draft.items.length = 50; // 上限 50
   saveDraft(ds, draft);
-  renderCurrentShiftListFromDraft();
+  renderCurrentShiftListFromDraft(); // 立刻重繪
 }
+
+/* 下方清單：改為只顯示草稿 */
 function renderCurrentShiftListFromDraft(){
   const ds = rotateDraftIfNeeded();
   const draft = getDraft(ds);
-  const tbody = $('#current-list');
+  const tbody = document.getElementById('current-list');
   if (!tbody) return;
   tbody.innerHTML = '';
   if (!draft.items.length){
     tbody.innerHTML = `<tr><td colspan="3" class="muted">（當班無草稿）</td></tr>`;
     return;
   }
+  // 倒序（最新在上），items 已用 unshift 維持
   draft.items.forEach(x=>{
     tbody.insertAdjacentHTML('beforeend', `<tr><td>${x.part_no}</td><td>${x.lot}</td><td>${x.qty}</td></tr>`);
   });
 }
 
-/* ===== 批號補零與驗證（母批3碼；母-子 3-2；排除 I/O） ===== */
-function normalizeLot(prefix, input){
-  const pre = canon(prefix);
-  let s = canon(input).replace(/\s+/g,'');
-  if (!s) return '';
-  let mother='', child='';
-  if (s.includes('-')){
-    const [a,b] = s.split('-',2);
-    mother = (a||'').padStart(3,'0');
-    child  = (b||'').padStart(2,'0');
-    if (!b) return '';
-  }else{
-    mother = s.padStart(3,'0');
-  }
-  const bad = /[IO]/;
-  if (!/^[A-Z0-9]{3}$/.test(mother) || bad.test(mother)) return '';
-  if (child && (!/^[A-Z0-9]{2}$/.test(child) || bad.test(child))) return '';
-  const core = child ? `${mother}-${child}` : mother;
-  return pre ? `${pre}-${core}` : core;
-}
-
-/* ===== 送出流程 ===== */
+/* ====== 送出流程（沿用；僅在成功後多呼叫 upsertDraftAfterSubmit） ====== */
 async function submitForm(){
-  const loading   = $('#loading');
-  const inspector = canon($('#inspector').value);
-  const part_no   = canon($('#part_no').value);
-  const qty       = Number(($('#qty').value||'').trim());
-  const lotNorm   = normalizeLot($('#lot_prefix').value, $('#lot_input').value);
+  const loading   = document.getElementById('loading');
+  const inspector = canon(document.getElementById('inspector').value);
+  const part_no   = canon(document.getElementById('part_no').value);
+  const qty       = Number((document.getElementById('qty').value||'').trim());
+  const lotNorm   = normalizeLot(document.getElementById('lot_prefix').value, document.getElementById('lot_input').value);
 
   if (!inspector){ return toast('請輸入「檢驗員」'); }
   if (!part_no){  return toast('請輸入「料號」'); }
@@ -201,49 +205,47 @@ async function submitForm(){
   if (!Number.isFinite(qty) || qty<=0){ return toast('請輸入正確「數量」'); }
 
   const sample = Math.min(20, qty);
-  const payload = { part_no, lot: lotNorm, qty, sample, inspector, remark: "", deleted: true };
+  const payload = { part_no, lot: lotNorm, qty, sample, inspector, remark:"", deleted:true };
 
   try{
     loading.style.display='flex';
-    const res = await fetch(GAS_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     const t = await res.text();
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}\n${t}`);
 
-    // 成功→寫入草稿並刷新清單
+    // ★ 唯一邏輯變更：成功後寫入草稿，顯示清單只讀草稿
     upsertDraftAfterSubmit({part_no, lot: lotNorm, qty, inspector});
 
-    // 規則：保留料號；清空批號&數量；點擊料號才清空
-    $('#qty').value = '';
-    $('#lot_input').value = '';
-    $('#part_no').addEventListener('focus', ()=>{
-      if ($('#part_no').dataset.justKept !== '1'){ $('#part_no').value=''; }
+    // 保留料號；清空批號與數量；點擊料號才清空
+    document.getElementById('qty').value = '';
+    document.getElementById('lot_input').value = '';
+    const pn = document.getElementById('part_no');
+    pn.addEventListener('focus', ()=>{
+      if (pn.dataset.justKept !== '1'){ pn.value=''; }
     }, {once:true});
-    $('#part_no').dataset.justKept = '1';
+    pn.dataset.justKept = '1';
 
     toast('已送出');
   }catch(e){
-    $('#msg').className='err';
-    $('#msg').textContent = '送出失敗：\n' + (e && e.message ? e.message : e);
+    const n = document.getElementById('msg');
+    n.className='err';
+    n.textContent = '送出失敗：\n' + (e && e.message ? e.message : e);
   }finally{
     loading.style.display='none';
   }
 }
 
-/* ===== UI / 初始化 ===== */
+/* ====== UI 與初始化（不動版面，只更新數值顯示） ====== */
 function toast(txt){
-  const n = $('#msg');
+  const n = document.getElementById('msg');
   n.className='muted';
   n.textContent = txt;
   setTimeout(()=>{ if(n.textContent===txt) n.textContent=''; }, 2500);
 }
 function refreshHeader(){
   const ds = computeCurrentDS();
-  $('#dsDisplay').textContent = `${ds.dateMD} - ${ds.shift}`;
-  $('#nowTs').textContent = new Intl.DateTimeFormat('zh-TW',{
+  document.getElementById('dsDisplay').textContent = `${ds.dateMD} - ${ds.shift}`;
+  document.getElementById('nowTs').textContent = new Intl.DateTimeFormat('zh-TW',{
     timeZone:'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit',
     hour:'2-digit', minute:'2-digit', second:'2-digit'
   }).format(ds.now);
@@ -252,22 +254,21 @@ function refreshHeader(){
 document.addEventListener('DOMContentLoaded', ()=>{
   refreshHeader();
   rotateDraftIfNeeded();
-  renderCurrentShiftListFromDraft();
+  renderCurrentShiftListFromDraft(); // ★ 初次載入就顯示草稿
 
-  // 檢驗員：符合規則即保存
+  // 檢驗員：沿用你的規則（符合即保存）
   const savedInspector = localStorage.getItem('RT_INSPECTOR')||'';
-  if (savedInspector) $('#inspector').value = savedInspector;
-  $('#inspector').addEventListener('change', ()=>{
-    const v = canon($('#inspector').value);
+  if (savedInspector) document.getElementById('inspector').value = savedInspector;
+  document.getElementById('inspector').addEventListener('change', ()=>{
+    const v = canon(document.getElementById('inspector').value);
     if (v) localStorage.setItem('RT_INSPECTOR', v);
   });
 
-  // 送出
-  $('#btnSubmit').addEventListener('click', submitForm);
+  document.getElementById('btnSubmit').addEventListener('click', submitForm);
 
-  // 即時時間每 10 秒更新（不改班別錨定）
+  // 即時時間每 10 秒更新（不影響班別錨定）
   setInterval(()=>{
-    $('#nowTs').textContent = new Intl.DateTimeFormat('zh-TW',{
+    document.getElementById('nowTs').textContent = new Intl.DateTimeFormat('zh-TW',{
       timeZone:'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit',
       hour:'2-digit', minute:'2-digit', second:'2-digit'
     }).format(new Date());
