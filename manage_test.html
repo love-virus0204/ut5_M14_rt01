@@ -1,57 +1,17 @@
-<!doctype html><html lang="zh-Hant"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QR 驗證測試（單鍵啟動）</title>
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>檢查 Html5Qrcode</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
-<style>
- body{font-family:sans-serif;margin:0;background:#f7f7f7} main{max-width:680px;margin:20px auto;padding:0 16px;text-align:center}
- .btn{padding:10px 14px;border-radius:8px;background:#1677ff;color:#fff;border:0;margin:5px}
- #reader{width:100%;max-width:360px;margin:12px auto} #log{color:#c62828;white-space:pre-wrap;margin-top:8px}
- .ok{color:#0a7b33;font-weight:700}
-</style></head><body><main>
-<h2>QR 驗證測試（單鍵啟動）</h2>
-<button id="go" class="btn">開始掃描（後鏡頭）</button>
-<div id="reader"></div><div id="log"></div>
-<div id="ok" style="display:none" class="ok">✅ 驗證通過</div>
-</main>
+</head>
+<body>
 <script>
-const TOKEN="f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
-const log = m=>document.getElementById('log').textContent=m;
-let qr=null, running=false;
-
-async function pickRearCamera() {
-  // 先要求一次權限（有些瀏覽器需要）
-  try { await navigator.mediaDevices.getUserMedia({video:true}); } catch(_) {}
-  const list = await Html5Qrcode.getCameras();
-  if (!list || !list.length) throw new Error("找不到相機裝置");
-  // 優先選「後鏡頭 / back / environment」的 device
-  const prefer = list.find(d =>
-    /back|rear|environment/i.test(d.label||"")
-  ) || list[list.length-1];
-  return prefer.id;
+if (typeof Html5Qrcode === "function") {
+  document.body.innerHTML = "<h3 style='color:green'>✅ Html5Qrcode 載入成功！</h3>";
+} else {
+  document.body.innerHTML = "<h3 style='color:red'>❌ 載入失敗：Html5Qrcode 未定義</h3>";
 }
-
-async function startOnce() {
-  if (running) return;
-  try{
-    const camId = await pickRearCamera();
-    qr = new Html5Qrcode("reader",{verbose:false});
-    await qr.start(
-      { deviceId: { exact: camId } },
-      { fps: 10, qrbox: { width: 260, height: 260 } },
-      txt=>{
-        if((txt||"").trim()===TOKEN){
-          stop(); document.getElementById('ok').style.display='block';
-        }else log("掃到內容但不匹配。");
-      }
-    );
-    running = true; document.getElementById('go').disabled = true; log("");
-  }catch(e){ log("啟動相機失敗：\n"+e); }
-}
-
-async function stop(){
-  if(qr && running){ try{ await qr.stop(); await qr.clear(); }catch(_){} running=false; }
-}
-
-document.getElementById('go').addEventListener('click', startOnce);
 </script>
-</body></html>
+</body>
+</html>
