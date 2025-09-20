@@ -12,10 +12,10 @@
   header h1{margin:0;font-size:18px}
   header .btn{position:absolute;right:0;top:0;margin:4px 8px;padding:8px 12px;border-radius:10px;border:1px solid #d0d0d0;background:#fff;cursor:pointer}
   .sub{font-size:14px;text-align:center;color:#444;margin:0 0 10px 0;font-weight:700}
-  table{width:92%;margin:0 auto;border-collapse:collapse;text-align:center}
+  table{width:100%;margin:0 auto;border-collapse:collapse;padding:0 10px}
   thead th{background:#f4f6fb;color:#333;font-family:"標楷體",serif;letter-spacing:.2em;padding:8px}
   th,td{border-top:1px solid #eee;padding:8px 6px;text-align:center}
-  .group{font-weight:700;color:#0a66ff;text-align:center;border-top:1px solid #ddd;padding:6px 0;background:#fafcff}
+  .group{font-weight:700;color:#0a66ff;text-align:left;padding:8px 0 8px 20px;border-top:1px solid #ddd;background:#fafcff}
   .muted{color:#888;text-align:center;margin-top:6px}
   .err{color:#c62828;text-align:center;margin-top:6px;white-space:pre-wrap}
   .foot{margin-top:12px;font-size:12px;color:#666;text-align:center}
@@ -36,21 +36,23 @@
   </table>
 
   <div id="msg" class="muted"></div>
-  <div class="foot">last3shift v1.0</div>
+  <div class="foot">last3shift v1.1</div>
 </div>
 
 <script>
 const GAS_URL = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 const canon = s => String(s||'').trim().toUpperCase();
 
+/* 台北時區工具與格式 */
 function toTz(d){ return new Date(d.toLocaleString('en-US',{timeZone:'Asia/Taipei'})); }
-function mdOf(d){ return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d); }
+function mdOf(d){ return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d); } // MM/DD
 function ymdOf(d){
   const f = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
-  return f.replace(/\//g,'-');
+  return f.replace(/\//g,'-'); // yyyy-MM-dd
 }
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 
+/* 00:40/08:40/16:40；C 班顯示前一日，00:00–00:39 = 前一日 B */
 function computeCurrentDS(){
   const now = toTz(new Date());
   const h = now.getHours(), m = now.getMinutes(), mins = h*60+m;
@@ -60,18 +62,19 @@ function computeCurrentDS(){
   const d=addDays(now,-1); return { dateYMD: ymdOf(d), dateMD: mdOf(d), shift:'B', now };
 }
 
+/* 最近三班（最新→較新→最舊），保留查詢用 YMD 與顯示用 MD */
 function last3DS(cur){
   const ymd = cur.dateYMD, md = cur.dateMD, s = cur.shift;
   const prev = addDays(cur.now,-1), prevYMD = ymdOf(prev), prevMD = mdOf(prev);
   if (s==='B') return [
-    {dateYMD: ymd, dateMD: md, shift:'B'},
-    {dateYMD: ymd, dateMD: md, shift:'A'},
-    {dateYMD: prevYMD, dateMD: prevMD, shift:'C'}
+    {dateYMD: ymd,    dateMD: md,    shift:'B'},
+    {dateYMD: ymd,    dateMD: md,    shift:'A'},
+    {dateYMD: prevYMD,dateMD: prevMD,shift:'C'}
   ];
   if (s==='A') return [
-    {dateYMD: ymd, dateMD: md, shift:'A'},
-    {dateYMD: prevYMD, dateMD: prevMD, shift:'C'},
-    {dateYMD: prevYMD, dateMD: prevMD, shift:'B'}
+    {dateYMD: ymd,    dateMD: md,    shift:'A'},
+    {dateYMD: prevYMD,dateMD: prevMD,shift:'C'},
+    {dateYMD: prevYMD,dateMD: prevMD,shift:'B'}
   ];
   return [
     {dateYMD: ymd, dateMD: md, shift:'C'},
@@ -80,6 +83,7 @@ function last3DS(cur){
   ];
 }
 
+/* 後端 date 轉為 MM/DD 比對（兼容 ISO / yyyy-MM-dd / MM/DD） */
 function rowMD(dateVal){
   const s = String(dateVal||'').trim();
   const d1 = new Date(s);
@@ -89,6 +93,7 @@ function rowMD(dateVal){
   return s;
 }
 
+/* 依三個 (dateYMD,shift) 個別查詢（GAS 支援 shift 篩選） */
 async function fetchByTriples(ds3){
   const reqs = ds3.map(d => {
     const u = `${GAS_URL}?scope=all&date=${encodeURIComponent(d.dateYMD)}&shift=${encodeURIComponent(d.shift)}`;
@@ -98,6 +103,7 @@ async function fetchByTriples(ds3){
   return arr.flat();
 }
 
+/* 前端用 date(MM/DD)+shift 嚴格比對，並去重 */
 function filterForDS(allRows, ds3){
   const filtered = allRows.filter(r =>
     r.deleted === true &&
@@ -111,6 +117,7 @@ function filterForDS(allRows, ds3){
   return [...uniq.values()];
 }
 
+/* 渲染：單表頭＋分組列（以 MM/DD 顯示；分組左對齊） */
 function renderGrouped(tbodyId, ds3, rows){
   const tb = document.getElementById(tbodyId);
   tb.innerHTML = '';
@@ -127,6 +134,7 @@ function renderGrouped(tbodyId, ds3, rows){
   });
 }
 
+/* 主流程 */
 (async function(){
   try{
     const cur = computeCurrentDS();
@@ -139,8 +147,9 @@ function renderGrouped(tbodyId, ds3, rows){
     const rows = filterForDS(all, ds3);
     renderGrouped('list', ds3, rows);
   }catch(e){
-    document.getElementById('msg').className='err';
-    document.getElementById('msg').textContent='讀取失敗：'+e;
+    const m = document.getElementById('msg');
+    m.className='err';
+    m.textContent = '讀取失敗：\n' + String(e && e.message ? e.message : e);
   }
 })();
 </script>
