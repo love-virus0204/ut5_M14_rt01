@@ -12,7 +12,7 @@
   .toolbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:6px}
   .tool-left{justify-self:start}
   .tool-right{justify-self:end}
-  .tool-btn{background:none;border:0;font-size:18px;line-height:1;padding:2px 6px}
+  .tool-btn{background:none;border:0;font-size:18px;line-height:1;padding:2px 6px;cursor:pointer}
   .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:0}
 
   /* 當日當班：單獨一行、視覺內縮到輸入列左邊界 */
@@ -28,7 +28,7 @@
   textarea[readonly]{background:#f2f2f2;color:#555}
 
   .submit{display:flex;justify-content:flex-end;margin-top:10px}
-  .btn{background:#0a66ff;color:#fff;border:0;border-radius:8px;padding:10px 18px}
+  .btn{background:#0a66ff;color:#fff;border:0;border-radius:8px;padding:10px 18px;cursor:pointer}
 
   hr{margin:10px 0}
 
@@ -39,10 +39,10 @@
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
 
-  /* 底部資訊列：左=版本、中=時間、右留白 */
-  .bottom-info{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;margin:6px 0}
+  /* 底部資訊列：兩欄（左=版本號靠左，右=時間靠右） */
+  .bottom-info{display:grid;grid-template-columns:1fr 1fr;align-items:center;margin:6px 0}
   .ver-left{justify-self:start;font-size:12px;color:#666}
-  .time-center{justify-self:center;font-size:12px;color:#333}
+  .time-right{justify-self:end;font-size:12px;color:#333;text-align:right}
 </style>
 </head>
 <body>
@@ -51,7 +51,7 @@
   <div class="toolbar">
     <div class="tool-left"><button class="tool-btn" id="langBtn" title="語言">🌐</button></div>
     <h1 class="title">RT 外觀抽驗記錄表</h1>
-    <div class="tool-right"><button class="tool-btn" id="backBtn" title="返回" onclick="history.back()">↩️</button></div>
+    <div class="tool-right"><button class="tool-btn" id="backBtn" title="返回" onclick="location.href='index.html'">↩️</button></div>
   </div>
 
   <!-- 當日當班（單獨一行、內縮） -->
@@ -101,9 +101,8 @@
   <!-- 分隔線以下統一置中：版本＋時間＋表格 -->
   <div class="post">
     <div class="bottom-info">
-      <div id="versionTag" class="ver-left">版本：v17.6（LOCKED）</div>
-      <div id="tsView" class="time-center"></div>
-      <div></div>
+      <div id="versionTag" class="ver-left">版本：v17.6.2（LOCKED）</div>
+      <div id="tsView" class="time-right"></div>
     </div>
 
     <!-- 清單（倒序，最多50筆） -->
@@ -128,17 +127,17 @@ function twNowStr(){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipe
 function mdOf(d){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d)}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
 
-/* === v17.6：班別規則 00:40 / 08:40 / 16:40；頁面刷新時計算一次 === */
+/* === 班別規則 00:40 / 08:40 / 16:40；頁面刷新時計算一次（C 班顯示前一日） === */
 function computeShiftByClock(){
   const now = new Date();
   const tzNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
   const h = tzNow.getHours(), m = tzNow.getMinutes();
   const mins = h*60+m;
   let dateMD, shift;
-  if (mins >= 40 && mins < 520) { dateMD = mdOf(tzNow); shift = 'C'; }
+  if (mins >= 40 && mins < 520) { dateMD = mdOf(addDays(tzNow,-1)); shift = 'C'; }   // C 班顯示前一日
   else if (mins >= 520 && mins < 1000) { dateMD = mdOf(tzNow); shift = 'A'; }
   else if (mins >= 1000) { dateMD = mdOf(tzNow); shift = 'B'; }
-  else { dateMD = mdOf(addDays(tzNow,-1)); shift = 'B'; }
+  else { dateMD = mdOf(addDays(tzNow,-1)); shift = 'B'; } // 00:00-00:39 算前一日 B
   return { dateMD, shift };
 }
 let currentDS = computeShiftByClock();
