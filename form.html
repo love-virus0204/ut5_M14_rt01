@@ -32,13 +32,11 @@
 
   hr{margin:10px 0}
 
-  /* 表格：95% 寬置中 */
-  table{
-    width:95%;
-    margin:0 auto;
-    border-collapse:collapse;
-    font-size:14px
-  }
+  /* 分隔線以下統一置中容器 */
+  .post{width:95%;margin:0 auto}
+
+  /* 表格樣式（交由 .post 控制置中與寬度） */
+  table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
 
   /* 底部資訊列：左=版本、中=時間、右留白 */
@@ -100,18 +98,20 @@
 
   <hr>
 
-  <!-- 底部資訊列：左=版本號(靠左)；中=即時時間(置中)；右留白 -->
-  <div class="bottom-info">
-    <div id="versionTag" class="ver-left">版本：v17.5（LOCKED）</div>
-    <div id="tsView" class="time-center"></div>
-    <div></div>
-  </div>
+  <!-- 分隔線以下統一置中：版本＋時間＋表格 -->
+  <div class="post">
+    <div class="bottom-info">
+      <div id="versionTag" class="ver-left">版本：v17.6（LOCKED）</div>
+      <div id="tsView" class="time-center"></div>
+      <div></div>
+    </div>
 
-  <!-- 清單（倒序，最多50筆） -->
-  <table>
-    <thead><tr><th>料　號</th><th>批　號</th><th>數　量</th></tr></thead>
-    <tbody id="recordList"></tbody>
-  </table>
+    <!-- 清單（倒序，最多50筆） -->
+    <table>
+      <thead><tr><th>料　號</th><th>批　號</th><th>數　量</th></tr></thead>
+      <tbody id="recordList"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
@@ -128,7 +128,7 @@ function twNowStr(){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipe
 function mdOf(d){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d)}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
 
-/* === v17.5：班別規則 00:40 / 08:40 / 16:40；頁面刷新時計算一次 === */
+/* === v17.6：班別規則 00:40 / 08:40 / 16:40；頁面刷新時計算一次 === */
 function computeShiftByClock(){
   const now = new Date();
   const tzNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
@@ -138,7 +138,7 @@ function computeShiftByClock(){
   if (mins >= 40 && mins < 520) { dateMD = mdOf(tzNow); shift = 'C'; }
   else if (mins >= 520 && mins < 1000) { dateMD = mdOf(tzNow); shift = 'A'; }
   else if (mins >= 1000) { dateMD = mdOf(tzNow); shift = 'B'; }
-  else { dateMD = mdOf(addDays(tzNow,-1)); shift = 'B'; } // 00:00-00:39 算前一日 B
+  else { dateMD = mdOf(addDays(tzNow,-1)); shift = 'B'; }
   return { dateMD, shift };
 }
 let currentDS = computeShiftByClock();
@@ -170,7 +170,7 @@ const qty=document.getElementById('qty');
 });
 loadDraft();
 
-/* === 前端補零：blur 與送出前都會正規化（FA 前綴不在此處理） === */
+/* === 前端補零：blur 與送出前正規化（FA 前綴不在此處理） === */
 function normalizeLotInputText(txt){
   txt = CANON(txt);
   let mother='', child='';
@@ -218,7 +218,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const part=CANON(partNo.value);
   const prefix=CANON(lotPrefix.value);
 
-  // 先做補零正規化
+  // 批號補零正規化
   const lotNorm = normalizeLotInputText(lotInput.value);
   if (lotNorm===null) return alert('母批不可含 O / I');
   if (!lotNorm) return alert('批號必填');
