@@ -1,145 +1,65 @@
-<!doctype html>
-<html lang="zh-Hant">
-<head>
+<!doctype html><html lang="zh-Hant"><head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>管理入口｜QR 驗證測試</title>
-<link rel="preconnect" href="https://unpkg.com">
-<style>
-  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;margin:0;background:#f7f7f7;color:#222}
-  header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border-bottom:1px solid #e5e5e5}
-  h1{font-size:18px;margin:0}
-  main{max-width:680px;margin:24px auto;padding:0 16px}
-  .card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:16px}
-  #reader{width:100%}
-  .btn{display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid #d0d0d0;background:#fff;cursor:pointer}
-  .btn-primary{background:#1677ff;color:#fff;border-color:#1677ff}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
-  .input{flex:1 1 260px;padding:10px 12px;border:1px solid #d0d0d0;border-radius:10px}
-  .ok{color:#0a7b33;font-weight:700}
-  .err{color:#c62828;font-weight:700}
-  .muted{color:#666;font-size:13px}
-</style>
-<!-- html5-qrcode（相機掃碼） -->
 <script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
-</head>
-<body>
+<style>
+ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans TC,sans-serif;margin:0;background:#f7f7f7}
+ header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#fff;border-bottom:1px solid #e5e5e5}
+ main{max-width:680px;margin:20px auto;padding:0 16px}
+ .btn{padding:10px 14px;border-radius:10px;border:1px solid #1677ff;background:#1677ff;color:#fff}
+ .btn2{padding:10px 14px;border-radius:10px;border:1px solid #d0d0d0;background:#fff}
+ #reader{width:100%;max-width:420px;margin-top:12px}
+ #log{color:#c62828;white-space:pre-wrap;margin-top:8px}
+ .ok{color:#0a7b33;font-weight:700}
+</style></head><body>
 <header>
-  <h1>管理入口｜QR 驗證測試</h1>
-  <button class="btn" onclick="location.href='./index.html'">返回首頁</button>
+  <h3>管理入口｜QR 驗證測試</h3>
+  <button class="btn2" onclick="location.href='./index.html'">返回首頁</button>
 </header>
-
 <main>
-  <div class="card">
-    <div class="row">
-      <button class="btn-primary" id="startBtn">開始掃描</button>
-      <button class="btn" id="stopBtn" disabled>停止掃描</button>
-      <span id="status" class="muted">尚未掃描</span>
-    </div>
-
-    <div id="reader"></div>
-
-    <div class="row">
-      <input id="manual" class="input" placeholder="相機不便？可貼上掃到的字串測試" />
-      <button class="btn" id="chkBtn">手動驗證</button>
-    </div>
-
-    <p class="muted">說明：通過驗證後，將模擬進入管理頁（本測試不寫任何登入狀態；重新整理會要求重掃）。</p>
-  </div>
-
-  <div id="passed" class="card" style="display:none;margin-top:16px">
-    <p class="ok">✅ 驗證通過！即將進入管理頁…</p>
-    <p class="muted">如未自動跳轉，<a id="goLink" href="./manage.html">點此前往 manage.html</a></p>
-  </div>
+  <button id="startBtn" class="btn">開始掃描</button>
+  <button id="stopBtn" class="btn2" disabled>停止掃描</button>
+  <div id="reader"></div>
+  <div id="log"></div>
+  <div id="ok" style="display:none" class="ok">✅ 驗證通過，將前往 manage.html …</div>
 </main>
 
 <script>
-/** === 測試用固定 128 bytes token（十六進位 256 字元） === */
-const TOKEN =
-"f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+const TOKEN="f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+const log = (m)=>document.getElementById('log').textContent = m;
+let qr=null, running=false;
 
-/* ====== 基本 UI ====== */
-const statusEl = document.getElementById('status');
-const startBtn  = document.getElementById('startBtn');
-const stopBtn   = document.getElementById('stopBtn');
-const manualInp = document.getElementById('manual');
-const chkBtn    = document.getElementById('chkBtn');
-const passed    = document.getElementById('passed');
-const readerId  = "reader";
-let qr; let scanning = false;
-
-function setStatus(msg, cls="muted"){
-  statusEl.className = cls; statusEl.textContent = msg;
-}
-
-function onPassed(){
-  document.querySelector(".card").style.display = "none";
-  passed.style.display = "block";
-  // 不留下任何登入狀態；重新整理必須重掃
-  setTimeout(()=> location.href = "./manage.html", 1200);
-}
-
-/* 比對（去空白） */
-function verifyPayload(payload){
-  const got = String(payload||"").trim();
-  return got === TOKEN;
-}
-
-/* 相機掃描 */
 async function startScan(){
-  if (scanning) return;
+  if(running) return;
   try{
-    qr = new Html5Qrcode(readerId);
-    const devices = await Html5Qrcode.getCameras();
-    const camId = devices?.[0]?.id;
-    if(!camId){ setStatus("找不到可用相機，請改用手動驗證。","err"); return; }
+    // 明確要求後鏡頭，並用使用者手勢觸發
+    qr = new Html5Qrcode("reader",{verbose:true});
     await qr.start(
-      camId,
-      { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1.0 },
-      (decoded) => {
-        if(verifyPayload(decoded)){
-          stopScan();
-          setStatus("驗證通過","ok");
-          onPassed();
+      { facingMode: "environment" },
+      { fps:10, qrbox:{width:260,height:260} },
+      (txt)=>{
+        if((txt||"").trim()===TOKEN){
+          stopScan(); document.getElementById('ok').style.display='block';
+          setTimeout(()=>location.href='./manage.html',1200);
         }else{
-          setStatus("掃到內容，但不匹配。","err");
+          log("掃到內容但不匹配。");
         }
       },
-      (e)=>{/* onScanFailure: 可忽略 */});
-    scanning = true;
-    startBtn.disabled = true; stopBtn.disabled = false;
-    setStatus("正在掃描…");
-  }catch(err){
-    setStatus("啟動相機失敗："+ String(err), "err");
+      (err)=>{} // 可忽略掃描失敗訊息
+    );
+    running=true; document.getElementById('startBtn').disabled=true;
+    document.getElementById('stopBtn').disabled=false; log("相機啟動，請對準 QR。");
+  }catch(e){
+    log("啟動相機失敗：\n"+ String(e) + "\n請確認：使用 HTTPS、允許相機、非無痕/APP 內嵌、未被 iframe。");
   }
 }
-
 async function stopScan(){
-  if (qr && scanning){
-    try{ await qr.stop(); }catch(e){}
-    try{ await qr.clear(); }catch(e){}
-  }
-  scanning = false;
-  startBtn.disabled = false; stopBtn.disabled = true;
-  setStatus("已停止掃描");
+  if(qr && running){ try{ await qr.stop(); await qr.clear(); }catch(_){}
+    running=false; document.getElementById('startBtn').disabled=false; document.getElementById('stopBtn').disabled=true; }
 }
 
-/* 手動驗證 */
-chkBtn.addEventListener('click', ()=>{
-  const v = manualInp.value;
-  if(verifyPayload(v)){
-    setStatus("驗證通過（手動）","ok");
-    onPassed();
-  }else{
-    setStatus("內容不匹配","err");
-  }
-});
-
-startBtn.addEventListener('click', startScan);
-stopBtn .addEventListener('click', stopScan);
-
-/* 頁面載入立即顯示掃描器（可改為按鈕觸發） */
-document.addEventListener('DOMContentLoaded', startScan);
+document.getElementById('startBtn').addEventListener('click', startScan);
+document.getElementById('stopBtn').addEventListener('click', stopScan);
 </script>
-</body>
-</html>
+</body></html>
