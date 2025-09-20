@@ -22,9 +22,13 @@
   .row.lot-type .ctrl{display:grid;grid-template-columns:25% 1fr;column-gap:8px}
   .row.lot-type select{min-width:80px}
   .field-error{display:none;color:#d93025;font-weight:700;font-size:13px;margin-top:4px}
+
+  /* 送出列：按鈕在右側；提示置中（回 v17.6.2 佈局） */
   .submit{position:relative;display:flex;justify-content:flex-end;align-items:center;margin-top:10px}
   .submit-center{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px}
   .btn{background:#0a66ff;color:#fff;border:0;border-radius:8px;padding:10px 18px;cursor:pointer}
+
+  /* 成功訊息與傳送中動畫 */
   .ok-msg{display:none;color:#1a7f37;font-weight:700;font-size:13px}
   .ok-msg.show{display:block;opacity:1;transition:opacity .4s}
   .ok-msg.fade{opacity:0}
@@ -34,6 +38,7 @@
   .dots span:nth-child(2){animation-delay:.2s}
   .dots span:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,100%{opacity:0}50%{opacity:1}}
+
   hr{margin:10px 0}
   .post{width:95%;margin:0 auto}
   table{width:100%;border-collapse:collapse;font-size:14px}
@@ -41,6 +46,9 @@
   .bottom-info{display:grid;grid-template-columns:1fr 1fr;align-items:center;margin:6px 0}
   .ver-left{justify-self:start;font-size:12px;color:#666}
   .time-right{justify-self:end;font-size:12px;color:#333;text-align:right}
+
+  /* 與後台不符/被刪 → 刪除線 */
+  .tr-strike td{ color:#999; text-decoration: line-through; }
 </style>
 </head>
 <body>
@@ -105,7 +113,7 @@
 
   <div class="post">
     <div class="bottom-info">
-      <div id="versionTag" class="ver-left">版本：v17.7</div>
+      <div id="versionTag" class="ver-left">版本：v17.7.1</div>
       <div id="tsView" class="time-right"></div>
     </div>
     <table>
@@ -116,17 +124,22 @@
 </div>
 
 <script>
+/* --- 常數/工具 --- */
 const GAS_URL="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 const API_TOKEN="MY_SECRET_123";
 const INSPECTOR_KEY="inspector_id";
+
 function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g," ")}
 function CANON(s){return fw2hw(s).trim().toUpperCase()}
 function normLotKey(s){return CANON(s).replace(/^FA-/, "")}
 function buildKey(date,shift,part,lotDisp){return `${CANON(date)}|${CANON(shift)}|${CANON(part)}|${normLotKey(lotDisp)}`}
+function hasFA(s){ return /^FA-/.test(CANON(s)); }
+
 function twNowStr(){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())}
 function mdOf(d){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d)}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
 
+/* --- 班別判斷 --- */
 function computeShiftByClock(){
   const now = new Date();
   const tzNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
@@ -142,15 +155,14 @@ function computeShiftByClock(){
 let currentDS = computeShiftByClock();
 document.getElementById('dsView').textContent = `${currentDS.dateMD} - ${currentDS.shift}`;
 
+/* --- 工號草稿 --- */
 function saveInspector(){const v=CANON(document.getElementById('inspector').value); if(/^[A-Z0-9]{5}$/.test(v)) localStorage.setItem(INSPECTOR_KEY,v)}
 function loadInspector(){const v=localStorage.getItem(INSPECTOR_KEY)||''; if(v) document.getElementById('inspector').value=v}
-
 const inspector=document.getElementById('inspector');
 const inspectorError=document.getElementById('inspectorError');
 function setInspectorError(msg){
   if(!inspectorError) return;
-  if (msg){ inspectorError.textContent = msg; inspectorError.style.display = 'block'; }
-  else { inspectorError.textContent = ''; inspectorError.style.display = 'none'; }
+  inspectorError.textContent = msg||''; inspectorError.style.display = msg ? 'block':'none';
 }
 inspector.addEventListener('input',()=>{ setInspectorError(''); saveInspector(); });
 inspector.addEventListener('blur',()=>{
@@ -160,6 +172,7 @@ inspector.addEventListener('blur',()=>{
   setInspectorError('');
 });
 
+/* --- 當班草稿（料號/批號/數量/前綴） --- */
 const DSK='rt_draft_ds', DP='rt_draft_';
 function dsKey(){return `${currentDS.dateMD}|${currentDS.shift}`}
 function draftKey(){return DP+dsKey()}
@@ -174,9 +187,11 @@ function loadDraft(){
   partNo.value=d.part||''; lotInput.value=d.lot||''; qty.value=d.qty||''; lotPrefix.value=d.prefix||'';
 }
 
+/* --- 時鐘 --- */
 function tick(){ document.getElementById('tsView').textContent = twNowStr(); }
 setInterval(tick,1000); tick();
 
+/* --- DOM 元素 --- */
 const partNo=document.getElementById('partNo');
 const partError=document.getElementById('partError');
 const lotPrefix=document.getElementById('lotPrefix');
@@ -185,34 +200,29 @@ const lotError=document.getElementById('lotError');
 const qty=document.getElementById('qty');
 const okMsg=document.getElementById('okMsg');
 const loadingDots=document.getElementById('loadingDots');
+
+/* --- 變更即存草稿 --- */
 ['inspector','partNo','lotInput','lotPrefix','qty'].forEach(id=>{
   document.getElementById(id).addEventListener('input',()=>{if(id==='inspector')saveInspector(); else saveDraft();})
 });
 loadDraft();
 
-function setLotError(msg){
-  if(!lotError) return;
-  if (msg){ lotError.textContent = msg; lotError.style.display = 'block'; }
-  else { lotError.textContent = ''; lotError.style.display = 'none'; }
-}
-function setPartError(msg){
-  if(!partError) return;
-  if (msg){ partError.textContent = msg; partError.style.display = 'block'; }
-  else { partError.textContent = ''; partError.style.display = 'none'; }
-}
+/* --- 欄位錯誤顯示 --- */
+function setLotError(msg){ lotError.textContent = msg||''; lotError.style.display = msg ? 'block':'none'; }
+function setPartError(msg){ partError.textContent = msg||''; partError.style.display = msg ? 'block':'none'; }
 
+/* --- 成功/載入提示 --- */
 let okTimer=null;
 function showOk(msg){
-  if(!okMsg) return;
   if(okTimer){ clearTimeout(okTimer); okTimer=null; }
   okMsg.textContent = msg||'';
-  okMsg.classList.add('show');
-  okMsg.classList.remove('fade');
+  okMsg.classList.add('show'); okMsg.classList.remove('fade');
   okTimer = setTimeout(()=>{ okMsg.classList.add('fade'); }, 4600);
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; }, 5000);
 }
 function showLoading(on){ loadingDots.style.display = on ? 'inline-block' : 'none'; }
 
+/* --- 批號解析 --- */
 function parseLot(input){
   const s = CANON(input).replace(/\s+/g,'');
   if (!s) return { ok:false, msg:'母批必填（3碼）' };
@@ -228,7 +238,6 @@ function parseLot(input){
     return { ok:true, mother:m, child:'', hasChild:false };
   }
 }
-
 lotInput.addEventListener('input', ()=> setLotError(''));
 lotInput.addEventListener('blur', ()=>{
   const r = parseLot(lotInput.value);
@@ -238,6 +247,7 @@ lotInput.addEventListener('blur', ()=>{
   saveDraft();
 });
 
+/* --- 料號即時驗證 --- */
 partNo.addEventListener('input', ()=> setPartError(''));
 partNo.addEventListener('blur', ()=>{
   const p = CANON(partNo.value);
@@ -246,7 +256,7 @@ partNo.addEventListener('blur', ()=>{
   setPartError('');
 });
 
-/* ---- 草稿清單（修正：以「料號 + 正規化批號(去 FA-, 子批補零後)」比對覆蓋） ---- */
+/* --- 草稿清單（以料號 + 正規化批號比對覆蓋） --- */
 const LIST_NS='rt_draft_list_v1';
 function listDsKey(){return `${currentDS.dateMD}|${currentDS.shift}`}
 function listKey(){return `${LIST_NS}:${listDsKey()}`}
@@ -266,7 +276,7 @@ function listRotateIfNeeded(){
   localStorage.setItem(`${LIST_NS}:LAST_DS`, cur);
 }
 function draftRowKey(part_no, lot){
-  const norm = normLotKey(lot); // 去掉 FA-，其餘已於 blur/送出時補零
+  const norm = normLotKey(lot); // 去 FA-
   return `${CANON(part_no)}|${CANON(norm)}`;
 }
 function renderDraftList(){
@@ -279,6 +289,7 @@ function renderDraftList(){
   }
   rows.forEach(x=>{
     const tr=document.createElement('tr');
+    if (x.strike) tr.classList.add('tr-strike');
     tr.innerHTML = `<td>${x.part_no||''}</td><td>${x.lot||''}</td><td>${x.qty||''}</td>`;
     tb.appendChild(tr);
   });
@@ -288,21 +299,17 @@ function upsertDraftList({part_no, lot, qty, inspector}){
   const arr = listGet();
   const key = draftRowKey(part_no, lot);
   const idx = arr.findIndex(x => draftRowKey(x.part_no, x.lot) === key);
-  const item = {part_no, lot, qty, inspector, submitted_at: new Date().toISOString()};
+  const item = {part_no, lot, qty, inspector, submitted_at: new Date().toISOString(), strike:false};
   if(idx>=0) arr[idx]=item; else arr.unshift(item);
   listSet(arr);
   renderDraftList();
 }
 renderDraftList();
-/* ---- 草稿清單修正結束 ---- */
 
+/* --- 送出流程 --- */
 let clearPartOnce=false;
 partNo.addEventListener('focus',()=>{ 
-  if(clearPartOnce){ 
-    partNo.value=''; 
-    clearPartOnce=false; 
-    saveDraft(); 
-  } 
+  if(clearPartOnce){ partNo.value=''; clearPartOnce=false; saveDraft(); } 
 });
 
 document.getElementById('sendBtn').addEventListener('click', async ()=>{
@@ -313,8 +320,10 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const lotParsed = parseLot(lotInput.value);
   if (!lotParsed.ok){ setLotError(lotParsed.msg); lotInput.focus(); return; }
   setLotError('');
-  lotInput.value = rTrim = lotParsed.mother + (lotParsed.hasChild ? '-' + lotParsed.child : '');
-  const lotDisp = prefix ? `${prefix}-${lotInput.value}` : lotInput.value;
+  lotInput.value = lotParsed.mother + (lotParsed.hasChild ? '-' + lotParsed.child : '');
+  const lotDisp = prefix 
+    ? `${prefix}-${lotInput.value}`
+    : lotInput.value;
 
   if (!part){ setPartError('料號必填'); partNo.focus(); return; }
   if (!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)){ setPartError('格式錯誤（如 A58K052）'); partNo.focus(); return; }
@@ -332,10 +341,10 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     date:currentDS.dateMD, shift:currentDS.shift,
     part_no:part,
     lot_prefix:prefix,
-    mother_child: lotInput.value,
+    mother_child: lotInput.value, // "ABC" or "ABC-01"
     qty:String(q),
     inspector:inspectorVal,
-    remark:""
+    // remark/z7~z13 由後端固定處理
   };
 
   const btn=document.getElementById('sendBtn');
@@ -344,14 +353,38 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   try{
     const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
     const data=await res.json();
-    if(data.status==='ok'){
-      showOk(data.upsert==='update' ? '✅ 已更新' : '✅ 已新增');
-      upsertDraftList({part_no:part, lot:lotDisp, qty:String(q), inspector:inspectorVal});
-      lotInput.value=''; qty.value=''; saveDraft();
-      clearPartOnce=true;
-    }else{
-      alert('❌ 後端：'+JSON.stringify(data));
+
+    if (data.status === 'deleted'){
+      alert('⚠️ 此筆資料已被刪除，請找幹部處理');
+      return;
     }
+    if (data.status !== 'ok'){
+      alert('❌ 後端：'+JSON.stringify(data));
+      return;
+    }
+
+    // 顯示成功（新增/更新）
+    showOk(data.upsert==='update' ? '✅ 已更新' : '✅ 已新增');
+
+    // 更新草稿列
+    upsertDraftList({part_no:part, lot:lotDisp, qty:String(q), inspector:inspectorVal});
+
+    // 依「後端權威快照」比對 → 決定是否加刪除線
+    if (data.latest){
+      const latest = data.latest;
+      const mismatch =
+        latest.deleted === true ||                       // 軟刪除
+        String(latest.qty) !== String(q) ||              // 數量不符
+        CANON(latest.inspector||'') !== CANON(inspectorVal||'') || // 檢驗員不符
+        (hasFA(latest.lot) !== hasFA(lotDisp));          // FA 前綴不符
+
+      markDraftStrike(draftRowKey(part, lotDisp), mismatch);
+    }
+
+    // 清理輸入（保留料號）
+    lotInput.value=''; qty.value=''; saveDraft();
+    clearPartOnce=true;
+
   }catch(err){
     alert('送出錯誤：'+err.message);
   }finally{
@@ -359,6 +392,18 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   }
 });
 
+/* 將某草稿列標示/取消刪除線 */
+function markDraftStrike(draftKeyForRow, strike){
+  const arr = listGet();
+  const idx = arr.findIndex(x => draftRowKey(x.part_no, x.lot) === draftKeyForRow);
+  if (idx >= 0){
+    arr[idx].strike = !!strike;
+    listSet(arr);
+    renderDraftList();
+  }
+}
+
+/* 多國語言預留 */
 document.getElementById('langBtn').addEventListener('click',()=>alert('多國語言預留：未啟用'));
 </script>
 </body>
