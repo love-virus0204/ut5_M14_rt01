@@ -15,7 +15,6 @@
   .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:0;font-size:1.4rem}
   @media (max-width: 400px){ .title{font-size:1.2rem} }
 
-  /* 當日當班：單獨一行、視覺內縮到輸入列左邊界 */
   .ds-line{font-weight:700;margin:8px 0 10px 0; padding-left:20px;}
 
   .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;column-gap:10px;margin:6px 0}
@@ -28,12 +27,10 @@
   .field-error{display:none;color:#d93025;font-weight:700;font-size:13px;margin-top:4px}
   .input-error{ border-color:#d93025 !important; }
 
-  /* 送出列：按鈕在右側；提示置中 */
   .submit{position:relative;display:flex;justify-content:flex-end;align-items:center;margin-top:10px}
   .submit-center{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px}
   .btn{background:#0a66ff;color:#fff;border:0;border-radius:8px;padding:10px 18px;cursor:pointer}
 
-  /* 成功訊息與傳送中動畫 */
   .ok-msg{display:none;color:#1a7f37;font-weight:700;font-size:13px}
   .ok-msg.show{display:block;opacity:1;transition:opacity .4s}
   .ok-msg.fade{opacity:0}
@@ -63,10 +60,8 @@
     <div class="tool-right"><button class="tool-btn" id="backBtn" title="返回" onclick="location.href='index.html'">↩️</button></div>
   </div>
 
-  <!-- 當日當班 -->
   <div id="dsView" class="ds-line"></div>
 
-  <!-- 檢驗員 -->
   <div class="row">
     <div class="label">檢　驗：</div>
     <div class="ctrl">
@@ -75,7 +70,6 @@
     </div>
   </div>
 
-  <!-- 料號 -->
   <div class="row">
     <div class="label">料　號：</div>
     <div class="ctrl">
@@ -84,7 +78,6 @@
     </div>
   </div>
 
-  <!-- 型態（FA/空） -->
   <div class="row lot-type">
     <div class="label">型　態：</div>
     <div class="ctrl">
@@ -96,7 +89,6 @@
     </div>
   </div>
 
-  <!-- 批號 -->
   <div class="row">
     <div class="label">批　號：</div>
     <div class="ctrl">
@@ -105,13 +97,11 @@
     </div>
   </div>
 
-  <!-- 數量 -->
   <div class="row">
     <div class="label">數　量：</div>
     <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入 批量"></div>
   </div>
 
-  <!-- 送出 -->
   <div class="submit" id="submit-row">
     <div class="submit-center">
       <div id="okMsg" class="ok-msg"></div>
@@ -122,10 +112,9 @@
 
   <hr>
 
-  <!-- 版本 / 即時時間 + 當班草稿清單 -->
   <div class="post">
     <div class="bottom-info">
-      <div id="versionTag" class="ver-left">版本：v17.7.5</div>
+      <div id="versionTag" class="ver-left">版本：v17.7.6</div>
       <div id="tsView" class="time-right"></div>
     </div>
     <table>
@@ -339,6 +328,43 @@ function ensureCenterBox(){
 function showCenter(text){ const b=ensureCenterBox(); b.textContent=text; b.style.display='block'; }
 function hideCenter(){ const b=$("#center-status"); if(b) b.style.display='none'; }
 
+/* ==== 後端比對：送出成功後驗證並決定是否加刪除線 ==== */
+async function verifyAndStrike(key, part, lotDisp, qty, inspector){
+  try{
+    const ymd = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replace(/\//g,'/');
+    const url = `${API_URL}?action=list&date=${encodeURIComponent(ymd)}&shift=${encodeURIComponent(currentDS.shift)}&t=${Date.now()}`;
+    const r = await fetch(url, {method:'GET', cache:'no-store'});
+    const js = await r.json();
+
+    const row = (js.rows||[]).find(x => String(x.key).toUpperCase() === String(key).toUpperCase());
+    let strike = false;
+    if(!row){
+      strike = true; // 找不到同一筆
+    }else{
+      const faInRow = /^FA-/.test(String(row.lot||'').toUpperCase());
+      const faInNow = /^FA-/.test(String(lotDisp||'').toUpperCase());
+      if (row.deleted !== true) strike = true;                       // 被軟刪
+      if (String(row.qty) !== String(qty)) strike = true;            // 數量不同
+      if (String(row.inspector||'').toUpperCase() !== String(inspector||'').toUpperCase()) strike = true; // 檢驗員不同
+      if (faInRow !== faInNow) strike = true;                        // FA 前綴有無不同
+    }
+    markDraftStrike(draftRowKey(part, lotDisp), strike);
+  }catch(e){
+    // 讀取失敗就不變更 strike，避免誤判
+  }
+}
+
+/* 將某草稿列標示/取消刪除線 */
+function markDraftStrike(draftKeyForRow, strike){
+  const arr = listGet();
+  const idx = arr.findIndex(x => draftRowKey(x.part_no, x.lot) === draftKeyForRow);
+  if (idx >= 0){
+    arr[idx].strike = !!strike;
+    listSet(arr);
+    renderDraftList();
+  }
+}
+
 /* ==== 送出（GET upsert） ==== */
 let clearPartOnce=false;
 partNo.addEventListener('focus',()=>{ if(clearPartOnce){ partNo.value=''; clearPartOnce=false; saveDraft(); } });
@@ -380,7 +406,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     z7:'0', z8:'0', z9:'0', z10:'0', z11:'0', z12:'0', z13:'0',
     deleted:'true',
     key,
-    t: Date.now().toString() // 防快取
+    t: Date.now().toString()
   });
 
   const btn=$('#sendBtn');
@@ -403,15 +429,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     hideCenter(); showOk(data.upsert==='update' ? '✅ 已更新' : '✅ 已新增');
 
     upsertDraftList({part_no:part, lot:lotDisp, qty:String(q), inspector:inspectorVal});
-    if (data.latest){
-      const latest = data.latest;
-      const mismatch =
-        latest.deleted === true ? false : true ||
-        String(latest.qty) !== String(q) ||
-        CANON(latest.inspector||'') !== CANON(inspectorVal||'') ||
-        (hasFA(latest.lot) !== hasFA(lotDisp));
-      markDraftStrike(draftRowKey(part, lotDisp), mismatch);
-    }
+    await verifyAndStrike(key, part, lotDisp, q, inspectorVal);
 
     lotInput.value=''; qty.value='';
     saveDraft();
@@ -423,17 +441,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     btn.disabled=false; showLoading(false);
   }
 });
-
-/* 將某草稿列標示/取消刪除線 */
-function markDraftStrike(draftKeyForRow, strike){
-  const arr = listGet();
-  const idx = arr.findIndex(x => draftRowKey(x.part_no, x.lot) === draftKeyForRow);
-  if (idx >= 0){
-    arr[idx].strike = !!strike;
-    listSet(arr);
-    renderDraftList();
-  }
-}
 
 /* 多國語言預留 */
 document.getElementById('langBtn').addEventListener('click',()=>alert('多國語言預留：未啟用'));
