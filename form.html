@@ -5,28 +5,37 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>RT 外觀抽驗記錄表</title>
 <style>
-  :root{--maxw:520px}
+  :root{--maxw:520px; --labelw:92px;}
   body{margin:0;background:#f5f5f5;font-family:"Comic Sans MS",sans-serif}
   .wrap{max-width:var(--maxw);margin:8px auto;padding:10px 14px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
-  .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:4px 0 8px 0}
-  /* 頂列：左語言、右返回 */
-  .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  /* 頂列：三欄 Grid（左語言／中標題／右返回） */
+  .toolbar{
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:center; margin-bottom:6px
+  }
+  .tool-left{justify-self:start}
+  .tool-right{justify-self:end}
   .tool-btn{background:none;border:0;font-size:18px;line-height:1;padding:2px 6px}
-  /* 當日當班：單獨一行靠左 */
-  .ds-line{font-weight:700;margin:6px 0 8px 0;text-align:left}
+  .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:0}
+
+  /* 當日當班：單獨一行、視覺內縮到輸入列左邊界 */
+  .ds-line{font-weight:700;margin:8px 0 10px 0; padding-left:var(--labelw);}
+
   /* 表單列：兩欄 Grid（左固定、右彈性） */
-  .row{display:grid;grid-template-columns:92px 1fr;align-items:center;column-gap:10px;margin:6px 0}
+  .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;column-gap:10px;margin:6px 0}
   .label{font-family:"標楷體",serif;text-align:center}
   .ctrl{width:100%}
   .ctrl input,.ctrl select,.ctrl textarea{width:100%;box-sizing:border-box;padding:7px;border:1px solid #ccc;border-radius:6px;font-family:"Comic Sans MS",sans-serif}
   .row.lot-type .ctrl{display:grid;grid-template-columns:25% 1fr;column-gap:8px}
   .row.lot-type select{min-width:80px}
   textarea[readonly]{background:#f2f2f2;color:#555}
+
   .submit{display:flex;justify-content:flex-end;margin-top:10px}
   .btn{background:#0a66ff;color:#fff;border:0;border-radius:8px;padding:10px 18px}
+
   hr{margin:10px 0}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
+
   /* 底部資訊列：左=版本、中=時間、右留白 */
   .bottom-info{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;margin:6px 0}
   .ver-left{justify-self:start;font-size:12px;color:#666}
@@ -35,14 +44,14 @@
 </head>
 <body>
 <div class="wrap">
-  <!-- 頂列：左語言、標題置中（單獨行）、右返回 -->
+  <!-- 頂列：左語言 / 中標題 / 右返回 -->
   <div class="toolbar">
-    <button class="tool-btn" id="langBtn" title="語言">🌐</button>
-    <button class="tool-btn" id="backBtn" title="返回" onclick="history.back()">↩️</button>
+    <div class="tool-left"><button class="tool-btn" id="langBtn" title="語言">🌐</button></div>
+    <h1 class="title">RT 外觀抽驗記錄表</h1>
+    <div class="tool-right"><button class="tool-btn" id="backBtn" title="返回" onclick="history.back()">↩️</button></div>
   </div>
-  <div class="title">RT 外觀抽驗記錄表</div>
 
-  <!-- 當日當班：單獨一行靠左（刷新時計算，不在送出時重算） -->
+  <!-- 當日當班（單獨一行、內縮對齊輸入列） -->
   <div id="dsView" class="ds-line"></div>
 
   <!-- 表單區 -->
@@ -88,7 +97,7 @@
 
   <!-- 底部資訊列：左=版本號(靠左)；中=即時時間(置中)；右留白 -->
   <div class="bottom-info">
-    <div id="versionTag" class="ver-left">版本：v17.4（LOCKED）</div>
+    <div id="versionTag" class="ver-left">版本：v17.4+</div>
     <div id="tsView" class="time-center"></div>
     <div></div>
   </div>
@@ -101,7 +110,7 @@
 </div>
 
 <script>
-/* === 常數與工具：沿用既有（LOCKED） === */
+/* === 常數與工具（LOCKED） === */
 const GAS_URL="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 const API_TOKEN="MY_SECRET_123";
 const INSPECTOR_KEY="inspector_id";
@@ -156,6 +165,29 @@ const qty=document.getElementById('qty');
 });
 loadDraft();
 
+/* === 前端補零：blur 與送出前都會正規化 === */
+function normalizeLotInputText(txt){
+  txt = CANON(txt);
+  let mother='', child='';
+  const parts = txt.split('-');
+  mother = parts[0] || '';
+  child  = parts[1] || '';
+
+  // 禁 O/I（母批）
+  if (/[OI]/.test(mother)) return null;
+
+  // 補零
+  if (mother) mother = mother.padStart(3,'0');
+  if (child)  child  = child.padStart(2,'0');
+
+  return child ? `${mother}-${child}` : mother;
+}
+lotInput.addEventListener('blur', ()=>{
+  const v = normalizeLotInputText(lotInput.value);
+  if (v===null) { alert('母批不可含 O / I'); lotInput.focus(); return; }
+  if (v!==undefined && v!==null) { lotInput.value = v; saveDraft(); }
+});
+
 /* === 底部時間：每秒更新（台北） === */
 function tick(){ document.getElementById('tsView').textContent = twNowStr(); }
 setInterval(tick,1000); tick();
@@ -182,23 +214,27 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const inspectorVal=CANON(inspector.value);
   const part=CANON(partNo.value);
   const prefix=CANON(lotPrefix.value);
-  const lotMC=CANON(lotInput.value);
-  const lotDisp = prefix ? `${prefix}-${lotMC}` : lotMC;
+
+  // 先做補零正規化
+  const lotNorm = normalizeLotInputText(lotInput.value);
+  if (lotNorm===null) return alert('母批不可含 O / I');
+  if (!lotNorm) return alert('批號必填');
+  lotInput.value = lotNorm; // 回寫顯示
+  const lotDisp = prefix ? `${prefix}-${lotNorm}` : lotNorm;
+
   const q=Number(qty.value);
 
   if(!/^[A-Z0-9]{5}$/.test(inspectorVal)) return alert('請輸入 5 碼工號');
   if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)) return alert('料號格式錯誤（如 A58K052）');
-  if(!lotMC) return alert('批號必填');
   if(!(q>0)) return alert('數量需 > 0');
 
-  // 用刷新時計算的 currentDS（不在此重算）
   const key = buildKey(currentDS.dateMD, currentDS.shift, part, lotDisp);
   const payload={
     token:API_TOKEN,
     key,
     date:currentDS.dateMD, shift:currentDS.shift,
     part_no:part,
-    lot_prefix:prefix, mother_child:lotMC,
+    lot_prefix:prefix, mother_child:lotNorm,
     qty:String(q),
     inspector:inspectorVal,
     remark:""
