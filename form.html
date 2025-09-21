@@ -446,43 +446,34 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 document.getElementById('langBtn').addEventListener('click',()=>alert('多國語言預留：未啟用'));
 </script>
 
-<!-- GPT integrated patch v17.7.8: DS date + Draft (appended) -->
-<script id="gpt_patch_v1778">
+<!-- GPT minimal patch v17.8.1 (no layout changes) -->
+<script id="gpt_minpatch_v1781">
 (function(){
   "use strict";
+  if (window.__gpt_minpatch_v1781__) return;
+  window.__gpt_minpatch_v1781__ = true;
 
-  if (window.__gpt_patch_v1778__) return;
-  window.__gpt_patch_v1778__ = true;
-
-  function dateYMDFromDS(){
+  function dsDateYMD(){
     try{
-      var dEl = document.querySelector("#date");
-      var ds = dEl && dEl.value ? dEl.value : null;
-      if(!ds){
-        var mmdd = (window.currentDS && window.currentDS.dateMD) ? String(window.currentDS.dateMD) : null;
-        if(mmdd){
-          var parts = mmdd.split("/");
-          var mm = parseInt(parts[0],10), dd = parseInt(parts[1],10);
-          var now = new Date();
-          var y = now.getFullYear();
-          if ((now.getMonth()+1) === 1 && mm === 12) y = y - 1;
-          var d = new Date(y, mm-1, dd, 0,0,0);
-          var fmt = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'});
-          return fmt.format(d).replace(/\//g,'/');
-        }
+      var de = document.getElementById("date");
+      if (de && de.value) {
+        var m = String(de.value).match(/^(\d{4})[\/-](\d{2})[\/-](\d{2})$/);
+        if (m) return m[1]+"/"+m[2]+"/"+m[3];
       }
-      if(ds){
-        var m = ds.match(/^(\d{4})[\/-](\d{2})[\/-](\d{2})$/);
-        if(m) return m[1]+"/"+m[2]+"/"+m[3];
+      var mmdd = (window.currentDS && window.currentDS.dateMD) ? String(window.currentDS.dateMD) : null;
+      if (mmdd){
+        var p = mmdd.split("/"); var mm = parseInt(p[0],10), dd = parseInt(p[1],10);
+        var now = new Date(); var y = now.getFullYear();
+        if ((now.getMonth()+1)===1 && mm===12) y = y-1;
+        var d = new Date(y, mm-1, dd, 0,0,0);
+        var fmt = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'});
+        return fmt.format(d).replace(/\//g,'/');
       }
     }catch(e){}
     try{
-      var tzNowStr = new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei'});
-      var tzNow = new Date(tzNowStr);
-      var y = tzNow.getFullYear();
-      var m2 = String(tzNow.getMonth()+1).padStart(2,'0');
-      var d2 = String(tzNow.getDate()).padStart(2,'0');
-      return y+"/"+m2+"/"+d2;
+      var tzNow = new Date(new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}));
+      var y = tzNow.getFullYear(), m = String(tzNow.getMonth()+1).padStart(2,'0'), d = String(tzNow.getDate()).padStart(2,'0');
+      return y+"/"+m+"/"+d;
     }catch(e){}
     return "";
   }
@@ -490,67 +481,13 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
   (function(){
     var _USP = window.URLSearchParams;
     if(!_USP) return;
-    function coerce(value, key){
-      if (String(key).toLowerCase() === "date") return dateYMDFromDS();
-      return value;
-    }
     var _set = _USP.prototype.set;
     var _append = _USP.prototype.append;
-    _USP.prototype.set = function(key, value){
-      return _set.call(this, key, coerce(value, key));
-    };
-    _USP.prototype.append = function(key, value){
-      return _append.call(this, key, coerce(value, key));
-    };
+    function fix(k,v){ return (String(k).toLowerCase()==="date") ? dsDateYMD() : v; }
+    _USP.prototype.set = function(k,v){ return _set.call(this,k,fix(k,v)); };
+    _USP.prototype.append = function(k,v){ return _append.call(this,k,fix(k,v)); };
   })();
-
-  var DRAFT_KEY = "draft_form_v1";
-  function loadDraft(){
-    try{
-      var raw = localStorage.getItem(DRAFT_KEY);
-      if(!raw) return;
-      var obj = JSON.parse(raw);
-      Object.keys(obj||{}).forEach(function(id){
-        var el = document.getElementById(id);
-        if(el && el.type !== "hidden"){ el.value = obj[id]; }
-      });
-    }catch(e){}
-  }
-  function saveDraft(){
-    try{
-      var ids = ["part","lot","qty"];
-      var obj = {};
-      ids.forEach(function(id){
-        var el = document.getElementById(id);
-        if(el) obj[id] = el.value || "";
-      });
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(obj));
-    }catch(e){}
-  }
-  function clearDraft(){
-    try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
-  }
-
-  document.addEventListener("DOMContentLoaded", function(){
-    loadDraft();
-    ["part","lot","qty"].forEach(function(id){
-      var el = document.getElementById(id);
-      if(el) el.addEventListener("input", saveDraft, {passive:true});
-    });
-  });
-
-  (function(){
-    var _fetch = window.fetch;
-    if(!_fetch) return;
-    window.fetch = async function(){
-      var res = await _fetch.apply(this, arguments);
-      try{ if(res && res.ok) clearDraft(); }catch(e){}
-      return res;
-    };
-  })();
-
 })();
 </script>
-
 </body>
 </html>
