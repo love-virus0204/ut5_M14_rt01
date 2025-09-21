@@ -446,46 +446,68 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 document.getElementById('langBtn').addEventListener('click',()=>alert('多國語言預留：未啟用'));
 </script>
 
-<!-- GPT minimal patch v17.8.1 (no layout changes) -->
-<script id="gpt_minpatch_v1781">
+<!-- GPT DS-front v18.1 (self-contained DS calc + date enforce) -->
+<script id="gpt_ds_front_v181">
 (function(){
   "use strict";
-  if (window.__gpt_minpatch_v1781__) return;
-  window.__gpt_minpatch_v1781__ = true;
+  if (window.__gpt_ds_front_v181__) return;
+  window.__gpt_ds_front_v181__ = true;
 
-  function dsDateYMD(){
-    try{
-      var de = document.getElementById("date");
-      if (de && de.value) {
-        var m = String(de.value).match(/^(\d{4})[\/-](\d{2})[\/-](\d{2})$/);
-        if (m) return m[1]+"/"+m[2]+"/"+m[3];
-      }
-      var mmdd = (window.currentDS && window.currentDS.dateMD) ? String(window.currentDS.dateMD) : null;
-      if (mmdd){
-        var p = mmdd.split("/"); var mm = parseInt(p[0],10), dd = parseInt(p[1],10);
-        var now = new Date(); var y = now.getFullYear();
-        if ((now.getMonth()+1)===1 && mm===12) y = y-1;
-        var d = new Date(y, mm-1, dd, 0,0,0);
-        var fmt = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'});
-        return fmt.format(d).replace(/\//g,'/');
-      }
-    }catch(e){}
-    try{
-      var tzNow = new Date(new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}));
-      var y = tzNow.getFullYear(), m = String(tzNow.getMonth()+1).padStart(2,'0'), d = String(tzNow.getDate()).padStart(2,'0');
-      return y+"/"+m+"/"+d;
-    }catch(e){}
-    return "";
+  // ---- DS calculate on front-end ----
+  function computeShiftAndDate(){
+    // A: 08:40–16:39, B: 16:40–00:39, C: 00:40–08:39; C uses previous day
+    var now = new Date();
+    var h = now.getHours(), m = now.getMinutes();
+    var minutes = h*60 + m;
+    var shift="A";
+    if (minutes >= 520 && minutes <= 999)      shift = "A";        // 08:40–16:39
+    else if (minutes >= 1000 || minutes <= 39) shift = "B";        // 16:40–00:39
+    else if (minutes >= 40 && minutes <= 519)  shift = "C";        // 00:40–08:39
+    var d = new Date(now);
+    if (shift === "C"){ d.setDate(d.getDate()-1); }
+    var yyyy = d.getFullYear();
+    var mm = String(d.getMonth()+1).padStart(2,"0");
+    var dd = String(d.getDate()).padStart(2,"0");
+    return {shift: shift, ymd: yyyy+"/"+mm+"/"+dd, md: mm+"/"+dd};
   }
 
+  function writeHidden(ds){
+    try{
+      var de = document.getElementById("date");
+      var se = document.getElementById("shift");
+      if (de) de.value = ds.ymd;
+      if (se) se.value = ds.shift;
+      // also expose global for legacy code
+      window.currentDS = { dateMD: ds.md, shift: ds.shift };
+    }catch(e){}
+  }
+
+  function ensureDS(){
+    var ds = computeShiftAndDate();
+    writeHidden(ds);
+    return ds;
+  }
+
+  document.addEventListener("DOMContentLoaded", ensureDS);
+
+  // ---- Enforce date in URLSearchParams to DS yyyy/MM/dd ----
   (function(){
     var _USP = window.URLSearchParams;
     if(!_USP) return;
     var _set = _USP.prototype.set;
     var _append = _USP.prototype.append;
-    function fix(k,v){ return (String(k).toLowerCase()==="date") ? dsDateYMD() : v; }
+    function dsYMD(){ return ensureDS().ymd; }
+    function fix(k,v){ return (String(k).toLowerCase()==="date") ? dsYMD() : v; }
     _USP.prototype.set = function(k,v){ return _set.call(this,k,fix(k,v)); };
     _USP.prototype.append = function(k,v){ return _append.call(this,k,fix(k,v)); };
+  })();
+
+  // ---- Also refresh DS just before form submit if a form with id=form exists ----
+  (function(){
+    var f = document.getElementById("form");
+    if (f){
+      f.addEventListener("submit", function(){ ensureDS(); }, {capture:true});
+    }
   })();
 })();
 </script>
