@@ -104,7 +104,7 @@
   <hr>
 
   <div class="bottom-info">
-    <div id="versionTag" class="ver-left">版本：v17.10.0</div>
+    <div id="versionTag" class="ver-left">版本：v17.10.1</div>
     <div id="tsView" class="time-right"></div>
   </div>
 
@@ -118,13 +118,14 @@
 
 <script>
 /* ===== 常數 ===== */
-const FORM_VERSION="v17.10.0";
+const FORM_VERSION="v17.10.1";
 const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 const OFFSET_KEY='srv_offset_ms_v2';
 const EXP_KEY='srv_offset_exp_v2';
 const TEN_MIN=10*60*1000;
 const INSPECTOR_STORE='inspector_id_v1';
 const KEY2_CACHE_TTL=10*1000; // 10s
+const PROTECT_MS=3000;        // 新送出 3s 保護期
 
 /* ===== 小工具 ===== */
 const $=s=>document.querySelector(s);
@@ -176,7 +177,7 @@ function refreshDisplays(){
   $('#tsView').textContent=fmtTW(now);
 }
 
-/* ===== 欄位驗證 ===== */
+/* ===== 欄位與驗證 ===== */
 const inspector=$('#inspector'), inspectorError=$('#inspectorError');
 const partNo=$('#partNo'), partError=$('#partError');
 const lotPrefix=$('#lotPrefix'), lotInput=$('#lotInput'), lotError=$('#lotError');
@@ -229,7 +230,7 @@ lotInput.addEventListener('blur',()=>{
   lotInput.value=r.mother+(r.hasChild?('-'+r.child):'');
 });
 
-/* ===== 置中提示 & 成功訊息 ===== */
+/* ===== 中央提示 ===== */
 function ensureCenterBox(){
   let box=$("#center-status");
   if(!box){
@@ -262,92 +263,91 @@ function submitData(p){ return apiGet({action:"submit",...p}); }
 function listRecent(){ return apiGet({action:'list_recent'}); }
 
 /* ===== 草稿（當班）：ts 排序 + key2 比對 ===== */
-function dsStorageKey(ds){ return `draft_${ds.ymd}_${ds.shift}`; }
 function dsKeyStr(ds){ return `${ds.ymd}|${ds.shift}`; }
-function getDraftList(ds){
-  try{ return JSON.parse(localStorage.getItem(dsStorageKey(ds))||'[]'); }catch{ return []; }
-}
-function saveDraftList(ds,list){
-  localStorage.setItem(dsStorageKey(ds), JSON.stringify(list||[]));
-}
+function dsStorageKey(ds){ return `draft_${ds.ymd}_${ds.shift}`; }
+function getDraftList(ds){ try{ return JSON.parse(localStorage.getItem(dsStorageKey(ds))||'[]'); }catch{ return []; } }
+function saveDraftList(ds,list){ localStorage.setItem(dsStorageKey(ds), JSON.stringify(list||[])); }
 function makeKey(mmdd,shift,part,lot){ return `${mmdd}|${shift}|${part}|${lot}`; }
 function makeKey2(mmdd,shift,lot,qty){ return `${mmdd}|${shift}|${lot}|${qty}|TRUE`; }
 
-/* ---- key2 集合 10s 快取 ---- */
+/* ---- key2 集合 10s 快取：以班別為單位存 sessionStorage ---- */
 function key2CacheKey(ds){ return `key2set_${ds.ymd}_${ds.shift}`; }
+function readKey2Cache(ds){
+  try{ const raw=sessionStorage.getItem(key2CacheKey(ds)); if(!raw) return null; const obj=JSON.parse(raw); if(!obj||!obj.ts||!Array.isArray(obj.list)) return null; return obj; }catch(_){ return null; }
+}
+function writeKey2Cache(ds,set){
+  sessionStorage.setItem(key2CacheKey(ds), JSON.stringify({ts:Date.now(), list:[...set]}));
+}
 async function getKey2SetCached(ds){
-  const k=key2CacheKey(ds);
-  try{
-    const raw=sessionStorage.getItem(k);
-    if(raw){
-      const obj=JSON.parse(raw);
-      if(obj && obj.ts && (Date.now()-obj.ts)<=KEY2_CACHE_TTL){
-        return new Set(obj.list||[]);
-      }
-    }
-  }catch(_){}
-  // 過期或沒有 → 取一次
+  const cached = readKey2Cache(ds);
+  if(cached && (Date.now()-cached.ts)<=KEY2_CACHE_TTL){ return new Set(cached.list); }
   try{
     const j=await listRecent();
     const arr=(j && j.status==='ok' && Array.isArray(j.data)) ? j.data : [];
     const set=new Set(arr.map(r=>String(r.key2||'')));
-    sessionStorage.setItem(k, JSON.stringify({ts:Date.now(), list:[...set]}));
+    writeKey2Cache(ds,set);
     return set;
-  }catch(_){
-    return new Set(); // 取不到 → 回空集合（不加刪除線）
-  }
+  }catch(_){ return new Set(); }
 }
 
-/* ---- 渲染（fast=true：只畫草稿，不比對） ---- */
-async function renderDrafts(fast=false){
+/* ---- 渲染（initial=true：啟動時先用快取決定刪除線） ---- */
+function renderRows(list, initial=false){
   const body=$('#recordList'); body.innerHTML='';
-  let list=getDraftList(currentDS);
-  if(!list.length){
-    body.innerHTML='<tr><td colspan="3" style="color:#888">（當班無草稿）</td></tr>';
-    return;
+  if(!list.length){ body.innerHTML='<tr><td colspan="3" style="color:#888">（當班無草稿）</td></tr>'; return; }
+  let key2Set=null;
+  if(initial){
+    const cached=readKey2Cache(currentDS);
+    if(cached && (Date.now()-cached.ts)<=KEY2_CACHE_TTL){ key2Set = new Set(cached.list); }
   }
-  // 以 ts 降冪排序（最新在最上）
-  list=list.slice().sort((a,b)=> (b.ts||0)-(a.ts||0));
-
-  // 先畫出（樂觀）：不加刪除線
   for(const it of list){
     const tr=document.createElement('tr');
     tr.dataset.key2 = it.key2 || '';
+    tr.dataset.ts   = String(it.ts||Date.now());
+    if(initial && key2Set && it.key2 && !key2Set.has(it.key2)){ tr.classList.add('strike'); }
     tr.innerHTML = `<td>${it.part_no}</td><td>${it.lot}</td><td>${it.qty}</td>`;
     body.appendChild(tr);
   }
-  if(fast) return; // 快速模式不比對
-
-  // 正常模式：拿 key2 集合做比對並加刪除線
-  const key2Set = await getKey2SetCached(currentDS);
-  [...body.querySelectorAll('tr')].forEach(tr=>{
-    const k2=tr.dataset.key2||'';
-    if(k2 && !key2Set.has(k2)) tr.classList.add('strike'); else tr.classList.remove('strike');
-  });
+}
+async function renderDrafts(initial=false){
+  let list=getDraftList(currentDS).slice().sort((a,b)=> (b.ts||0)-(a.ts||0));
+  renderRows(list, initial);
 }
 
-/* ---- 背景比對（不重畫、只補刪除線） ---- */
-async function validateDraftsAgainstServer(){
+/* ---- 背景比對（3s 保護 + 雙次確認） ---- */
+const missingOnceSet = new Set();
+async function validateDraftsAgainstServer(confirmTwice=true){
   const body=$('#recordList');
   const key2Set = await getKey2SetCached(currentDS);
+  const now=Date.now();
   [...body.querySelectorAll('tr')].forEach(tr=>{
-    const k2=tr.dataset.key2||'';
-    if(k2 && !key2Set.has(k2)) tr.classList.add('strike'); else tr.classList.remove('strike');
+    const k2=tr.dataset.key2||''; const ts=Number(tr.dataset.ts||0);
+    if(!k2) return;
+    if(now - ts < PROTECT_MS){ tr.classList.remove('strike'); return; } // 保護期
+    if(!key2Set.has(k2)){
+      if(confirmTwice){
+        if(!missingOnceSet.has(k2)){ missingOnceSet.add(k2); return; }
+      }
+      tr.classList.add('strike');
+    }else{
+      missingOnceSet.delete(k2);
+      tr.classList.remove('strike');
+    }
   });
 }
 
-/* ---- 送出成功 → upsert 草稿（更新也刷新 ts） ---- */
+/* ---- 送出成功 → upsert 草稿（更新也刷新 ts）；快取直寫；延後比對 ---- */
 function upsertDraftAfterSubmit(payload){
   const ds=currentDS;
   const list=getDraftList(ds);
   const key  = makeKey(currentDS.mmdd, currentDS.shift, payload.part_no, payload.lot);
   const key2 = makeKey2(currentDS.mmdd, currentDS.shift, payload.lot, Number(payload.qty));
-  const nowTs = Date.now(); // 省耗能時間戳
+  const nowTs = Date.now();
   const item = {part_no:payload.part_no, lot:payload.lot, qty:Number(payload.qty), key, key2, ts: nowTs};
   const idx=list.findIndex(x=>x.key===key);
   if(idx>=0){ list[idx]=item; } else { list.push(item); }
   if(list.length>50) list.splice(0, list.length-50);
   saveDraftList(ds, list);
+  return {key2, nowTs};
 }
 
 /* ===== 送出 ===== */
@@ -394,12 +394,14 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     if(data.status!=='ok'){
       hideCenter(); showCenter('❌ 後端：'+(data.msg||'unknown')); setTimeout(hideCenter,1600); return;
     }
-    // 1) 樂觀：先更新草稿與畫面（快速、不比對）
-    upsertDraftAfterSubmit(payload);
-    await renderDrafts(true);
+    const {key2, nowTs}=upsertDraftAfterSubmit(payload);
 
-    // 2) 背景：快取策略下做比對，補刪除線
-    validateDraftsAgainstServer();
+    await renderDrafts(true);               // 快速畫面
+    // 直寫快取：把剛送出的 key2 放進當班快取，避免誤判
+    const set = await getKey2SetCached(currentDS);
+    set.add(key2); writeKey2Cache(currentDS,set);
+
+    setTimeout(()=> validateDraftsAgainstServer(true), 1000); // 延後 1s 再雙次確認比對
 
     hideCenter(); showOk(data.mode==='update'?'✅ 已更新':'✅ 已新增');
     lotInput.value=''; qty.value=''; clearPartOnce=true;
@@ -410,21 +412,18 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   }
 });
 
-/* ===== 初始化（含換班清理、工號常駐、初次渲染+背景比對） ===== */
+/* ===== 初始化（含換班清理、工號常駐、啟動快取劃線 + 背景比對） ===== */
 const LAST_DS_KEY='draft_last_ds_key';
-
 $('#versionTag').textContent=`版本：${FORM_VERSION}`;
+
 (async ()=>{
   await initClockOffsetSmart();
   refreshDisplays();
   setInterval(refreshDisplays,1000);
 
-  // 工號常駐帶入
-  const savedId = localStorage.getItem(INSPECTOR_STORE)||'';
-  if(savedId) inspector.value = savedId;
+  const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
 
-  // 換班清理（只保留當班）
-  const curKey=`${fmtYMD(nowCorrected())}|${computeShiftByClockFrom(nowCorrected()).shift}`; // 保護性
+  const curDSKey = dsKeyStr(computeShiftByClockFrom(nowCorrected()));
   const lastKey=localStorage.getItem(LAST_DS_KEY)||'';
   const dsKey=`${dsKeyStr(currentDS)}`;
   if(lastKey && lastKey!==dsKey){
@@ -433,13 +432,10 @@ $('#versionTag').textContent=`版本：${FORM_VERSION}`;
   }
   localStorage.setItem(LAST_DS_KEY, dsKey);
 
-  // 初次渲染（樂觀本機），隨後背景比對
-  await renderDrafts(true);
-  validateDraftsAgainstServer();
-
-  // 回到前景時，做一次背景比對（尊重 10s 快取）
+  await renderDrafts(true);        // 啟動時先用快取劃線
+  validateDraftsAgainstServer(true); // 背景雙次確認
   document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState==='visible') validateDraftsAgainstServer();
+    if(document.visibilityState==='visible') validateDraftsAgainstServer(true);
   });
 })();
 </script>
