@@ -15,6 +15,7 @@
   .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:0;font-size:1.35rem}
   @media (max-width: 400px){ .title{font-size:1.18rem} }
 
+  /* 當日當班：單獨一行、視覺內縮到輸入列左邊界 */
   .ds-line{font-weight:700;margin:8px 0 10px 0; padding-left:20px;}
 
   .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;column-gap:10px;margin:6px 0}
@@ -104,7 +105,7 @@
   <hr>
 
   <div class="bottom-info">
-    <div id="versionTag" class="ver-left">版本：v17.10.3</div>
+    <div id="versionTag" class="ver-left">版本：v17.10.4</div>
     <div id="tsView" class="time-right"></div>
   </div>
 
@@ -117,22 +118,14 @@
 </div>
 
 <script>
-/* ===== 常數 ===== */
-const FORM_VERSION="v17.10.3";
+/* ===== 版本與 API ===== */
+const FORM_VERSION="v17.10.4";
 const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-const OFFSET_KEY='srv_offset_ms_v2';
-const EXP_KEY='srv_offset_exp_v2';
-const TEN_MIN=10*60*1000;
-const INSPECTOR_STORE='inspector_id_v1';
-const KEY2_CACHE_TTL=10*1000; // 10s
-const PROTECT_MS=3000;        // 既有保護期（v17.10.1 保留）
 
-/* ==== 新增：最近送出的 key2 暫不比對（4s） ==== */
-const RECENT_KEY2='recent_key2_map';
-function recentMap(){ try{ return JSON.parse(sessionStorage.getItem(RECENT_KEY2)||'{}'); }catch{ return {}; } }
-function saveRecent(m){ sessionStorage.setItem(RECENT_KEY2, JSON.stringify(m)); }
-function markRecent(key2, ms=4000){ const m=recentMap(); m[key2]=Date.now()+ms; saveRecent(m); }
-function isRecent(key2){ const m=recentMap(); const exp=m[key2]||0; if(!exp) return false; if(Date.now()<exp) return true; delete m[key2]; saveRecent(m); return false; }
+/* ===== 可調參數 ===== */
+const ENABLE_RECENT_KEY2_PROTECT = true;
+const RECENT_KEY2_TTL_MS = 5000;     // 剛送出的草稿在 5s 內一律不劃線
+const POLL_INTERVAL_MS    = 15000;   // 每 15s 抓快取並重比對
 
 /* ===== 小工具 ===== */
 const $=s=>document.querySelector(s);
@@ -143,33 +136,26 @@ function fmtYMD(d){return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.ge
 function fmtMD(d){return pad2(d.getMonth()+1)+"/"+pad2(d.getDate())}
 function fmtTW(d){return d.getFullYear()+"/"+pad2(d.getMonth()+1)+"/"+pad2(d.getDate())+" "+pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds())}
 
-/* ===== 時間校正（沿用 v17.9.x） ===== */
+/* ===== 時間（前端主導 + 台北校正策略已有於前版，此處沿用最小化） ===== */
 let offsetMs=0;
 function isTaiwanTZ(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Taipei'; }catch{ return false; } }
-function parseTW(ts){ const m=/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2})-(\d{2})-(\d{2})$/.exec(ts||''); if(!m) return Date.now(); return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]).getTime(); }
 async function initClockOffsetSmart(){
-  if(isTaiwanTZ()){
-    offsetMs=0; sessionStorage.setItem(OFFSET_KEY,'0'); sessionStorage.setItem(EXP_KEY,String(Date.now()+TEN_MIN)); return;
-  }
-  const exp=Number(sessionStorage.getItem(EXP_KEY)||0);
-  if(exp && Date.now()<exp){ offsetMs=Number(sessionStorage.getItem(OFFSET_KEY)||0); return; }
+  if(isTaiwanTZ()){ offsetMs=0; return; }
   try{
     const t0=Date.now();
     const r=await fetch(`${API_BASE}?action=ping&t=${t0}`,{cache:'no-store'});
-    const text=await r.text(); const t1=Date.now();
-    // 後端回傳格式為 yyyy/MM/dd HH:mm:ss
-    const parts=(text||'').split(/[\/ :]/); // 容錯
+    const text=await r.text();
+    const parts=(text||'').split(/[\/ :]/);
     const srv=new Date(+parts[0],+parts[1]-1,+parts[2],+parts[3],+parts[4],+parts[5]).getTime();
+    const t1=Date.now();
     const est=srv + Math.round((t1-t0)/2);
-    let off=est - t1; if(Math.abs(off)<=120000) off=0;
-    offsetMs=off; sessionStorage.setItem(OFFSET_KEY,String(off)); sessionStorage.setItem(EXP_KEY,String(Date.now()+TEN_MIN));
-  }catch(e){
-    offsetMs=Number(sessionStorage.getItem(OFFSET_KEY)||0); sessionStorage.setItem(EXP_KEY,String(Date.now()+TEN_MIN));
-  }
+    const off=est - t1;
+    offsetMs=(Math.abs(off)<=120000)?0:off;
+  }catch(e){ offsetMs=0; }
 }
 function nowCorrected(){ return new Date(Date.now()+offsetMs); }
 
-/* ===== 班別：0040/0840/1640 ===== */
+/* ===== 班別（0040/0840/1640） ===== */
 function computeShiftByClockFrom(d){
   const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
   if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymd:fmtYMD(y),shift:'C'}; }
@@ -177,8 +163,6 @@ function computeShiftByClockFrom(d){
   if(mins>=1000){ return {baseDate:d,mmdd:fmtMD(d),ymd:fmtYMD(d),shift:'B'}; }
   const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymd:fmtYMD(y),shift:'B'};
 }
-
-/* ===== 顯示 ===== */
 let currentDS=null;
 function refreshDisplays(){
   const now=nowCorrected();
@@ -188,6 +172,7 @@ function refreshDisplays(){
 }
 
 /* ===== 欄位與驗證 ===== */
+const INSPECTOR_STORE='inspector_id_v1';
 const inspector=$('#inspector'), inspectorError=$('#inspectorError');
 const partNo=$('#partNo'), partError=$('#partError');
 const lotPrefix=$('#lotPrefix'), lotInput=$('#lotInput'), lotError=$('#lotError');
@@ -240,7 +225,7 @@ lotInput.addEventListener('blur',()=>{
   lotInput.value=r.mother+(r.hasChild?('-'+r.child):'');
 });
 
-/* ===== 中央提示 ===== */
+/* 中央提示 */
 function ensureCenterBox(){
   let box=$("#center-status");
   if(!box){
@@ -272,94 +257,117 @@ function apiGet(paramsObj){
 function submitData(p){ return apiGet({action:"submit",...p}); }
 function listRecent(){ return apiGet({action:'list_recent'}); }
 
-/* ===== 草稿（當班）：ts 排序 + key2 比對 ===== */
-function dsKeyStr(ds){ return `${ds.ymd}|${ds.shift}`; }
+/* ===== 草稿儲存 ===== */
 function dsStorageKey(ds){ return `draft_${ds.ymd}_${ds.shift}`; }
 function getDraftList(ds){ try{ return JSON.parse(localStorage.getItem(dsStorageKey(ds))||'[]'); }catch{ return []; } }
 function saveDraftList(ds,list){ localStorage.setItem(dsStorageKey(ds), JSON.stringify(list||[])); }
 function makeKey(mmdd,shift,part,lot){ return `${mmdd}|${shift}|${part}|${lot}`; }
 function makeKey2(mmdd,shift,lot,qty){ return `${mmdd}|${shift}|${lot}|${qty}|TRUE`; }
 
-/* ---- key2 集合 10s 快取 ---- */
-function key2CacheKey(ds){ return `key2set_${ds.ymd}_${ds.shift}`; }
+/* ===== key2 快取（SessionStorage）===== */
 function readKey2Cache(ds){
-  try{ const raw=sessionStorage.getItem(key2CacheKey(ds)); if(!raw) return null; const obj=JSON.parse(raw); if(!obj||!obj.ts||!Array.isArray(obj.list)) return null; return obj; }catch(_){ return null; }
-}
-function writeKey2Cache(ds,set){ sessionStorage.setItem(key2CacheKey(ds), JSON.stringify({ts:Date.now(), list:[...set]})); }
-async function getKey2SetCached(ds){
-  const cached = readKey2Cache(ds);
-  if(cached && (Date.now()-cached.ts)<=KEY2_CACHE_TTL){ return new Set(cached.list); }
   try{
-    const j=await listRecent();
-    const arr=(j && j.status==='ok' && Array.isArray(j.data)) ? j.data : [];
-    const set=new Set(arr.map(r=>String(r.key2||'')));
-    writeKey2Cache(ds,set);
-    return set;
-  }catch(_){ return new Set(); }
+    const raw=sessionStorage.getItem(`key2set_${ds.ymd}_${ds.shift}`);
+    if(!raw) return null;
+    const obj=JSON.parse(raw);
+    if(!obj||!obj.ts||!Array.isArray(obj.list)) return null;
+    return obj; // {ts,list}
+  }catch{ return null; }
+}
+function writeKey2Cache(ds,set){
+  sessionStorage.setItem(`key2set_${ds.ymd}_${ds.shift}`, JSON.stringify({ts:Date.now(), list:[...set]}));
 }
 
-/* ---- 渲染（initial=true：啟動時先用快取決定刪除線） ---- */
-function renderRows(list, initial=false){
-  const body=$('#recordList'); body.innerHTML='';
-  if(!list.length){ body.innerHTML='<tr><td colspan="3" style="color:#888">（當班無草稿）</td></tr>'; return; }
-  let key2Set=null;
-  if(initial){
-    const cached=readKey2Cache(currentDS);
-    if(cached && (Date.now()-cached.ts)<=KEY2_CACHE_TTL){ key2Set = new Set(cached.list); }
+/* 只用本地快取（不打網路）取 key2 集 */
+function getKey2SetFromCacheOnly(ds){
+  const cached = readKey2Cache(ds);
+  if (!cached || !Array.isArray(cached.list)) return new Set();
+  return new Set(cached.list); // 超時也沿用
+}
+
+/* 渲染只看 item.strike */
+function renderRows(list){
+  const body=$('#recordList');
+  body.innerHTML='';
+  if(!list.length){
+    body.innerHTML='<tr><td colspan="3" style="color:#888">（當班無草稿）</td></tr>';
+    return;
   }
   for(const it of list){
     const tr=document.createElement('tr');
+    if(it.strike) tr.classList.add('strike');
     tr.dataset.key2 = it.key2 || '';
     tr.dataset.ts   = String(it.ts||Date.now());
-    if(initial && key2Set && it.key2 && !key2Set.has(it.key2)){ tr.classList.add('strike'); }
     tr.innerHTML = `<td>${it.part_no}</td><td>${it.lot}</td><td>${it.qty}</td>`;
     body.appendChild(tr);
   }
 }
-async function renderDrafts(initial=false){
-  let list=getDraftList(currentDS).slice().sort((a,b)=> (b.ts||0)-(a.ts||0));
-  renderRows(list, initial);
+async function renderDrafts(){
+  const list=getDraftList(currentDS).slice().sort((a,b)=> (b.ts||0)-(a.ts||0));
+  renderRows(list);
 }
 
-/* ---- 背景比對（保護期 + 雙次確認） ---- */
-const missingOnceSet = new Set();
-async function validateDraftsAgainstServer(confirmTwice=true){
-  const body=$('#recordList');
-  const key2Set = await getKey2SetCached(currentDS);
+/* 用現有快取標記事有草稿 strike；TTL 期間不劃線 */
+function markOldDraftsStrikeWithCache(ds){
+  const set=getKey2SetFromCacheOnly(ds);
   const now=Date.now();
-  [...body.querySelectorAll('tr')].forEach(tr=>{
-    const k2=tr.dataset.key2||''; const ts=Number(tr.dataset.ts||0);
-    if(!k2) return;
-    // **新增：近期送出跳過；舊有：3s 保護期**
-    if(isRecent(k2) || (now - ts) < PROTECT_MS){ tr.classList.remove('strike'); return; }
-    if(!key2Set.has(k2)){
-      if(confirmTwice){
-        if(!missingOnceSet.has(k2)){ missingOnceSet.add(k2); return; }
-      }
-      tr.classList.add('strike');
+  const list=getDraftList(ds);
+  for(const it of list){
+    if(!it.key2){ it.strike=false; continue; }
+    if(ENABLE_RECENT_KEY2_PROTECT && now-(it.ts||0)<RECENT_KEY2_TTL_MS){
+      it.strike=false;
     }else{
-      missingOnceSet.delete(k2);
-      tr.classList.remove('strike');
+      it.strike=!set.has(it.key2);
     }
-  });
+  }
+  saveDraftList(ds,list);
 }
 
-/* ---- 送出成功 → upsert 草稿（更新也刷新 ts） ---- */
-function upsertDraftAfterSubmit(payload){
+/* upsert 草稿（新稿預設 strike=false） */
+function upsertDraftAfterSubmit(payload, strike=false){
   const ds=currentDS;
   const list=getDraftList(ds);
-  const key  = makeKey(currentDS.mmdd, currentDS.shift, payload.part_no, payload.lot);
-  const key2 = makeKey2(currentDS.mmdd, currentDS.shift, payload.lot, Number(payload.qty));
-  const nowTs = Date.now();
-  const item = {part_no:payload.part_no, lot:payload.lot, qty:Number(payload.qty), key, key2, ts: nowTs};
+  const key = makeKey(currentDS.mmdd, currentDS.shift, payload.part_no, payload.lot);
+  const key2= makeKey2(currentDS.mmdd, currentDS.shift, payload.lot, Number(payload.qty));
+  const nowTs=Date.now();
+  const item={part_no:payload.part_no, lot:payload.lot, qty:Number(payload.qty), key, key2, ts:nowTs, strike};
   const idx=list.findIndex(x=>x.key===key);
-  if(idx>=0){ list[idx]=item; } else { list.push(item); }
+  if(idx>=0) list[idx]=item; else list.push(item);
   if(list.length>50) list.splice(0, list.length-50);
-  saveDraftList(ds, list);
-  return {key2, nowTs};
+  saveDraftList(ds,list);
+  return {key2,nowTs};
 }
 
-/* ===== 送出 ===== */
+/* 送出成功 → 只更新草稿並重繪（不即時比對） */
+async function handleSubmitSuccess(payload){
+  markOldDraftsStrikeWithCache(currentDS); // 用舊快取標記既有草稿
+  upsertDraftAfterSubmit(payload,false);   // 新稿不劃線
+  await renderDrafts();                    // 立即重繪
+}
+
+/* 定時：抓後端 list_recent → 更新快取 → 重標 strike → 重繪 */
+let __polling=false;
+async function refreshCacheAndRepaint(){
+  if(__polling) return;
+  __polling=true;
+  try{
+    const j=await listRecent();
+    const arr=(j && (Array.isArray(j) || j.status==='ok')) ? (Array.isArray(j)?j:(j.data||[])) : [];
+    const set=new Set(arr.map(r=> String(r.key2||'')));
+    writeKey2Cache(currentDS,set);
+    markOldDraftsStrikeWithCache(currentDS);
+    await renderDrafts();
+  }catch(e){ console.warn('refreshCacheAndRepaint failed:',e); }
+  finally{ __polling=false; }
+}
+let __pollTimer=null;
+function startPolling(){
+  if(__pollTimer) clearInterval(__pollTimer);
+  __pollTimer=setInterval(()=>{ if(document.visibilityState==='visible') refreshCacheAndRepaint(); }, POLL_INTERVAL_MS);
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refreshCacheAndRepaint(); });
+
+/* 送出 */
 let clearPartOnce=false;
 partNo.addEventListener('focus',()=>{ if(clearPartOnce){ partNo.value=''; clearPartOnce=false; } });
 
@@ -403,13 +411,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     if(data.status!=='ok'){
       hideCenter(); showCenter('❌ 後端：'+(data.msg||'unknown')); setTimeout(hideCenter,1600); return;
     }
-    const {key2}=upsertDraftAfterSubmit(payload);
-    // 標記最近 key2（4 秒內不比對）
-    markRecent(key2, 4000);
-
-    await renderDrafts(true);                  // 快速畫出
-    setTimeout(()=> validateDraftsAgainstServer(true), 500); // 0.5s 後背景雙次確認
-
+    await handleSubmitSuccess(payload);
     hideCenter(); showOk(data.mode==='update'?'✅ 已更新':'✅ 已新增');
     lotInput.value=''; qty.value=''; clearPartOnce=true;
   }catch(err){
@@ -419,7 +421,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   }
 });
 
-/* ===== 初始化 ===== */
+/* 初始化 */
 const LAST_DS_KEY='draft_last_ds_key';
 $('#versionTag').textContent=`版本：${FORM_VERSION}`;
 
@@ -430,19 +432,15 @@ $('#versionTag').textContent=`版本：${FORM_VERSION}`;
 
   const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
 
+  // 切換班別清草稿（僅清當班鍵）
+  const dsKey=`${currentDS.ymd}|${currentDS.shift}`;
   const lastKey=localStorage.getItem(LAST_DS_KEY)||'';
-  const dsKey=`${dsKeyStr(computeShiftByClockFrom(nowCorrected()))}`;
-  if(lastKey && lastKey!==dsKey){
-    localStorage.removeItem(`draft_${lastKey.replace('|','_')}`);
-    localStorage.removeItem(`draft_${lastKey.split('|').join('_')}`);
-  }
+  if(lastKey && lastKey!==dsKey){ localStorage.removeItem(`draft_${lastKey.replace('|','_')}`); }
   localStorage.setItem(LAST_DS_KEY, dsKey);
 
-  await renderDrafts(true);              // 啟動先用快取劃線（若有）
-  validateDraftsAgainstServer(true);     // 背景雙次確認
-  document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState==='visible') validateDraftsAgainstServer(true);
-  });
+  await renderDrafts();          // 先用草稿渲染
+  startPolling();                // 開始 15s 輪詢
+  refreshCacheAndRepaint();      // 立即同步一次
 })();
 </script>
 </body>
