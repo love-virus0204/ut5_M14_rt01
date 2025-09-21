@@ -120,8 +120,7 @@
 <script>
 /* ===== 版本與 API ===== */
 const FORM_VERSION="v17.10.5";
-const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-const API_BASE_FALLBACK = (window.API_URL || window.scriptURL || API_BASE);
+const API_BASE="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
 /* ===== 可調參數 ===== */
 const ENABLE_RECENT_KEY2_PROTECT = true;
@@ -144,7 +143,7 @@ function isTaiwanTZ(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZ
 async function pingNow(){
   // 極簡回傳：可能是 "yyyy/MM/dd HH:mm:ss" 或 {"status":"ok","ts":...}
   try{
-    const r=await fetch(`${API_BASE_FALLBACK}?action=ping&t=${Date.now()}`,{cache:'no-store'});
+    const r=await fetch(`${API_BASE}?action=ping&t=${Date.now()}`,{cache:'no-store'});
     const txt=await r.text();
     // 優先解析字串時間
     const m = txt.match(/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
@@ -268,7 +267,7 @@ function apiGet(paramsObj){
   const params=new URLSearchParams();
   Object.entries(paramsObj).forEach(([k,v])=>{ if(v!==undefined&&v!==null) params.append(k,String(v)); });
   params.append("t",Date.now());
-  const url=`${API_BASE_FALLBACK}?${params.toString()}`;
+  const url=`${API_BASE}?${params.toString()}`;
   return fetch(url,{method:"GET",mode:"cors",cache:"no-store"})
     .then(async r=>{
       const txt=await r.text();
@@ -375,7 +374,7 @@ async function refreshCacheAndRepaint(){
     const j=await listRecent();
     let arr=[];
     if(Array.isArray(j)) arr=j;
-    else if(j && (j.status==='ok' || j.ok===true) && Array.isArray(j.data)) arr=j.data;
+    else if(j && j.status==='ok' && Array.isArray(j.data)) arr=j.data;
     const set=new Set(arr.map(r=> String((r.key2||""))));
     writeKey2Cache(currentDS,set);
     markOldDraftsStrikeWithCache(currentDS);
@@ -434,7 +433,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
       ...payload,
       // 如 GAS 回傳極簡 {ok:1,mode:'add|update'} 也能相容
     });
-    const ok = (data && (data.status==='ok' || data.ok===1 || data.ok===true));
+    const ok = (data && (data.status==='ok' || data.ok===1));
     if(!ok){
       hideCenter(); showCenter('❌ 後端：'+(data && (data.msg||data.error)||'unknown')); setTimeout(hideCenter,1600); return;
     }
@@ -470,7 +469,7 @@ $('#versionTag').textContent=`版本：${FORM_VERSION}`;
   refreshCacheAndRepaint();      // 立即同步一次
 
   // GAS 保溫（每 4 分鐘 ping）
-  setInterval(()=>{ fetch(`${API_BASE_FALLBACK}?action=ping&t=${Date.now()}`,{cache:'no-store'}).catch(()=>{}); }, PING_INTERVAL_MS);
+  setInterval(()=>{ fetch(`${API_BASE}?action=ping&t=${Date.now()}`,{cache:'no-store'}).catch(()=>{}); }, PING_INTERVAL_MS);
 })();
 </script>
 </body>
