@@ -63,9 +63,9 @@
   <div id="dsView" class="ds-line"></div>
 
   <div class="row">
-    <div class="label">檢　驗：</div>
+    <div class="label">檢驗員：</div>
     <div class="ctrl">
-      <input id="inspector" maxlength="5" placeholder="輸入 5 碼工號">
+      <input id="inspector" maxlength="5" placeholder="輸入 5 碼工號" autocomplete="off">
       <div id="inspectorError" class="field-error"></div>
     </div>
   </div>
@@ -99,7 +99,7 @@
 
   <div class="row">
     <div class="label">數　量：</div>
-    <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入 批量"></div>
+    <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入 批量" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
   </div>
 
   <div class="submit" id="submit-row">
@@ -124,169 +124,572 @@
   </div>
 </div>
 
-
-
 <script>
-/* 外觀記錄表 — 前端最小重寫 v19.1 (GET-only, auto URL)
-   保留原排版與輸入欄位。只更換行為：即時驗證 + 當日當班 + GET 傳遞（no-cors → <img> 後備）。
-*/
+/* ==== 後端 API ==== */
 const API_URL = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-const SEND_KEYS = { action:"upsert", inspector:"inspector", part:"part_no", lot:"lot", qty:"qty", date:"date", shift:"shift" };
-const MIN_INSPECTOR_LEN = 1;
-const $ = (s,ctx=document)=>ctx.querySelector(s);
 
-function computeDS(){
+/* ==== 工具 ==== */
+const $ = s => document.querySelector(s);
+function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g," ")}
+function CANON(s){return fw2hw(s).trim().toUpperCase()}
+function hasFA(s){ return /^FA-/.test(CANON(s)); }
+function normLotKey(s){return CANON(s).replace(/^FA-/, "")}
+function buildKey(dateMD,shift,part,lotDisp){return `${CANON(dateMD)}|${CANON(shift)}|${CANON(part)}|${normLotKey(lotDisp)}`}
+
+function twNowStr(){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())}
+function mdOf(d){return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit'}).format(d)}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+
+/* ==== 班別錨定（0040/0840/1640）==== */
+function computeShiftByClock(){
   const now = new Date();
-  const minutes = now.getHours()*60 + now.getMinutes();
-  let shift = "A";
-  if (minutes >= 520 && minutes <= 999) shift = "A";
-  else if (minutes >= 1000 || minutes <= 39) shift = "B";
-  else if (minutes >= 40 && minutes <= 519)  shift = "C";
-  const d = new Date(now);
-  if (shift === "C") d.setDate(d.getDate() - 1);
-  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
-  return { shift, ymd:`${y}/${m}/${dd}` };
+  const tzNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
+  const h = tzNow.getHours(), m = tzNow.getMinutes();
+  const mins = h*60+m;
+  let dateMD, shift;
+  if (mins >= 40 && mins < 520) { dateMD = mdOf(addDays(tzNow,-1)); shift = 'C'; }
+  else if (mins >= 520 && mins < 1000) { dateMD = mdOf(tzNow); shift = 'A'; }
+  else if (mins >= 1000) { dateMD = mdOf(tzNow); shift = 'B'; }
+  else { dateMD = mdOf(addDays(tzNow,-1)); shift = 'B'; }
+  return { dateMD, shift };
 }
-function setDS(){
-  const ds = computeDS();
-  const dEl = document.getElementById("date"), sEl = document.getElementById("shift");
-  if (dEl) dEl.value = ds.ymd;
-  if (sEl) sEl.value = ds.shift;
+let currentDS = computeShiftByClock();
+$('#dsView').textContent = `${currentDS.dateMD} - ${currentDS.shift}`;
 
-  // Find existing display node or create one at top of .wrap
-  let el = document.getElementById("ds-line")
-        || document.querySelector(".ds-line")
-        || document.querySelector("[data-ds-line]");
-  if (!el) {
-    const wrap = document.querySelector(".wrap") || document.body;
-    el = document.createElement("div");
-    el.id = "ds-line";
-    el.className = "ds-line";
-    el.style.fontWeight = "700";
-    el.style.margin = "8px 0 10px 0";
-    el.style.paddingLeft = "20px";
-    wrap.insertBefore(el, wrap.firstChild);
+/* ==== 即時時鐘 ==== */
+function tick(){ $('#tsView').textContent = twNowStr(); }
+setInterval(tick,1000); tick();
+
+/* ==== DOM ==== */
+const inspector = $('#inspector');
+const inspectorError = $('#inspectorError');
+const partNo = $('#partNo');
+const partError = $('#partError');
+const lotPrefix = $('#lotPrefix');
+const lotInput = $('#lotInput');
+const lotError = $('#lotError');
+const qty = $('#qty');
+const okMsg = $('#okMsg');
+const loadingDots = $('#loadingDots');
+
+/* ==== 錯誤訊息（即時回饋）==== */
+function setFieldError(inputEl, hintEl, msg){
+  if(!inputEl || !hintEl) return;
+  if (msg){
+    inputEl.classList.add('input-error');
+    hintEl.textContent = msg; hintEl.style.display='block';
+  } else {
+    inputEl.classList.remove('input-error');
+    hintEl.textContent=''; hintEl.style.display='none';
   }
-  el.textContent = `日期：${ds.ymd}　班別：${ds.shift}`;
-  return ds;
-}
-班別：${ds.shift}`;
-  return ds;
 }
 
-function ensureErrNode(input){
-  let host = input.closest(".row") || input.parentElement || input;
-  let box = host.querySelector(".field-error");
-  if (!box) { box = document.createElement("div"); box.className = "field-error"; host.appendChild(box); }
-  return box;
-}
-function showError(input, msg){
-  const box = ensureErrNode(input);
-  box.textContent = msg || "";
-  box.style.display = msg ? "block" : "none";
-  input.classList.toggle("input-error", !!msg);
-}
-function vInspector(s){ return (!s || s.trim().length < MIN_INSPECTOR_LEN) ? "請輸入檢驗員" : ""; }
-function vPart(p){
-  if (typeof p !== "string") return "料號需文字";
-  p = p.trim();
-  if (p.length !== 7) return "料號需 7 碼";
-  const L=c=>/[A-Za-z]/.test(c), D=s=>/^\d+$/.test(s);
-  if (!L(p[0])) return "第1碼需英文";
-  if (!L(p[3])) return "第4碼需英文";
-  if (!D(p.slice(1,3)+p.slice(4))) return "其餘需數字";
-  return "";
-}
-function vLot(s){ return (!s || !s.trim()) ? "批號不可空白" : ""; }
-function vQty(q){
-  if (q===""||q===null||q===undefined) return "數量不可空白";
-  const n = Number(q);
-  if (!Number.isFinite(n) || n<=0) return "數量需為正數";
-  if (!Number.isInteger(n)) return "需為整數";
-  return "";
-}
-function wireRealtime(){
-  const ins=$("#inspector"), part=$("#part"), lot=$("#lot"), qty=$("#qty");
-  if (ins)  ins.addEventListener("input", ()=>showError(ins,  vInspector(ins.value)));
-  if (part) part.addEventListener("input", ()=>showError(part, vPart(part.value)));
-  if (lot)  lot.addEventListener("input",  ()=>showError(lot,  vLot(lot.value)));
-  if (qty)  qty.addEventListener("input",  ()=>showError(qty,  vQty(qty.value)));
-}
+/* 檢驗員即時驗證 */
+inspector.addEventListener('input', ()=> setFieldError(inspector, inspectorError, ''));
+inspector.addEventListener('blur', ()=>{
+  const v = CANON(inspector.value);
+  if (!v) return setFieldError(inspector, inspectorError, '工號必填');
+  if (!/^[A-Z0-9]{5}$/.test(v)) return setFieldError(inspector, inspectorError, '需 5 碼英數');
+  setFieldError(inspector, inspectorError, '');
+});
 
-async function fetchNoCors(url, params){
-  try{
-    const full = url.replace(/^http:\/\//i,'https://') + "?" + params.toString();
-    await fetch(full, { method:"GET", mode:"no-cors", cache:"no-store" });
-    return true;
-  }catch{ return false; }
+/* 料號即時驗證（如 A58K052）*/
+partNo.addEventListener('input', ()=> setFieldError(partNo, partError, ''));
+partNo.addEventListener('blur', ()=>{
+  const p = CANON(partNo.value);
+  if (!p) return setFieldError(partNo, partError, '料號必填');
+  if (!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(p)) return setFieldError(partNo, partError, '格式錯誤（如 A58K052）');
+  setFieldError(partNo, partError, '');
+});
+
+/* 批號解析（母批必 3 碼；子批 1~2 碼數字自動補 0；禁 I/O） */
+function parseLot(input){
+  const s = CANON(input).replace(/\s+/g,'');
+  if (!s) return { ok:false, msg:'母批必填（3碼）' };
+  if (s.includes('-')) {
+    const [m, cRaw] = s.split('-', 2);
+    if (!m || !/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return { ok:false, msg:'母批需正好 3 碼，且不可含 I / O' };
+    if (!cRaw) return { ok:false, msg:'有連字號時必須輸入子批（1~2 碼）' };
+    if (!/^[0-9]{1,2}$/.test(cRaw)) return { ok:false, msg:'子批需 1~2 位數字' };
+    return { ok:true, mother:m, child:cRaw.padStart(2,'0'), hasChild:true };
+  } else {
+    const m = s;
+    if (!/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return { ok:false, msg:'母批需正好 3 碼，且不可含 I / O' };
+    return { ok:true, mother:m, child:'', hasChild:false };
+  }
 }
-async function imgFireAndForget(url, params){
-  return new Promise(resolve=>{
-    try{
-      params.set("_", Date.now().toString());
-      const u = url.replace(/^http:\/\//i,'https://') + "?" + params.toString();
-      const img = new Image(); let done=false;
-      const fin=()=>{ if(!done){ done=true; resolve(true); } };
-      img.onload = fin; img.onerror = fin; setTimeout(fin, 6000);
-      img.src = u;
-    }catch{ resolve(false); }
+lotInput.addEventListener('input', ()=> setFieldError(lotInput, lotError, ''));
+lotInput.addEventListener('blur', ()=>{
+  const r = parseLot(lotInput.value);
+  if (!r.ok) return setFieldError(lotInput, lotError, r.msg);
+  setFieldError(lotInput, lotError, '');
+  lotInput.value = r.mother + (r.hasChild ? '-' + r.child : '');
+});
+
+/* 數量 */
+function calcSample(q){ const n=Number(q||0); return isFinite(n)&&n>0 ? Math.min(20,n) : 0; }
+
+/* ==== 草稿（當班）：料號/批號/數量/前綴 + 檢驗員 ==== */
+const INSPECTOR_KEY="inspector_id";
+function saveInspector(){const v=CANON($('#inspector').value); if(/^[A-Z0-9]{5}$/.test(v)) localStorage.setItem(INSPECTOR_KEY,v)}
+function loadInspector(){const v=localStorage.getItem(INSPECTOR_KEY)||''; if(v) $('#inspector').value=v}
+const DSK='rt_draft_ds', DP='rt_draft_';
+function dsKey(){return `${currentDS.dateMD}|${currentDS.shift}`}
+function draftKey(){return DP+dsKey()}
+function saveDraft(){
+  const d={part:partNo.value, lot:lotInput.value, qty:qty.value, prefix:lotPrefix.value};
+  localStorage.setItem(draftKey(),JSON.stringify(d)); localStorage.setItem(DSK,dsKey());
+}
+function loadDraft(){
+  loadInspector();
+  const last=localStorage.getItem(DSK)||''; if(last && last!==dsKey()) localStorage.removeItem(DP+last);
+  const raw=localStorage.getItem(draftKey()); if(!raw) return; const d=JSON.parse(raw);
+  partNo.value=d.part||''; lotInput.value=d.lot||''; qty.value=d.qty||''; lotPrefix.value=d.prefix||'';
+}
+['inspector','partNo','lotInput','lotPrefix','qty'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{if(id==='inspector')saveInspector(); else saveDraft();})
+});
+loadDraft();
+
+/* ==== 草稿清單（顯示 3 欄）==== */
+const LIST_NS='rt_draft_list_v1';
+function listDsKey(){return `${currentDS.dateMD}|${currentDS.shift}`}
+function listKey(){return `${LIST_NS}:${listDsKey()}`}
+function listGet(){ try{ return JSON.parse(localStorage.getItem(listKey())||'[]'); }catch{ return []; } }
+function listSet(arr){
+  localStorage.setItem(listKey(), JSON.stringify(arr.slice(0,50)));
+  localStorage.setItem(`${LIST_NS}:LAST_DS`, listDsKey());
+}
+function listRotateIfNeeded(){
+  const last = localStorage.getItem(`${LIST_NS}:LAST_DS`);
+  const cur  = listDsKey();
+  if(last && last!==cur){
+    Object.keys(localStorage).forEach(k=>{
+      if(k.startsWith(`${LIST_NS}:`) && !k.endsWith(':LAST_DS')) localStorage.removeItem(k);
+    });
+  }
+  localStorage.setItem(`${LIST_NS}:LAST_DS`, cur);
+}
+function draftRowKey(part_no, lot){
+  const norm = normLotKey(lot);
+  return `${CANON(part_no)}|${CANON(norm)}`;
+}
+function renderDraftList(){
+  listRotateIfNeeded();
+  const tb=$('#recordList'); tb.innerHTML='';
+  const rows = listGet();
+  if(!rows.length){
+    tb.innerHTML = `<tr><td colspan="3" style="color:#888">（當班無草稿）</td></tr>`;
+    return;
+  }
+  rows.forEach(x=>{
+    const tr=document.createElement('tr');
+    if (x.strike) tr.classList.add('tr-strike');
+    tr.innerHTML = `<td>${x.part_no||''}</td><td>${x.lot||''}</td><td>${x.qty||''}</td>`;
+    tb.appendChild(tr);
   });
 }
-async function sendData(values){
-  const ds = setDS();
-  const params = new URLSearchParams();
-  params.set("action", SEND_KEYS.action);
-  params.set(SEND_KEYS.inspector, values.inspector);
-  params.set(SEND_KEYS.part,      values.part);
-  params.set(SEND_KEYS.lot,       values.lot);
-  params.set(SEND_KEYS.qty,       String(values.qty));
-  params.set(SEND_KEYS.date,      ds.ymd);
-  params.set(SEND_KEYS.shift,     ds.shift);
+function upsertDraftList({part_no, lot, qty, inspector}){
+  listRotateIfNeeded();
+  const arr = listGet();
+  const key = draftRowKey(part_no, lot);
+  const idx = arr.findIndex(x => draftRowKey(x.part_no, x.lot) === key);
+  const item = {part_no, lot, qty, inspector, submitted_at: new Date().toISOString(), strike:false};
+  if(idx>=0) arr[idx]=item; else arr.unshift(item);
+  listSet(arr);
+  renderDraftList();
+}
+renderDraftList();
 
-  if (await fetchNoCors(API_URL, params))    return true;
-  if (await imgFireAndForget(API_URL, params)) return true;
-  return false;
+/* ==== 中央提示（傳送中/成功/失敗） + 送出列綠字（5s）==== */
+let okTimer=null;
+function showLoading(on){ loadingDots.style.display = on ? 'inline-block' : 'none'; }
+function showOk(msg){
+  if(okTimer){ clearTimeout(okTimer); okTimer=null; }
+  okMsg.textContent = msg||'';
+  okMsg.classList.add('show'); okMsg.classList.remove('fade');
+  okTimer = setTimeout(()=>{ okMsg.classList.add('fade'); }, 4600);
+  setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; }, 5000);
 }
-function readVals(){
-  return {
-    inspector: $("#inspector")?.value?.trim() || "",
-    part:      $("#part")?.value?.trim() || "",
-    lot:       $("#lot")?.value?.trim() || "",
-    qty:       $("#qty")?.value?.trim() || ""
-  };
+function ensureCenterBox(){
+  let box = $("#center-status");
+  if (!box){
+    box = document.createElement("div");
+    box.id = "center-status";
+    box.style.cssText = `
+      position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);
+      z-index:9999; background:rgba(0,0,0,.7); color:#fff; 
+      padding:10px 16px; border-radius:10px; font-size:16px; display:none;
+    `;
+    document.body.appendChild(box);
+  }
+  return box;
 }
-function validateAll(v){
-  const ins=$("#inspector"), part=$("#part"), lot=$("#lot"), qty=$("#qty");
-  const e1=vInspector(v.inspector); showError(ins,e1);
-  const e2=vPart(v.part);           showError(part,e2);
-  const e3=vLot(v.lot);             showError(l,e3);
-  const e4=vQty(v.qty);             showError(qty,e4);
-  return !(e1||e2||e3||e4);
+function showCenter(text){ const b=ensureCenterBox(); b.textContent=text; b.style.display='block'; }
+function hideCenter(){ const b=$("#center-status"); if(b) b.style.display='none'; }
+
+/* ==== 後端比對：送出成功後驗證並決定是否加刪除線 ==== */
+async function verifyAndStrike(key, part, lotDisp, qty, inspector){
+  try{
+    const ymd = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replace(/\//g,'/');
+    const url = `${API_URL}?action=list&date=${encodeURIComponent(ymd)}&shift=${encodeURIComponent(currentDS.shift)}&t=${Date.now()}`;
+    const r = await fetch(url, {method:'GET', cache:'no-store'});
+    const js = await r.json();
+
+    const row = (js.rows||[]).find(x => String(x.key).toUpperCase() === String(key).toUpperCase());
+    let strike = false;
+    if(!row){
+      strike = true; // 找不到同一筆
+    }else{
+      const faInRow = /^FA-/.test(String(row.lot||'').toUpperCase());
+      const faInNow = /^FA-/.test(String(lotDisp||'').toUpperCase());
+      if (row.deleted !== true) strike = true;                       // 被軟刪
+      if (String(row.qty) !== String(qty)) strike = true;            // 數量不同
+      if (String(row.inspector||'').toUpperCase() !== String(inspector||'').toUpperCase()) strike = true; // 檢驗員不同
+      if (faInRow !== faInNow) strike = true;                        // FA 前綴有無不同
+    }
+    markDraftStrike(draftRowKey(part, lotDisp), strike);
+  }catch(e){
+    // 讀取失敗就不變更 strike，避免誤判
+  }
 }
-document.addEventListener("DOMContentLoaded", ()=>{
-  setDS();
-  wireRealtime();
-  const form = $("#form"); if (!form) return;
-  form.addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    const v = readVals();
-    if (!validateAll(v)) return;
-    const ok = await sendData(v);
-    if (ok) { ["part","lot","qty"].forEach(id=>{ const el=$("#"+id); if(el) el.value=""; }); }
-    else alert("傳送失敗：檢查 API_URL 或網路");
-  }, { capture:true });
+
+/* 將某草稿列標示/取消刪除線 */
+function markDraftStrike(draftKeyForRow, strike){
+  const arr = listGet();
+  const idx = arr.findIndex(x => draftRowKey(x.part_no, x.lot) === draftKeyForRow);
+  if (idx >= 0){
+    arr[idx].strike = !!strike;
+    listSet(arr);
+    renderDraftList();
+  }
+}
+
+/* ==== 送出（GET upsert） ==== */
+let clearPartOnce=false;
+partNo.addEventListener('focus',()=>{ if(clearPartOnce){ partNo.value=''; clearPartOnce=false; saveDraft(); } });
+
+document.getElementById('sendBtn').addEventListener('click', async ()=>{
+  const inspectorVal=CANON(inspector.value);
+  const part=CANON(partNo.value);
+  const prefix=CANON(lotPrefix.value);
+
+  if (!/^[A-Z0-9]{5}$/.test(inspectorVal)){ setFieldError(inspector, inspectorError, '需 5 碼英數'); inspector.focus(); return; }
+  setFieldError(inspector, inspectorError, '');
+
+  if (!part){ setFieldError(partNo, partError, '料號必填'); partNo.focus(); return; }
+  if (!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)){ setFieldError(partNo, partError, '格式錯誤（如 A58K052）'); partNo.focus(); return; }
+  setFieldError(partNo, partError, '');
+
+  const r = parseLot(lotInput.value);
+  if (!r.ok){ setFieldError(lotInput, lotError, r.msg); lotInput.focus(); return; }
+  setFieldError(lotInput, lotError, '');
+  lotInput.value = r.mother + (r.hasChild ? '-' + r.child : '');
+  const lotDisp = prefix ? `${prefix}-${lotInput.value}` : lotInput.value;
+
+  const q=Number(qty.value);
+  if(!(q>0)){ alert('數量需 > 0'); return; }
+
+  const key = buildKey(currentDS.dateMD, currentDS.shift, part, lotDisp);
+  const todayYMD = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replace(/\//g,'/');
+
+  const params = new URLSearchParams({
+    action:'upsert',
+    date: todayYMD,
+    shift: currentDS.shift,
+    part_no: part,
+    lot: lotDisp,
+    qty: String(q),
+    sample: String(Math.min(20,q)),
+    inspector: inspectorVal,
+    remark: '',
+    z7:'0', z8:'0', z9:'0', z10:'0', z11:'0', z12:'0', z13:'0',
+    deleted:'true',
+    key,
+    t: Date.now().toString()
+  });
+
+  const btn=$('#sendBtn');
+  btn.disabled=true; showLoading(true); showCenter('資料傳送中…');
+
+  try{
+    const res=await fetch(`${API_URL}?${params.toString()}`,{
+      method:'GET',
+      cache:'no-store',
+      mode:'cors',
+      redirect:'follow'
+    });
+    const data = await res.json();
+
+    if (data.status !== 'ok'){
+      hideCenter(); showCenter('❌ 後端：'+(data.msg||'unknown')); setTimeout(hideCenter,1500);
+      return;
+    }
+
+    hideCenter(); showOk(data.upsert==='update' ? '✅ 已更新' : '✅ 已新增');
+
+    upsertDraftList({part_no:part, lot:lotDisp, qty:String(q), inspector:inspectorVal});
+    await verifyAndStrike(key, part, lotDisp, q, inspectorVal);
+
+    lotInput.value=''; qty.value='';
+    saveDraft();
+    clearPartOnce=true;
+
+  }catch(err){
+    hideCenter(); showCenter('❌ 連線失敗：'+String(err)); setTimeout(hideCenter,1500);
+  }finally{
+    btn.disabled=false; showLoading(false);
+  }
 });
+
+/* 多國語言預留 */
+document.getElementById('langBtn').addEventListener('click',()=>alert('多國語言預留：未啟用'));
 </script>
 
-
+<!-- v17.8.4 integrated logic (GAS v1.4.1 + FA in lot) -->
+<style>
+  .draft-stale { text-decoration: line-through; opacity: .7; }
+  .input-error { outline: 2px solid #d33; }
+</style>
 <script>
 (function(){
   "use strict";
-  function runDS(){ try{ if (typeof window.setDS === "function") window.setDS(); }catch(e){} }
-  document.addEventListener("DOMContentLoaded", runDS);
-  window.addEventListener("load", runDS);
+  const API_URL = (window.API_URL || window.scriptURL || "").toString();
+  const $ = (sel, ctx=document)=>ctx.querySelector(sel);
+
+  const TZ_DELTA_KEY = "tzTWDeltaMs";
+  let tzDelta = Number(localStorage.getItem(TZ_DELTA_KEY) || 0) || 0;
+  function inTPE(){ try { return Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Taipei"; } catch { return false; } }
+  async function ensureTPEOnce(){
+    if (inTPE()){ tzDelta=0; localStorage.setItem(TZ_DELTA_KEY,"0"); return; }
+    try{
+      const r = await fetch("https://worldtimeapi.org/api/timezone/Asia/Taipei", {cache:"no-store"});
+      if(!r.ok) return;
+      const j = await r.json();
+      tzDelta = j.unixtime*1000 - Date.now();
+      localStorage.setItem(TZ_DELTA_KEY, String(tzDelta));
+    }catch{}
+  }
+  function tpeNow(){ return new Date(Date.now()+tzDelta); }
+  function fmtYMD(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0"); return `${y}/${m}/${dd}`; }
+  function fmtMD(d){ const m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0"); return `${m}/${dd}`; }
+  function fmtTime(d){ const hh=String(d.getHours()).padStart(2,"0"), mm=String(d.getMinutes()).padStart(2,"0"), ss=String(d.getSeconds()).padStart(2,"0"); return `${fmtYMD(d)} ${hh}:${mm}:${ss}`; }
+
+  function computeDS(){
+    const n=tpeNow();
+    const min=n.getHours()*60+n.getMinutes();
+    let shift="A";
+    if(min>=520 && min<=999) shift="A";
+    else if(min>=1000 || min<=39) shift="B";
+    else shift="C";
+    const d=new Date(n);
+    if (shift==="C") d.setDate(d.getDate()-1);
+    return { ymd: fmtYMD(d), md: fmtMD(d), shift };
+  }
+
+  const DA = {
+    load(){ return { inspector: localStorage.getItem("da_inspector") || "", ds_ymd: localStorage.getItem("da_ds_ymd") || "", ds_shift: localStorage.getItem("da_ds_shift") || "", last_part: localStorage.getItem("da_last_part") || "" }; },
+    saveInspector(v){ localStorage.setItem("da_inspector", v||""); },
+    saveDS(ds){ localStorage.setItem("da_ds_ymd", ds.ymd); localStorage.setItem("da_ds_shift", ds.shift); },
+    saveLastPart(p){ localStorage.setItem("da_last_part", p||""); },
+    clearPart(){ localStorage.removeItem("da_last_part"); }
+  };
+  const DB = {
+    loadAll(){ try{ return JSON.parse(localStorage.getItem("db_entries")||"[]") || []; }catch{ return []; } },
+    saveAll(arr){ try{ localStorage.setItem("db_entries", JSON.stringify(arr||[])); }catch{} },
+    push(entry){ const arr = DB.loadAll(); arr.push(entry); DB.saveAll(arr); },
+    clear(){ localStorage.removeItem("db_entries"); }
+  };
+
+  function vInspector(v){ return !v || !v.trim() ? "請輸入檢驗員" : ""; }
+  function vPart(p){
+    if (typeof p!=="string") return "料號格式錯誤";
+    p=p.trim();
+    if (p.length!==7) return "料號需 7 碼";
+    const L=c=>/[A-Za-z]/.test(c), D=s=>/^\d+$/.test(s);
+    if (!L(p[0])) return "第1碼需英文";
+    if (!L(p[3])) return "第4碼需英文";
+    if (!D(p.slice(1,3)+p.slice(4))) return "其餘需數字";
+    return "";
+  }
+  function splitLot(raw){
+    const s=(raw||"").trim();
+    const hasDash = s.includes("-");
+    let mother = s, child = "";
+    if (hasDash){ const idx = s.indexOf("-"); mother = s.slice(0, idx); child  = s.slice(idx+1); }
+    return {mother, child, hasDash};
+  }
+  function vLot(lot){
+    const {mother, child, hasDash} = splitLot(lot);
+    if (!mother) return "母批必填";
+    if (mother.length!==3) return "母批需 3 碼";
+    if (/[IiOo]/.test(mother)) return "母批禁用 I,O";
+    if (hasDash){ if (!/^\d{1,2}$/.test(child)) return "子批需數字"; }
+    return "";
+  }
+  function normLot(lot){
+    const {mother, child, hasDash} = splitLot(lot);
+    const m = mother;
+    const c = hasDash ? String(child).padStart(2,"0") : "";
+    return hasDash ? `${m}-${c}` : m;
+  }
+  function vQty(q){
+    if (q===""||q===null||q===undefined) return "數量必填";
+    const n=Number(q);
+    if (!Number.isFinite(n) || n<=0) return "需正整數";
+    if (!Number.isInteger(n)) return "需整數";
+    return "";
+  }
+  function showErr(el, msg){
+    if (!el) return;
+    el.classList.toggle("input-error", !!msg);
+    let box = el.closest(".row")?.querySelector(".field-error");
+    if (!box){ box = document.createElement("div"); box.className="field-error"; box.style.fontSize="12px"; box.style.color="#d33"; box.style.marginTop="4px"; (el.closest(".row")||el.parentElement||el).appendChild(box); }
+    box.textContent = msg || "";
+    box.style.display = msg ? "block" : "none";
+  }
+  function buildKey(ds, part, lot){ return `${ds.ymd}|${ds.shift}|${part}|${lot}`; }
+  function defaultKey2(ds, part, lot){
+    const {mother, child, hasDash} = splitLot(lot);
+    const c = hasDash ? String(child).padStart(2,"0") : "";
+    return `${ds.md}|${ds.shift}|${mother}|${c}|TRUE`;
+  }
+  function buildKey2(ds, part, lot){
+    try{ if (typeof window.makeKey2 === "function"){ return String(window.makeKey2(ds, part, lot)); } }catch{}
+    return defaultKey2(ds, part, lot);
+  }
+
+  let DS = {ymd:"", md:"", shift:""};
+  async function initDSAndDrafts(){
+    await ensureTPEOnce();
+    DS = computeDS();
+    const dateEl = $("#date"); const shiftEl = $("#shift");
+    if (dateEl) dateEl.value = DS.ymd;
+    if (shiftEl) shiftEl.value = DS.shift;
+    const line = $("#ds-line") || $(".ds-line") || $("[data-ds-line]");
+    if (line) { line.textContent = `${DS.md}-${DS.shift}`; }
+    const da = DA.load();
+    const sameDS = (da.ds_ymd===DS.ymd && da.ds_shift===DS.shift);
+    if (!sameDS){ DB.clear(); DA.clearPart(); DA.saveDS(DS); }
+    if (da.inspector){ const el=$("#inspector"); if (el && !el.value) el.value = da.inspector; }
+    if (da.last_part){ const el=$("#part"); if (el && !el.value) el.value = da.last_part; }
+  }
+
+  async function sendGETUpsert(params){
+    const base = (window.API_URL || window.scriptURL || "").toString().replace(/^http:\/\//i,"https://");
+    const url = base + "?" + params.toString();
+    const r = await fetch(url, {method:"GET", cache:"no-store"});
+    let data = null; try{ data = await r.json(); }catch{}
+    return { ok: !!(data && (data.ok===true || data.status==="ok")), data };
+  }
+  function readInputs(){
+    return { inspector: $("#inspector")?.value?.trim() || "", part: $("#part")?.value?.trim() || "", lot_raw: $("#lot")?.value?.trim() || "", qty: $("#qty")?.value?.trim() || "", fa: $("#fa")?.value?.trim() || "" };
+  }
+  function validateAll(v){
+    const e1=vInspector(v.inspector); showErr($("#inspector"), e1);
+    const e2=vPart(v.part);           showErr($("#part"),      e2);
+    const e3=vLot(v.lot_raw);         showErr($("#lot"),       e3);
+    const e4=vQty(v.qty);             showErr($("#qty"),       e4);
+    return !(e1||e2||e3||e4);
+  }
+  function attachPartClearOnce(){
+    const el=$("#part"); if (!el) return;
+    const handler = function onFirst(){ el.value=""; el.removeEventListener("focus", onFirst); el.removeEventListener("click", onFirst); try{ DA.clearPart(); }catch{} };
+    el.addEventListener("focus", handler, {once:false});
+    el.addEventListener("click", handler, {once:false});
+  }
+  function updateDraftAOnSuccess(v){ if (!vInspector(v.inspector)) DA.saveInspector(v.inspector); if (v.part) DA.saveLastPart(v.part); }
+  function updateDraftBOnSuccess(v, lotCombined, key, key2){
+    const entry = { part: v.part, lot: lotCombined, qty: String(v.qty), key: key, key2: key2, ts: fmtTime(tpeNow()), deleted: false };
+    DB.push(entry);
+  }
+  async function onSubmit(e){
+    e.preventDefault();
+    const v = readInputs();
+    if (!validateAll(v)) return;
+    const lotNorm = normLot(v.lot_raw);
+    const lotCombined = (v.fa ? v.fa : "") + lotNorm; // FA + 母批[-子批] → 批號欄
+    const key = buildKey(DS, v.part, lotNorm);   // 不含 FA
+    const key2 = buildKey2(DS, v.part, lotNorm); // 不含 FA
+    const params = new URLSearchParams();
+    params.set("action", "upsert_get");
+    params.set("date_shift", `${DS.md}|${DS.shift}`);
+    params.set("part_no", v.part);
+    params.set("lot", lotCombined);
+    params.set("qty", String(v.qty));
+    params.set("inspector", v.inspector);
+    params.set("key", key);
+    params.set("key2", key2);
+    let ok=false, data=null, err=null;
+    try{ const r = await sendGETUpsert(params); ok = r.ok; data = r.data; }catch(ex){ err=ex; }
+    if (ok){
+      updateDraftAOnSuccess(v);
+      updateDraftBOnSuccess(v, lotCombined, key, key2);
+      const lotEl=$("#lot"); if(lotEl) lotEl.value="";
+      const qtyEl=$("#qty"); if(qtyEl) qtyEl.value="";
+      attachPartClearOnce();
+    } else {
+      alert("寫入失敗，請稍後重試");
+      console.warn("GAS response error:", err||data);
+    }
+  }
+  function initSubmit(){
+    const form = $("#form") || $("form");
+    if (!form) return;
+    form.addEventListener("submit", onSubmit, {capture:true});
+  }
+
+  let pollTimer = null;
+  async function fetchKey2Set(){
+    if (!API_URL) return null;
+    const url = API_URL.replace(/^http:\/\//i,"https://") + "?action=list_recent";
+    try{
+      const r = await fetch(url, {cache:"no-store"});
+      const j = await r.json();
+      const arr = Array.isArray(j) ? j : [];
+      const set = new Set(arr.map(x => String(x.key2)));
+      return set;
+    }catch(e){ console.warn("list_recent fetch failed", e); return null; }
+  }
+  async function poll(){
+    const set = await fetchKey2Set();
+    if (!set) return;
+    const all = DB.loadAll();
+    let changed=false;
+    for (const it of all){
+      const present = set.has(String(it.key2));
+      const should = !present;
+      if (it.deleted !== should){ it.deleted = should; changed=true; }
+    }
+    if (changed) DB.saveAll(all);
+  }
+  function startPoller(){ if (pollTimer) clearInterval(pollTimer); pollTimer = setInterval(poll, 15000); poll(); }
+
+  function applyStaleClasses(){
+    const all = DB.loadAll();
+    const latest = all.length ? all[all.length-1] : null;
+    if (!latest) return;
+    if (latest.deleted){
+      $("#lot")?.classList.add("draft-stale");
+      $("#qty")?.classList.add("draft-stale");
+      const clearOnFocus = (el)=>{ const fn=()=>{ el.classList.remove("draft-stale"); el.removeEventListener("focus",fn); el.removeEventListener("input",fn); }; el.addEventListener("focus", fn); el.addEventListener("input", fn); };
+      if ($("#lot")) clearOnFocus($("#lot"));
+      if ($("#qty")) clearOnFocus($("#qty"));
+    } else {
+      $("#lot")?.classList.remove("draft-stale");
+      $("#qty")?.classList.remove("draft-stale");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", async function(){
+    await initDSAndDrafts();
+    initSubmit();
+    startPoller();
+    applyStaleClasses();
+  });
 })();
 </script>
+
 
 </body>
 </html>
