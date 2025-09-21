@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>RT 外觀抽驗記錄表 v17.10.7</title>
+<title>RT 外觀抽驗記錄表 v17.10.8</title>
 <style>
   :root{--labelw:88px;}
   body{font-family:"Comic Sans MS",sans-serif;margin:0;padding:0;}
@@ -41,7 +41,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div style="flex:1;"></div>
       <div id="nowStr" style="font-weight:700;text-align:center;">--:--:--</div>
-      <div style="flex:1;text-align:right;" class="badge">v17.10.7</div>
+      <div style="flex:1;text-align:right;" class="badge">v17.10.8</div>
     </div>
   </div>
 
@@ -81,51 +81,94 @@
   </div>
 
 <script>
+/* ===== 基本設定（保持你的 API，不做多餘請求） ===== */
 const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 
-/* 時間/班別 */
+/* ===== 時間/班別（0040/0840/1640）與 UI 時鐘 ===== */
 function computeShift(d){const hm=d.getHours()*100+d.getMinutes();if(hm>=840&&hm<1640)return"A";if(hm>=1640||hm<40)return"B";return"C";}
 function mmdd(d){const m=String(d.getMonth()+1).padStart(2,"0");const day=String(d.getDate()).padStart(2,"0");return`${m}/${day}`;}
 function currentDS(){const now=new Date();return `${mmdd(now)}|${computeShift(now)}`;}
 function updateUIClock(){const now=new Date();const h=String(now.getHours()).padStart(2,"0");const m=String(now.getMinutes()).padStart(2,"0");const s=String(now.getSeconds()).padStart(2,"0");document.getElementById("nowStr").textContent=`${h}:${m}:${s}`;document.getElementById("dsLine").textContent=`當日當班：${currentDS().replace("|"," ")}`;}
 setInterval(updateUIClock,1000);updateUIClock();
 
-/* 草稿 */
+/* ===== 草稿儲存（以 DS 分檔）與渲染 ===== */
 function draftKeyName(){return `draft_${currentDS()}`;}
 function loadDraft(){const raw=localStorage.getItem(draftKeyName());return raw?JSON.parse(raw):[];}
 function saveDraft(list){localStorage.setItem(draftKeyName(),JSON.stringify(list));}
-function renderDraft(){const list=loadDraft().sort((a,b)=>b.ts-a.ts);const box=document.getElementById("draftList");box.innerHTML=list.map(x=>`<div class="${x.deleted?"draft-item deleted":"draft-item"}">${x.part_no} ${x.lot} ${x.qty}</div>`).join("")||`<div style="text-align:center;color:#888;">（無草稿）</div>`;}
+function renderDraft(){
+  const list=loadDraft().sort((a,b)=>b.ts-a.ts);
+  const box=document.getElementById("draftList");
+  box.innerHTML=list.map(x=>`<div class="${x.deleted?"draft-item deleted":"draft-item"}">${x.part_no} ${x.lot} ${x.qty}</div>`).join("")
+    || `<div style="text-align:center;color:#888;">（無草稿）</div>`;
+}
 
-/* 後端 key2 快取 */
+/* ===== 後端 key2 快取（僅用於刪除線對比） ===== */
 let key2Cache={t:0,set:new Set(),hot:new Set()};
 const CACHE_REFRESH_MS=15000, HOT_TTL_MS=8000;
-async function refreshKey2Cache(){try{const r=await fetch(`${API_BASE}?action=list_recent`);const data=await r.json();key2Cache.set=new Set(data.map(x=>String(x.key2||"")));key2Cache.t=Date.now();reconcileDraftWithCache();}catch(e){}}
-setInterval(refreshKey2Cache,CACHE_REFRESH_MS);refreshKey2Cache();
 
-/* 草稿對比 */
-function reconcileDraftWithCache(){const list=loadDraft();let changed=false;const now=Date.now();for(const d of list){if(key2Cache.hot.has(d.key2)&&(now-d.hotAt)<HOT_TTL_MS){if(d.deleted){d.deleted=false;changed=true;}continue;}const shouldExist=key2Cache.set.has(d.key2);const newDeleted=!shouldExist;if(newDeleted!==!!d.deleted){d.deleted=newDeleted;changed=true;}}if(changed){saveDraft(list);renderDraft();}}
+async function refreshKey2Cache(){
+  try{
+    const r=await fetch(`${API_BASE}?action=list_recent`);
+    const data=await r.json();
+    key2Cache.set=new Set(data.map(x=>String(x.key2||"")));
+    key2Cache.t=Date.now();
+    reconcileDraftWithCache();
+  }catch(e){/* 忽略，等下次 */ }
+}
+setInterval(refreshKey2Cache,CACHE_REFRESH_MS);
+refreshKey2Cache();
 
-/* 即時驗證 */
+/* ===== 草稿 ↔ 快取 對比（決定刪除線） ===== */
+function reconcileDraftWithCache(){
+  const list=loadDraft();let changed=false;const now=Date.now();
+  for(const d of list){
+    if(key2Cache.hot.has(d.key2)&&(now-(d.hotAt||0))<HOT_TTL_MS){
+      if(d.deleted){d.deleted=false;changed=true;}
+      continue;
+    }
+    const exists=key2Cache.set.has(d.key2);
+    const markDel=!exists;
+    if(!!d.deleted!==markDel){d.deleted=markDel;changed=true;}
+  }
+  if(changed){saveDraft(list);renderDraft();}
+}
+
+/* ===== 即時驗證（不彈窗） ===== */
 const $=s=>document.querySelector(s);
 const inspector=$("#inspector"),partNo=$("#partNo"),lot=$("#lot"),qty=$("#qty");
 const partHint=$("#partHint"),lotHint=$("#lotHint"),statusMsg=$("#statusMsg"),okMsg=$("#okMsg"),loading=$("#loading");
-function validInspector(v){return /^[0-9A-Z]{4,6}$/.test(v.toUpperCase());}
-function validPart(v){return /^[0-9A-Z]{7}$/.test(v.toUpperCase());}
-function sanitizeLot(v){v=(v||"").trim().toUpperCase();if(!v)return{ok:false,msg:"批號必填"};let prefix="",mid="";if(v.includes("-")){[prefix,mid]=v.split("-");}else{prefix=v;}if(!/^[0-9A-HJ-NP-Z]{3}$/.test(prefix))return{ok:false,msg:"母批須為3碼，且不可含 I/O"};if(mid){if(!/^[0-9A-Z]{1,2}$/.test(mid))return{ok:false,msg:"子批限 1~2 碼英數"};mid=String(mid).padStart(2,"0");return{ok:true,lot:`${prefix}-${mid}`};}return{ok:true,lot:prefix};}
+
+function validInspector(v){return /^[0-9A-Z]{4,6}$/.test((v||"").toUpperCase());}
+function validPart(v){return /^[0-9A-Z]{7}$/.test((v||"").toUpperCase());}
+function sanitizeLot(v){
+  v=(v||"").trim().toUpperCase();
+  if(!v) return {ok:false,msg:"批號必填"};
+  let prefix="",mid="";
+  if(v.includes("-")){[prefix,mid]=v.split("-");}else{prefix=v;}
+  if(!/^[0-9A-HJ-NP-Z]{3}$/.test(prefix)) return {ok:false,msg:"母批須為3碼，且不可含 I/O"};
+  if(mid){
+    if(!/^[0-9A-Z]{1,2}$/.test(mid)) return {ok:false,msg:"子批限 1~2 碼英數"};
+    mid=String(mid).padStart(2,"0");
+    return {ok:true,lot:`${prefix}-${mid}`};
+  }
+  return {ok:true,lot:prefix};
+}
 function showErr(el,msg){el.textContent=msg||"";}
 function showStatus(msg,isErr){statusMsg.className="status "+(isErr?"red":"green");statusMsg.textContent=msg||"";if(!isErr)setTimeout(()=>statusMsg.textContent="",5000);}
 function showOK(msg){okMsg.textContent=msg||"";setTimeout(()=>okMsg.textContent="",5000);}
-partNo.addEventListener("input",()=>{const v=partNo.value.trim().toUpperCase();if(!v){showErr(partHint,"");return;}if(!validPart(v)){showErr(partHint,"料號需為 7 碼英數");}else{showErr(partHint,"");}});
-inspector.addEventListener("input",()=>{const v=inspector.value.trim().toUpperCase();if(!v)return; if(!validInspector(v)){} });
 
-/* key / key2 */
+partNo.addEventListener("input",()=>{const v=partNo.value.trim().toUpperCase();if(!v){showErr(partHint,"");return;}if(!validPart(v)){showErr(partHint,"料號需為 7 碼英數");}else{showErr(partHint,"");}});
+inspector.addEventListener("change",()=>{const v=inspector.value.trim().toUpperCase();if(validInspector(v))localStorage.setItem("inspector_mem",v);});
+(function initInspector(){const old=localStorage.getItem("inspector_mem");if(old)inspector.value=old;})();
+
+/* ===== key / key2 ===== */
 function composeKey(ds,part,lot){return `${ds}|${part}|${lot}`;}
 function composeKey2(ds,lot,qty){return `${ds}|${lot}|${qty}|TRUE`;}
 
-/* 送出（純 GET） */
+/* ===== 送出（純 GET） ===== */
 async function submitData(){
-  const insp=inspector.value.trim().toUpperCase();
-  const part=partNo.value.trim().toUpperCase();
+  const insp=(inspector.value||"").trim().toUpperCase();
+  const part=(partNo.value||"").trim().toUpperCase();
   const qtyVal=String(qty.value||"").trim();
   if(!validInspector(insp)){showStatus("工號格式不正確",true);return;}
   if(!validPart(part)){showStatus("料號需為 7 碼英數",true);return;}
@@ -136,14 +179,12 @@ async function submitData(){
   const key=composeKey(ds,part,lotSan.lot);
   const key2=composeKey2(ds,lotSan.lot,qtyVal);
 
-  // 草稿先樂觀更新＋HOT
+  // 草稿：樂觀更新 + HOT
   upsertDraft(part,lotSan.lot,qtyVal,key,key2,true);
 
   loading.style.display="block"; showStatus("",false);
   try{
-    const qs=new URLSearchParams({
-      action:"submit", date_shift:ds, part_no:part, lot:lotSan.lot, qty:qtyVal, inspector:insp, key, key2
-    }).toString();
+    const qs=new URLSearchParams({action:"submit",date_shift:ds,part_no:part,lot:lotSan.lot,qty:qtyVal,inspector:insp,key,key2}).toString();
     const r=await fetch(`${API_BASE}?${qs}`);
     const j=await r.json();
     if(!j||j.status!=="ok") throw new Error("submit_fail");
@@ -156,7 +197,7 @@ async function submitData(){
   }
 }
 
-/* 草稿寫入/HOT */
+/* ===== 草稿寫入 / HOT 保護 ===== */
 function upsertDraft(part_no,lot,qty,key,key2,markHot){
   const list=loadDraft();const now=Date.now();
   const idx=list.findIndex(x=>x.key===key);
@@ -172,13 +213,7 @@ function upsertDraft(part_no,lot,qty,key,key2,markHot){
   }
 }
 
-/* 檢驗員常駐 */
-(function initInspector(){
-  const k="inspector_mem";const old=localStorage.getItem(k);if(old)inspector.value=old;
-  inspector.addEventListener("change",()=>{const v=inspector.value.trim().toUpperCase();if(validInspector(v))localStorage.setItem(k,v);});
-})();
-
-/* 初始化 */
+/* ===== 綁定事件 & 初始渲染 ===== */
 document.getElementById("submitBtn").addEventListener("click",submitData);
 renderDraft();reconcileDraftWithCache();
 </script>
