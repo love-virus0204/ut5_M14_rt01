@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RT 外觀抽驗記錄表 v17.11.0</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RT 外觀抽驗記錄表 v17.11.1</title>
+  <!-- 保持 v17.6 視覺：結構/樣式/字面不變 -->
   <style>
     body{font-family:"Comic Sans MS",sans-serif;margin:0;padding:0;}
     header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;}
@@ -15,7 +16,7 @@
     .status-msg.green{color:green;}
     .status-msg.red{color:red;}
     hr{margin:12px 0;}
-    .draft-list{margin-top:10px;text-align:center;}
+    .draft-list{text-align:center;margin-top:10px;}
     .draft-item.deleted{text-decoration:line-through;color:#888;}
     .loading{display:none;text-align:center;}
   </style>
@@ -29,129 +30,193 @@
 
   <div style="padding:10px;">
     <div>
-      <label>檢　驗：</label><input type="text" id="inspector" placeholder="請輸入工號">
+      <label>檢　驗：</label><input id="inspector" type="text" placeholder="請輸入工號">
     </div>
     <div>
-      <label>料　號：</label><input type="text" id="partNo" placeholder="輸入 7碼料號">
+      <label>料　號：</label><input id="partNo" type="text" placeholder="輸入 7碼料號">
     </div>
     <div>
-      <label>批　號：</label><input type="text" id="lot" placeholder="FA-001 or 001-01">
+      <label>批　號：</label><input id="lot" type="text" placeholder="FA-001 or 001-01">
     </div>
     <div>
-      <label>數　量：</label><input type="number" id="qty" placeholder="輸入 批量">
+      <label>數　量：</label><input id="qty" type="number" placeholder="輸入 批量">
     </div>
+
     <button class="btn" id="submitBtn">送出</button>
     <div class="status-msg" id="statusMsg"></div>
     <div class="loading" id="loading">傳送中...</div>
+
     <hr>
     <div class="draft-list" id="draftList"></div>
   </div>
 
 <script>
+/* ===== 常數 ===== */
 const API_BASE = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-const TTL = 5000; // 剛送出的保護期
-let key2Cache = {time:0,set:new Set()};
-let lastSubmitKey2 = null;
-let lastSubmitTime = 0;
+const CACHE_TTL_MS = 15000;     // 15秒刷新快取
+const HOT_TTL_MS   = 8000;      // 剛送出保護期（不標刪）
+/* ===== 元素 ===== */
+const $ = s=>document.querySelector(s);
+const inpInspector = $("#inspector");
+const inpPartNo    = $("#partNo");
+const inpLot       = $("#lot");
+const inpQty       = $("#qty");
+const statusMsg    = $("#statusMsg");
+const loadingEl    = $("#loading");
+const draftListEl  = $("#draftList");
 
-function getCurrentDS(){
-  const now=new Date();
-  let shift="A";
-  const hm=now.getHours()*100+now.getMinutes();
+/* ===== 當日當班 ===== */
+function currentDS(){
+  const now = new Date();
+  const hm = now.getHours()*100 + now.getMinutes();
+  let shift = "A";
   if(hm>=840 && hm<1640) shift="A";
   else if(hm>=1640 || hm<40) shift="B";
   else shift="C";
-  return `${now.getMonth()+1}/${now.getDate()}|${shift}`;
+  const mm = String(now.getMonth()+1).padStart(2,"0");
+  const dd = String(now.getDate()).padStart(2,"0");
+  return `${mm}/${dd}|${shift}`;
 }
 
+/* ===== 工號常駐 ===== */
+(function initInspector(){
+  const v = localStorage.getItem("inspector_mem") || "";
+  if(v) inpInspector.value = v;
+  inpInspector.addEventListener("change", ()=>{
+    const up = (inpInspector.value||"").trim().toUpperCase();
+    if(/^[0-9A-Z]{4,6}$/.test(up)) localStorage.setItem("inspector_mem", up);
+  });
+})();
+
+/* ===== 驗證：料號/批號 ===== */
+function validPart(p){ return /^[0-9A-Z]{7}$/.test((p||"").toUpperCase()); }
+function sanitizeLot(v){
+  v=(v||"").trim().toUpperCase();
+  if(!v) return {ok:false,msg:"批號必填"};
+  let a=v, b="";
+  if(v.includes("-")){ [a,b]=v.split("-"); }
+  // 母批3碼，排除 I/O
+  if(!/^[0-9A-HJ-NP-Z]{3}$/.test(a)) return {ok:false,msg:"母批須為3碼且不可含 I/O"};
+  if(b){
+    if(!/^[0-9A-Z]{1,2}$/.test(b)) return {ok:false,msg:"子批 1~2 碼英數"};
+    b=b.padStart(2,"0");
+    return {ok:true,lot:`${a}-${b}`};
+  }
+  return {ok:true,lot:a};
+}
+
+/* ===== key / key2 ===== */
+function makeKey(ds, part, lot){ return `${ds}|${part}|${lot}`; }
+function makeKey2(ds, lot, qty){ return `${ds}|${lot}|${qty}|TRUE`; }
+
+/* ===== 草稿（以 DS 分桶） ===== */
+function bucket(){ return `draft_${currentDS()}`; }
 function loadDraft(){
-  const ds=getCurrentDS();
-  const raw=localStorage.getItem(`draft_${ds}`);
-  return raw?JSON.parse(raw):[];
+  try{ const raw=localStorage.getItem(bucket()); return raw?JSON.parse(raw):[]; }catch(_){ return []; }
 }
-function saveDraft(list){
-  const ds=getCurrentDS();
-  localStorage.setItem(`draft_${ds}`,JSON.stringify(list));
-}
-
+function saveDraft(list){ localStorage.setItem(bucket(), JSON.stringify(list)); }
 function renderDrafts(){
-  const list=loadDraft().sort((a,b)=>b.ts - a.ts);
-  const wrap=document.getElementById("draftList");
-  wrap.innerHTML=list.map(d=>`<div class="draft-item${d.deleted?" deleted":""}">${d.part_no} ${d.lot} ${d.qty}</div>`).join("");
+  const list = loadDraft().sort((a,b)=>b.ts-a.ts);
+  draftListEl.innerHTML = list.length
+    ? list.map(d=>`<div class="draft-item${d.deleted?" deleted":""}">${d.part_no} ${d.lot} ${d.qty}</div>`).join("")
+    : "";
 }
 
+/* ===== 快取（後端 key2） ===== */
+let key2Cache = {t:0, set:new Set()};
 async function refreshCache(){
   try{
-    const r=await fetch(`${API_BASE}?action=list_recent`);
-    const j=await r.json();
-    key2Cache.set=new Set(j.map(x=>x.key2));
-    key2Cache.time=Date.now();
-    validateDrafts();
-  }catch(e){console.warn("快取更新失敗",e);}
+    const r = await fetch(`${API_BASE}?action=list_recent`);
+    const j = await r.json();
+    key2Cache.set = new Set(j.map(x=>String(x.key2||"")));
+    key2Cache.t = Date.now();
+  }catch(e){ /* 靜默失敗 */ }
+  reconcileDrafts();
 }
-
-function validateDrafts(){
-  const list=loadDraft();
-  const now=Date.now();
+function reconcileDrafts(){
+  const now = Date.now();
+  let list = loadDraft();
+  let changed = false;
   for(const d of list){
-    if(d.key2===lastSubmitKey2 && now - lastSubmitTime < TTL){
-      d.deleted=false; // 保護期內不標刪
-    }else{
-      d.deleted=!key2Cache.set.has(d.key2);
+    if(d.hotAt && now - d.hotAt < HOT_TTL_MS){
+      if(d.deleted){ d.deleted=false; changed=true; }
+      continue;
     }
+    const exists = key2Cache.set.has(d.key2);
+    const wantDel = !exists;
+    if(!!d.deleted !== wantDel){ d.deleted = wantDel; changed=true; }
   }
-  saveDraft(list);
-  renderDrafts();
+  if(changed){ saveDraft(list); renderDrafts(); }
 }
 
-function upsertDraft(part_no,lot,qty,key,key2){
-  let list=loadDraft();
-  const idx=list.findIndex(x=>x.key===key);
-  const now=Date.now();
-  if(idx>=0){
-    list[idx]={part_no,lot,qty,key,key2,ts:now};
-  }else{
-    list.push({part_no,lot,qty,key,key2,ts:now});
-  }
-  saveDraft(list);
-  renderDrafts();
-}
-
-document.getElementById("submitBtn").addEventListener("click",async()=>{
-  const inspector=document.getElementById("inspector").value.trim();
-  const part=document.getElementById("partNo").value.trim();
-  const lot=document.getElementById("lot").value.trim();
-  const qty=document.getElementById("qty").value.trim();
-  if(!part || part.length!==7){showStatus("料號錯誤",true);return;}
-  if(!lot){showStatus("批號必填",true);return;}
-  document.getElementById("loading").style.display="block";
-  try{
-    const key=`${getCurrentDS()}|${part}|${lot}`;
-    const key2=`${getCurrentDS()}|${lot}|${qty}|TRUE`;
-    lastSubmitKey2 = key2;
-    lastSubmitTime = Date.now();
-    upsertDraft(part,lot,qty,key,key2);
-    const r=await fetch(`${API_BASE}?action=submit&part_no=${encodeURIComponent(part)}&lot=${encodeURIComponent(lot)}&qty=${encodeURIComponent(qty)}&inspector=${encodeURIComponent(inspector)}&key=${encodeURIComponent(key)}&key2=${encodeURIComponent(key2)}&date_shift=${encodeURIComponent(getCurrentDS())}`);
-    await r.json();
-    showStatus("送出成功",false);
-    document.getElementById("lot").value="";
-    document.getElementById("qty").value="";
-  }catch(e){showStatus("送出失敗",true);}finally{
-    document.getElementById("loading").style.display="none";
-  }
-});
-
+/* ===== 送出（GET） ===== */
 function showStatus(msg,isErr){
-  const s=document.getElementById("statusMsg");
-  s.className="status-msg "+(isErr?"red":"green");
-  s.innerText=msg;
-  setTimeout(()=>{s.innerText="";},5000);
+  statusMsg.className = "status-msg " + (isErr?"red":"green");
+  statusMsg.textContent = msg||"";
+  if(!isErr) setTimeout(()=>{ statusMsg.textContent=""; }, 5000);
+}
+function setLoading(on){ loadingEl.style.display = on?"block":"none"; }
+
+async function handleSubmit(){
+  const inspector = (inpInspector.value||"").trim().toUpperCase();
+  const part      = (inpPartNo.value||"").trim().toUpperCase();
+  const qtyStr    = String(inpQty.value||"").trim();
+  const lotRaw    = inpLot.value;
+
+  if(!/^[0-9A-Z]{4,6}$/.test(inspector)){ showStatus("工號格式不正確", true); return; }
+  if(!validPart(part)){ showStatus("料號需為 7 碼英數", true); return; }
+  const lotSan = sanitizeLot(lotRaw);
+  if(!lotSan.ok){ showStatus(lotSan.msg, true); return; }
+  if(!qtyStr || isNaN(Number(qtyStr))){ showStatus("請輸入數量", true); return; }
+
+  const ds = currentDS();
+  const key  = makeKey(ds, part, lotSan.lot);
+  const key2 = makeKey2(ds, lotSan.lot, qtyStr);
+
+  // 樂觀寫入草稿 + HOT 保護
+  (function upsert(){
+    const list = loadDraft();
+    const i = list.findIndex(x=>x.key===key);
+    const base = {part_no:part, lot:lotSan.lot, qty:qtyStr, key, key2, ts:Date.now(), hotAt:Date.now(), deleted:false};
+    if(i>=0) list[i] = {...list[i], ...base};
+    else     list.push(base);
+    saveDraft(list);
+    renderDrafts();
+  })();
+
+  setLoading(true); showStatus("", false);
+  try{
+    const qs = new URLSearchParams({
+      action:"submit",
+      part_no:part,
+      lot:lotSan.lot,
+      qty:qtyStr,
+      inspector,
+      key,
+      key2,
+      date_shift: ds
+    }).toString();
+    const r = await fetch(`${API_BASE}?${qs}`);
+    const j = await r.json();
+    if(!j || j.status!=="ok") throw new Error("submit_fail");
+
+    showStatus("送出成功", false);
+    inpLot.value = "";
+    inpQty.value = "";
+  }catch(e){
+    showStatus("送出失敗", true);
+  }finally{
+    setLoading(false);
+    setTimeout(reconcileDrafts, HOT_TTL_MS+200);
+  }
 }
 
-window.addEventListener("load",()=>{
+/* ===== 綁定與啟動 ===== */
+document.getElementById("submitBtn").addEventListener("click", handleSubmit);
+window.addEventListener("load", ()=>{
   renderDrafts();
   refreshCache();
-  setInterval(refreshCache,15000);
+  setInterval(refreshCache, CACHE_TTL_MS);
 });
 </script>
 </body>
