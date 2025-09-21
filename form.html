@@ -114,7 +114,7 @@
 
   <div class="post">
     <div class="bottom-info">
-      <div id="versionTag" class="ver-left">版本：v17.8.8</div>
+      <div id="versionTag" class="ver-left">版本：v17.9.0-debug</div>
       <div id="tsView" class="time-right"></div>
     </div>
     <table>
@@ -446,7 +446,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 document.getElementById('langBtn').addEventListener('click',()=>alert('多國語言預留：未啟用'));
 </script>
 
-<!-- v17.8.8-debug integrated logic (GET-only, FA in lot, debug alerts) -->
+<!-- v17.9.0-debug integrated logic (GET-only, FA in lot, debug alerts) -->
 <style>
   .draft-stale { text-decoration: line-through; opacity: .7; }
   .input-error { outline: 2px solid #d33; }
@@ -454,7 +454,7 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
 <script>
 (function(){
   "use strict";
-  const API_URL = (window.API_URL || window.scriptURL || "").toString();
+  const API_URL = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
   const $ = (sel, ctx=document)=>ctx.querySelector(sel);
 
   const TZ_DELTA_KEY = "tzTWDeltaMs";
