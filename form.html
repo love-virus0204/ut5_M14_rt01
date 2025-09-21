@@ -1,173 +1,449 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!doctype html>
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RT 外觀抽驗記錄表 v17.10.2</title>
-  <style>
-    body{font-family:"Comic Sans MS",sans-serif;margin:0;padding:0;}
-    header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;}
-    header h1{flex:1;text-align:center;font-family:"標楷體";margin:0;}
-    label{display:inline-block;width:80px;text-align:center;font-family:"標楷體";}
-    input,select{font-family:"Comic Sans MS",sans-serif;padding:4px;margin:2px;width:65%;}
-    .btn{display:inline-block;padding:8px 14px;background:#007BFF;color:#fff;border:none;border-radius:6px;cursor:pointer;float:right;}
-    .status-msg{margin-top:4px;text-align:center;font-weight:bold;}
-    .status-msg.green{color:green;}
-    .status-msg.red{color:red;}
-    hr{margin:12px 0;}
-    .draft-list{margin-top:10px;text-align:center;}
-    .draft-item.deleted{text-decoration:line-through;color:#888;}
-    .loading{display:none;text-align:center;}
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RT 外觀抽驗記錄表</title>
+<style>
+  :root{--maxw:520px; --labelw:92px;}
+  body{margin:0;background:#f5f5f5;font-family:"Comic Sans MS",sans-serif}
+  .wrap{max-width:var(--maxw);margin:8px auto;padding:10px 14px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .toolbar{display:grid;grid-template-columns:36px auto 36px;align-items:center;margin-bottom:6px}
+  .tool-left{justify-self:start}
+  .tool-right{justify-self:end}
+  .tool-btn{background:none;border:0;font-size:18px;line-height:1;padding:2px 6px;cursor:pointer}
+  .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:0;font-size:1.35rem}
+  @media (max-width: 400px){ .title{font-size:1.18rem} }
+
+  .ds-line{font-weight:700;margin:8px 0 10px 0; padding-left:20px;}
+
+  .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;column-gap:10px;margin:6px 0}
+  .label{font-family:"標楷體",serif;text-align:center}
+  .ctrl{width:100%}
+  .ctrl input,.ctrl select{width:100%;box-sizing:border-box;padding:7px;border:1px solid #ccc;border-radius:6px;font-family:"Comic Sans MS",sans-serif}
+  .row.lot-type .ctrl{display:grid;grid-template-columns:25% 1fr;column-gap:8px}
+  .row.lot-type select{min-width:80px}
+
+  .field-error{display:none;color:#d93025;font-weight:700;font-size:13px;margin-top:4px}
+  .input-error{ border-color:#d93025 !important; }
+
+  .submit{position:relative;display:flex;justify-content:flex-end;align-items:center;margin-top:10px}
+  .submit-center{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px}
+  .btn{background:#0a66ff;color:#fff;border:0;border-radius:8px;padding:10px 18px;cursor:pointer}
+
+  .ok-msg{display:none;color:#1a7f37;font-weight:700;font-size:13px}
+  .ok-msg.show{display:block;opacity:1;transition:opacity .4s}
+  .ok-msg.fade{opacity:0}
+
+  hr{margin:10px 0}
+  .bottom-info{display:grid;grid-template-columns:1fr 1fr;align-items:center;margin:6px 0}
+  .ver-left{justify-self:start;font-size:12px;color:#666}
+  .time-right{justify-self:end;font-size:12px;color:#333;text-align:right}
+  .post{width:95%;margin:0 auto}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
+
+  .strike td{ text-decoration: line-through; color:#888; }
+</style>
 </head>
 <body>
-  <header>
-    <img src="lang.png" alt="🌐" style="width:24px;height:24px;cursor:pointer;">
-    <h1>RT 外觀抽驗記錄表</h1>
-    <a href="index.html"><img src="back.png" alt="返回" style="width:24px;height:24px;"></a>
-  </header>
-
-  <div style="padding:10px;">
-    <div>
-      <label>檢驗員：</label><input type="text" id="inspector" placeholder="請輸入工號">
-    </div>
-    <div>
-      <label>料號：</label><input type="text" id="partNo" placeholder="輸入 7碼料號">
-    </div>
-    <div>
-      <label>批號：</label><input type="text" id="lot" placeholder="FA-001 or 001-01">
-    </div>
-    <div>
-      <label>批量：</label><input type="number" id="qty" placeholder="輸入 批量">
-    </div>
-    <button class="btn" id="submitBtn">送出</button>
-    <div class="status-msg" id="statusMsg"></div>
-    <div class="loading" id="loading">傳送中...</div>
-    <hr>
-    <div class="draft-list" id="draftList"></div>
+<div class="wrap">
+  <div class="toolbar">
+    <div class="tool-left"><button class="tool-btn" id="langBtn" title="語言">🌐</button></div>
+    <h1 class="title">RT 外觀抽驗記錄表</h1>
+    <div class="tool-right"><button class="tool-btn" id="backBtn" title="返回" onclick="location.href='index.html'">↩️</button></div>
   </div>
 
-<script>
-const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-let key2Cache={time:0,set:new Set()};
+  <div id="dsView" class="ds-line"></div>
 
-// --- 新增：送出保護期記錄 ---
+  <div class="row">
+    <div class="label">檢驗員：</div>
+    <div class="ctrl">
+      <input id="inspector" maxlength="5" placeholder="輸入 5 碼工號">
+      <div id="inspectorError" class="field-error"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">料　號：</div>
+    <div class="ctrl">
+      <input id="partNo" maxlength="7" placeholder="輸入 7碼料號">
+      <div id="partError" class="field-error"></div>
+    </div>
+  </div>
+
+  <div class="row lot-type">
+    <div class="label">型　態：</div>
+    <div class="ctrl">
+      <select id="lotPrefix">
+        <option value=""></option>
+        <option value="FA">FA</option>
+      </select>
+      <div></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">批　號：</div>
+    <div class="ctrl">
+      <input id="lotInput" placeholder="母批(3碼) or 母批-子批(3-2)；禁 I / O">
+      <div id="lotError" class="field-error"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">數　量：</div>
+    <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入 批量"></div>
+  </div>
+
+  <div class="submit" id="submit-row">
+    <div class="submit-center"><div id="okMsg" class="ok-msg"></div></div>
+    <button id="sendBtn" class="btn">送出</button>
+  </div>
+
+  <hr>
+
+  <div class="bottom-info">
+    <div id="versionTag" class="ver-left">版本：v17.10.3</div>
+    <div id="tsView" class="time-right"></div>
+  </div>
+
+  <div class="post">
+    <table>
+      <thead><tr><th>料　號</th><th>批　號</th><th>數　量</th></tr></thead>
+      <tbody id="recordList"><tr><td colspan="3" style="color:#888">（當班無草稿）</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+/* ===== 常數 ===== */
+const FORM_VERSION="v17.10.3";
+const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
+const OFFSET_KEY='srv_offset_ms_v2';
+const EXP_KEY='srv_offset_exp_v2';
+const TEN_MIN=10*60*1000;
+const INSPECTOR_STORE='inspector_id_v1';
+const KEY2_CACHE_TTL=10*1000; // 10s
+const PROTECT_MS=3000;        // 既有保護期（v17.10.1 保留）
+
+/* ==== 新增：最近送出的 key2 暫不比對（4s） ==== */
 const RECENT_KEY2='recent_key2_map';
-function recentMap(){try{return JSON.parse(sessionStorage.getItem(RECENT_KEY2)||'{}');}catch{return {};}}
-function saveRecent(m){sessionStorage.setItem(RECENT_KEY2,JSON.stringify(m));}
-function markRecent(key2,ms=4000){const m=recentMap();m[key2]=Date.now()+ms;saveRecent(m);}
-function isRecent(key2){
-  const m=recentMap();const exp=m[key2]||0;
-  if(!exp) return false;
-  if(Date.now()<exp) return true;
-  delete m[key2];saveRecent(m);
+function recentMap(){ try{ return JSON.parse(sessionStorage.getItem(RECENT_KEY2)||'{}'); }catch{ return {}; } }
+function saveRecent(m){ sessionStorage.setItem(RECENT_KEY2, JSON.stringify(m)); }
+function markRecent(key2, ms=4000){ const m=recentMap(); m[key2]=Date.now()+ms; saveRecent(m); }
+function isRecent(key2){ const m=recentMap(); const exp=m[key2]||0; if(!exp) return false; if(Date.now()<exp) return true; delete m[key2]; saveRecent(m); return false; }
+
+/* ===== 小工具 ===== */
+const $=s=>document.querySelector(s);
+function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g," ")}
+function CANON(s){return fw2hw(s).trim().toUpperCase()}
+function pad2(n){return String(n).padStart(2,'0')}
+function fmtYMD(d){return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())}
+function fmtMD(d){return pad2(d.getMonth()+1)+"/"+pad2(d.getDate())}
+function fmtTW(d){return d.getFullYear()+"/"+pad2(d.getMonth()+1)+"/"+pad2(d.getDate())+" "+pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds())}
+
+/* ===== 時間校正（沿用 v17.9.x） ===== */
+let offsetMs=0;
+function isTaiwanTZ(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Taipei'; }catch{ return false; } }
+function parseTW(ts){ const m=/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2})-(\d{2})-(\d{2})$/.exec(ts||''); if(!m) return Date.now(); return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]).getTime(); }
+async function initClockOffsetSmart(){
+  if(isTaiwanTZ()){
+    offsetMs=0; sessionStorage.setItem(OFFSET_KEY,'0'); sessionStorage.setItem(EXP_KEY,String(Date.now()+TEN_MIN)); return;
+  }
+  const exp=Number(sessionStorage.getItem(EXP_KEY)||0);
+  if(exp && Date.now()<exp){ offsetMs=Number(sessionStorage.getItem(OFFSET_KEY)||0); return; }
+  try{
+    const t0=Date.now();
+    const r=await fetch(`${API_BASE}?action=ping&t=${t0}`,{cache:'no-store'});
+    const text=await r.text(); const t1=Date.now();
+    // 後端回傳格式為 yyyy/MM/dd HH:mm:ss
+    const parts=(text||'').split(/[\/ :]/); // 容錯
+    const srv=new Date(+parts[0],+parts[1]-1,+parts[2],+parts[3],+parts[4],+parts[5]).getTime();
+    const est=srv + Math.round((t1-t0)/2);
+    let off=est - t1; if(Math.abs(off)<=120000) off=0;
+    offsetMs=off; sessionStorage.setItem(OFFSET_KEY,String(off)); sessionStorage.setItem(EXP_KEY,String(Date.now()+TEN_MIN));
+  }catch(e){
+    offsetMs=Number(sessionStorage.getItem(OFFSET_KEY)||0); sessionStorage.setItem(EXP_KEY,String(Date.now()+TEN_MIN));
+  }
+}
+function nowCorrected(){ return new Date(Date.now()+offsetMs); }
+
+/* ===== 班別：0040/0840/1640 ===== */
+function computeShiftByClockFrom(d){
+  const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
+  if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymd:fmtYMD(y),shift:'C'}; }
+  if(mins>=520 && mins<1000){ return {baseDate:d,mmdd:fmtMD(d),ymd:fmtYMD(d),shift:'A'}; }
+  if(mins>=1000){ return {baseDate:d,mmdd:fmtMD(d),ymd:fmtYMD(d),shift:'B'}; }
+  const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymd:fmtYMD(y),shift:'B'};
+}
+
+/* ===== 顯示 ===== */
+let currentDS=null;
+function refreshDisplays(){
+  const now=nowCorrected();
+  currentDS=computeShiftByClockFrom(now);
+  $('#dsView').textContent=`${currentDS.mmdd} - ${currentDS.shift}`;
+  $('#tsView').textContent=fmtTW(now);
+}
+
+/* ===== 欄位與驗證 ===== */
+const inspector=$('#inspector'), inspectorError=$('#inspectorError');
+const partNo=$('#partNo'), partError=$('#partError');
+const lotPrefix=$('#lotPrefix'), lotInput=$('#lotInput'), lotError=$('#lotError');
+const qty=$('#qty'), okMsg=$('#okMsg');
+
+function setFieldError(inputEl,hintEl,msg){
+  if(!inputEl||!hintEl) return;
+  if(msg){ inputEl.classList.add('input-error'); hintEl.textContent=msg; hintEl.style.display='block'; }
+  else { inputEl.classList.remove('input-error'); hintEl.textContent=''; hintEl.style.display='none'; }
+}
+function persistInspectorIfValid(v){
+  const id=CANON(v);
+  if(/^[A-Z0-9]{5}$/.test(id)){ localStorage.setItem(INSPECTOR_STORE,id); setFieldError(inspector,inspectorError,''); return true; }
   return false;
 }
-
-function getCurrentDS(){
-  const now=new Date();
-  let shift="A";
-  const hm=now.getHours()*100+now.getMinutes();
-  if(hm>=840 && hm<1640) shift="A";
-  else if(hm>=1640 || hm<40) shift="B";
-  else shift="C";
-  return `${now.getMonth()+1}/${now.getDate()}|${shift}`;
-}
-
-function loadDraft(){
-  const ds=getCurrentDS();
-  const raw=localStorage.getItem(`draft_${ds}`);
-  return raw?JSON.parse(raw):[];
-}
-function saveDraft(list){
-  const ds=getCurrentDS();
-  localStorage.setItem(`draft_${ds}`,JSON.stringify(list));
-}
-
-function renderDrafts(){
-  const list=loadDraft().sort((a,b)=>b.ts - a.ts);
-  const wrap=document.getElementById("draftList");
-  wrap.innerHTML=list.map(d=>{
-    const delClass=d.deleted?" deleted":"";
-    return `<div class="draft-item${delClass}" data-key2="${d.key2}" data-ts="${d.ts}">${d.part_no} ${d.lot} ${d.qty}</div>`;
-  }).join("");
-}
-
-async function validateDrafts(){
-  const now=Date.now();
-  if(now - key2Cache.time > 10000){
-    try{
-      const r=await fetch(`${API_BASE}?action=list_recent`);
-      const j=await r.json();
-      key2Cache.set=new Set(j.map(x=>x.key2));
-      key2Cache.time=now;
-    }catch(e){console.warn("比對失敗",e);}
-  }
-  const list=loadDraft();
-  for(const d of list){
-    // 若在保護期內，跳過比對
-    if(isRecent(d.key2) || (Date.now()-d.ts)<4000){
-      d.deleted=false;
-      continue;
-    }
-    d.deleted=!key2Cache.set.has(d.key2);
-  }
-  saveDraft(list);
-  renderDrafts();
-}
-
-function upsertDraft(part_no,lot,qty,key,key2){
-  let list=loadDraft();
-  const idx=list.findIndex(x=>x.key===key);
-  const now=Date.now();
-  if(idx>=0){
-    list[idx]={part_no,lot,qty,key,key2,ts:now};
+inspector.addEventListener('input',()=>{ setFieldError(inspector,inspectorError,''); });
+inspector.addEventListener('blur',()=>{
+  const v=CANON(inspector.value);
+  if(!v) return setFieldError(inspector,inspectorError,'工號必填');
+  if(!/^[A-Z0-9]{5}$/.test(v)) return setFieldError(inspector,inspectorError,'需 5 碼英數');
+  persistInspectorIfValid(v);
+});
+partNo.addEventListener('input',()=> setFieldError(partNo,partError,''));
+partNo.addEventListener('blur',()=>{
+  const p=CANON(partNo.value);
+  if(!p) return setFieldError(partNo,partError,'料號必填');
+  if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(p)) return setFieldError(partNo,partError,'格式錯誤（如 A58K052）');
+  setFieldError(partNo,partError,'');
+});
+function parseLot(input){
+  const s=CANON(input).replace(/\s+/g,'');
+  if(!s) return {ok:false,msg:'母批必填（3碼）'};
+  if(s.includes('-')){
+    const [m,cRaw]=s.split('-',2);
+    if(!m || !/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return {ok:false,msg:'母批需正好 3 碼，且不可含 I / O'};
+    if(!cRaw) return {ok:false,msg:'有連字號時必須輸入子批（1~2 碼）'};
+    if(!/^[0-9]{1,2}$/.test(cRaw)) return {ok:false,msg:'子批需 1~2 位數字'};
+    return {ok:true,mother:m,child:cRaw.padStart(2,'0'),hasChild:true};
   }else{
-    list.push({part_no,lot,qty,key,key2,ts:now});
+    const m=s;
+    if(!/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return {ok:false,msg:'母批需正好 3 碼，且不可含 I / O'};
+    return {ok:true,mother:m,child:'',hasChild:false};
   }
-  saveDraft(list);
-  renderDrafts();
+}
+lotInput.addEventListener('input',()=> setFieldError(lotInput,lotError,''));
+lotInput.addEventListener('blur',()=>{
+  const r=parseLot(lotInput.value);
+  if(!r.ok) return setFieldError(lotInput,lotError,r.msg);
+  setFieldError(lotInput,lotError,'');
+  lotInput.value=r.mother+(r.hasChild?('-'+r.child):'');
+});
+
+/* ===== 中央提示 ===== */
+function ensureCenterBox(){
+  let box=$("#center-status");
+  if(!box){
+    box=document.createElement("div");
+    box.id="center-status";
+    box.style.cssText=`position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:9999;background:rgba(0,0,0,.7);color:#fff;padding:10px 16px;border-radius:10px;font-size:16px;display:none;`;
+    document.body.appendChild(box);
+  }
+  return box;
+}
+function showCenter(text){ const b=ensureCenterBox(); b.textContent=text; b.style.display='block'; }
+function hideCenter(){ const b=$("#center-status"); if(b) b.style.display='none'; }
+let okTimer=null;
+function showOk(msg){
+  if(okTimer){clearTimeout(okTimer);okTimer=null;}
+  okMsg.textContent=msg||''; okMsg.classList.add('show'); okMsg.classList.remove('fade');
+  okTimer=setTimeout(()=>{ okMsg.classList.add('fade'); },4600);
+  setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
-document.getElementById("submitBtn").addEventListener("click",async()=>{
-  const inspector=document.getElementById("inspector").value.trim();
-  const part=document.getElementById("partNo").value.trim();
-  const lot=document.getElementById("lot").value.trim();
-  const qty=document.getElementById("qty").value.trim();
-  if(!part || part.length!==7){showStatus("料號錯誤",true);return;}
-  if(!lot){showStatus("批號必填",true);return;}
-  document.getElementById("loading").style.display="block";
+/* ===== API（GET） ===== */
+function apiGet(paramsObj){
+  const params=new URLSearchParams();
+  Object.entries(paramsObj).forEach(([k,v])=>{ if(v!==undefined&&v!==null) params.append(k,String(v)); });
+  params.append("t",Date.now());
+  const url=`${API_BASE}?${params.toString()}`;
+  return fetch(url,{method:"GET",mode:"cors",cache:"no-store"}).then(r=>r.json());
+}
+function submitData(p){ return apiGet({action:"submit",...p}); }
+function listRecent(){ return apiGet({action:'list_recent'}); }
+
+/* ===== 草稿（當班）：ts 排序 + key2 比對 ===== */
+function dsKeyStr(ds){ return `${ds.ymd}|${ds.shift}`; }
+function dsStorageKey(ds){ return `draft_${ds.ymd}_${ds.shift}`; }
+function getDraftList(ds){ try{ return JSON.parse(localStorage.getItem(dsStorageKey(ds))||'[]'); }catch{ return []; } }
+function saveDraftList(ds,list){ localStorage.setItem(dsStorageKey(ds), JSON.stringify(list||[])); }
+function makeKey(mmdd,shift,part,lot){ return `${mmdd}|${shift}|${part}|${lot}`; }
+function makeKey2(mmdd,shift,lot,qty){ return `${mmdd}|${shift}|${lot}|${qty}|TRUE`; }
+
+/* ---- key2 集合 10s 快取 ---- */
+function key2CacheKey(ds){ return `key2set_${ds.ymd}_${ds.shift}`; }
+function readKey2Cache(ds){
+  try{ const raw=sessionStorage.getItem(key2CacheKey(ds)); if(!raw) return null; const obj=JSON.parse(raw); if(!obj||!obj.ts||!Array.isArray(obj.list)) return null; return obj; }catch(_){ return null; }
+}
+function writeKey2Cache(ds,set){ sessionStorage.setItem(key2CacheKey(ds), JSON.stringify({ts:Date.now(), list:[...set]})); }
+async function getKey2SetCached(ds){
+  const cached = readKey2Cache(ds);
+  if(cached && (Date.now()-cached.ts)<=KEY2_CACHE_TTL){ return new Set(cached.list); }
   try{
-    const key=`${getCurrentDS()}|${part}|${lot}`;
-    const key2=`${getCurrentDS()}|${lot}|${qty}|TRUE`;
-    markRecent(key2,4000); // 新增：標記保護期
-    upsertDraft(part,lot,qty,key,key2); // 樂觀刷新
-    const r=await fetch(`${API_BASE}?action=submit`,{
-      method:"POST",
-      body:JSON.stringify({part_no:part,lot,qty,inspector,key,key2,date_shift:getCurrentDS()}),
-      headers:{"Content-Type":"application/json"}
-    });
-    await r.json();
-    showStatus("送出成功",false);
-    document.getElementById("lot").value="";
-    document.getElementById("qty").value="";
-    setTimeout(validateDrafts,500); // 延遲比對
-  }catch(e){showStatus("送出失敗",true);}finally{
-    document.getElementById("loading").style.display="none";
+    const j=await listRecent();
+    const arr=(j && j.status==='ok' && Array.isArray(j.data)) ? j.data : [];
+    const set=new Set(arr.map(r=>String(r.key2||'')));
+    writeKey2Cache(ds,set);
+    return set;
+  }catch(_){ return new Set(); }
+}
+
+/* ---- 渲染（initial=true：啟動時先用快取決定刪除線） ---- */
+function renderRows(list, initial=false){
+  const body=$('#recordList'); body.innerHTML='';
+  if(!list.length){ body.innerHTML='<tr><td colspan="3" style="color:#888">（當班無草稿）</td></tr>'; return; }
+  let key2Set=null;
+  if(initial){
+    const cached=readKey2Cache(currentDS);
+    if(cached && (Date.now()-cached.ts)<=KEY2_CACHE_TTL){ key2Set = new Set(cached.list); }
+  }
+  for(const it of list){
+    const tr=document.createElement('tr');
+    tr.dataset.key2 = it.key2 || '';
+    tr.dataset.ts   = String(it.ts||Date.now());
+    if(initial && key2Set && it.key2 && !key2Set.has(it.key2)){ tr.classList.add('strike'); }
+    tr.innerHTML = `<td>${it.part_no}</td><td>${it.lot}</td><td>${it.qty}</td>`;
+    body.appendChild(tr);
+  }
+}
+async function renderDrafts(initial=false){
+  let list=getDraftList(currentDS).slice().sort((a,b)=> (b.ts||0)-(a.ts||0));
+  renderRows(list, initial);
+}
+
+/* ---- 背景比對（保護期 + 雙次確認） ---- */
+const missingOnceSet = new Set();
+async function validateDraftsAgainstServer(confirmTwice=true){
+  const body=$('#recordList');
+  const key2Set = await getKey2SetCached(currentDS);
+  const now=Date.now();
+  [...body.querySelectorAll('tr')].forEach(tr=>{
+    const k2=tr.dataset.key2||''; const ts=Number(tr.dataset.ts||0);
+    if(!k2) return;
+    // **新增：近期送出跳過；舊有：3s 保護期**
+    if(isRecent(k2) || (now - ts) < PROTECT_MS){ tr.classList.remove('strike'); return; }
+    if(!key2Set.has(k2)){
+      if(confirmTwice){
+        if(!missingOnceSet.has(k2)){ missingOnceSet.add(k2); return; }
+      }
+      tr.classList.add('strike');
+    }else{
+      missingOnceSet.delete(k2);
+      tr.classList.remove('strike');
+    }
+  });
+}
+
+/* ---- 送出成功 → upsert 草稿（更新也刷新 ts） ---- */
+function upsertDraftAfterSubmit(payload){
+  const ds=currentDS;
+  const list=getDraftList(ds);
+  const key  = makeKey(currentDS.mmdd, currentDS.shift, payload.part_no, payload.lot);
+  const key2 = makeKey2(currentDS.mmdd, currentDS.shift, payload.lot, Number(payload.qty));
+  const nowTs = Date.now();
+  const item = {part_no:payload.part_no, lot:payload.lot, qty:Number(payload.qty), key, key2, ts: nowTs};
+  const idx=list.findIndex(x=>x.key===key);
+  if(idx>=0){ list[idx]=item; } else { list.push(item); }
+  if(list.length>50) list.splice(0, list.length-50);
+  saveDraftList(ds, list);
+  return {key2, nowTs};
+}
+
+/* ===== 送出 ===== */
+let clearPartOnce=false;
+partNo.addEventListener('focus',()=>{ if(clearPartOnce){ partNo.value=''; clearPartOnce=false; } });
+
+document.getElementById('sendBtn').addEventListener('click', async ()=>{
+  const inspectorVal=CANON(inspector.value);
+  const part=CANON(partNo.value);
+  const prefix=CANON(lotPrefix.value);
+
+  if(!/^[A-Z0-9]{5}$/.test(inspectorVal)){ setFieldError(inspector,inspectorError,'需 5 碼英數'); inspector.focus(); return; }
+  setFieldError(inspector,inspectorError,''); persistInspectorIfValid(inspectorVal);
+
+  if(!part){ setFieldError(partNo,partError,'料號必填'); partNo.focus(); return; }
+  if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(part)){ setFieldError(partNo,partError,'格式錯誤（如 A58K052）'); partNo.focus(); return; }
+  setFieldError(partNo,partError,'');
+
+  const r=parseLot(lotInput.value);
+  if(!r.ok){ setFieldError(lotInput,lotError,r.msg); lotInput.focus(); return; }
+  setFieldError(lotInput,lotError,'');
+  const motherChild=r.mother+(r.hasChild?('-'+r.child):'');
+  lotInput.value=motherChild;
+
+  const q=Number(qty.value);
+  if(!(q>0)){ alert('數量需 > 0'); return; }
+
+  const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
+
+  const now=nowCorrected();
+  const payload={
+    date: currentDS.ymd,
+    shift: currentDS.shift,
+    part_no: part,
+    lot: lotDisp,
+    qty: String(q),
+    inspector: inspectorVal,
+    submitted_at: fmtTW(now)
+  };
+
+  const btn=$('#sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
+  try{
+    const data=await submitData(payload);
+    if(data.status!=='ok'){
+      hideCenter(); showCenter('❌ 後端：'+(data.msg||'unknown')); setTimeout(hideCenter,1600); return;
+    }
+    const {key2}=upsertDraftAfterSubmit(payload);
+    // 標記最近 key2（4 秒內不比對）
+    markRecent(key2, 4000);
+
+    await renderDrafts(true);                  // 快速畫出
+    setTimeout(()=> validateDraftsAgainstServer(true), 500); // 0.5s 後背景雙次確認
+
+    hideCenter(); showOk(data.mode==='update'?'✅ 已更新':'✅ 已新增');
+    lotInput.value=''; qty.value=''; clearPartOnce=true;
+  }catch(err){
+    hideCenter(); showCenter('❌ 連線失敗：'+String(err)); setTimeout(hideCenter,1600);
+  }finally{
+    btn.disabled=false;
   }
 });
 
-function showStatus(msg,isErr){
-  const s=document.getElementById("statusMsg");
-  s.className="status-msg "+(isErr?"red":"green");
-  s.innerText=msg;
-  setTimeout(()=>{s.innerText="";},5000);
-}
+/* ===== 初始化 ===== */
+const LAST_DS_KEY='draft_last_ds_key';
+$('#versionTag').textContent=`版本：${FORM_VERSION}`;
 
-window.addEventListener("load",()=>{
-  renderDrafts();
-  validateDrafts();
-});
+(async ()=>{
+  await initClockOffsetSmart();
+  refreshDisplays();
+  setInterval(refreshDisplays,1000);
+
+  const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
+
+  const lastKey=localStorage.getItem(LAST_DS_KEY)||'';
+  const dsKey=`${dsKeyStr(computeShiftByClockFrom(nowCorrected()))}`;
+  if(lastKey && lastKey!==dsKey){
+    localStorage.removeItem(`draft_${lastKey.replace('|','_')}`);
+    localStorage.removeItem(`draft_${lastKey.split('|').join('_')}`);
+  }
+  localStorage.setItem(LAST_DS_KEY, dsKey);
+
+  await renderDrafts(true);              // 啟動先用快取劃線（若有）
+  validateDraftsAgainstServer(true);     // 背景雙次確認
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState==='visible') validateDraftsAgainstServer(true);
+  });
+})();
 </script>
 </body>
 </html>
