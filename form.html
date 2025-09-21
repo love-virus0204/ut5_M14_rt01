@@ -104,7 +104,7 @@
   <hr>
 
   <div class="bottom-info">
-    <div id="versionTag" class="ver-left">版本：v17.9.0</div>
+    <div id="versionTag" class="ver-left">版本：v17.9.1</div>
     <div id="tsView" class="time-right"></div>
   </div>
 
@@ -118,11 +118,13 @@
 
 <script>
 /* ===== 常數 ===== */
-const FORM_VERSION="v17.9.0";
+const FORM_VERSION="v17.9.1";
 const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-const OFFSET_KEY='srv_offset_ms_v1';
+const OFFSET_KEY='srv_offset_ms_v2';
+const EXP_KEY='srv_offset_exp_v2';
+const TEN_MIN=10*60*1000;
 
-/* ===== 工具 ===== */
+/* ===== 小工具 ===== */
 const $=s=>document.querySelector(s);
 function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g," ")}
 function CANON(s){return fw2hw(s).trim().toUpperCase()}
@@ -131,54 +133,66 @@ function fmtYMD(d){return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.ge
 function fmtMD(d){return pad2(d.getMonth()+1)+"/"+pad2(d.getDate())}
 function fmtTW(d){return d.getFullYear()+"/"+pad2(d.getMonth()+1)+"/"+pad2(d.getDate())+" "+pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds())}
 
-/* ===== 伺服器時間校正（載入一次） ===== */
-let offsetMs=0; // 以後都用 deviceNow + offsetMs
-async function initClockOffset(){
+/* ===== 時間校正：台灣時區優先，否則 ping（純文字）＋快取 10 分 ===== */
+let offsetMs=0;
+function isTaiwanTZ(){
+  try{ return Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Taipei'; }
+  catch{ return false; }
+}
+function parseTW(ts){ // "yyyy/MM/dd HH:mm:ss" -> ms
+  const m=/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(ts||'');
+  if(!m) return Date.now();
+  return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]).getTime();
+}
+async function initClockOffsetSmart(){
+  if(isTaiwanTZ()){
+    offsetMs=0;
+    sessionStorage.setItem(OFFSET_KEY,'0');
+    sessionStorage.setItem(EXP_KEY,String(Date.now()+TEN_MIN));
+    return;
+  }
+  const exp=Number(sessionStorage.getItem(EXP_KEY)||0);
+  if(exp && Date.now()<exp){ offsetMs=Number(sessionStorage.getItem(OFFSET_KEY)||0); return; }
+
   try{
-    const r=await fetch(`${API_BASE}?action=ping&t=${Date.now()}`,{cache:'no-store'});
-    const j=await r.json(); // {status:'ok', server_time:"yyyy/MM/dd HH:mm:ss"}
-    if(j && j.status==='ok' && j.server_time){
-      // 解析 "yyyy/MM/dd HH:mm:ss"
-      const m=j.server_time.match(/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
-      const serverMs = m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]).getTime() : Date.now();
-      let off = serverMs - Date.now();  // 正負皆可
-      if(Math.abs(off) <= 120000) off = 0; // 120s 以內視同可忽略
-      offsetMs = off;
-      sessionStorage.setItem(OFFSET_KEY, String(off));
-    }
+    const t0=Date.now();
+    const r=await fetch(`${API_BASE}?action=ping&t=${t0}`,{cache:'no-store'});
+    const text=await r.text(); // 純文字時間
+    const t1=Date.now();
+    const srv=parseTW(text);
+    const rtt=t1-t0;
+    const est=srv + Math.round(rtt/2); // RTT/2 修正
+    let off=est - t1;                  // 可能正負
+    if(Math.abs(off)<=120000) off=0;   // ±120s 內視為 0
+    offsetMs=off;
+    sessionStorage.setItem(OFFSET_KEY,String(off));
+    sessionStorage.setItem(EXP_KEY,String(Date.now()+TEN_MIN));
   }catch(e){
-    // 取不到就用上次偏移；沒有就 0
-    offsetMs = Number(sessionStorage.getItem(OFFSET_KEY)||0);
+    offsetMs=Number(sessionStorage.getItem(OFFSET_KEY)||0);
+    sessionStorage.setItem(EXP_KEY,String(Date.now()+TEN_MIN));
   }
 }
 function nowCorrected(){ return new Date(Date.now()+offsetMs); }
 
-/* ===== 班別錨定（以校正後時間計算：0040/0840/1640）===== */
-function computeShiftByClockFrom(d){ // d: Date（已校正）
+/* ===== 班別：0040/0840/1640 分界 ===== */
+function computeShiftByClockFrom(d){
   const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
-  if(mins>=40 && mins<520){ // 00:40–08:39 → C（日期 -1）
-    const yest=new Date(d); yest.setDate(d.getDate()-1);
-    return {baseDate:yest, mmdd:fmtMD(yest), ymd:fmtYMD(yest), shift:'C'};
-  }else if(mins>=520 && mins<1000){ // 08:40–16:39 → A（今日）
-    return {baseDate:d, mmdd:fmtMD(d), ymd:fmtYMD(d), shift:'A'};
-  }else if(mins>=1000){ // 16:40–23:59 → B（今日）
-    return {baseDate:d, mmdd:fmtMD(d), ymd:fmtYMD(d), shift:'B'};
-  }else{ // 00:00–00:39 → B（日期 -1）
-    const yest=new Date(d); yest.setDate(d.getDate()-1);
-    return {baseDate:yest, mmdd:fmtMD(yest), ymd:fmtYMD(yest), shift:'B'};
-  }
+  if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymd:fmtYMD(y),shift:'C'}; }
+  if(mins>=520 && mins<1000){ return {baseDate:d,mmdd:fmtMD(d),ymd:fmtYMD(d),shift:'A'}; }
+  if(mins>=1000){ return {baseDate:d,mmdd:fmtMD(d),ymd:fmtYMD(d),shift:'B'}; }
+  const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymd:fmtYMD(y),shift:'B'};
 }
 
-/* ===== 顯示：當日/當班與即時時鐘 ===== */
+/* ===== 顯示 ===== */
 let currentDS=null;
 function refreshDisplays(){
   const now=nowCorrected();
-  currentDS = computeShiftByClockFrom(now);
-  $('#dsView').textContent = `${currentDS.mmdd} - ${currentDS.shift}`;
-  $('#tsView').textContent = fmtTW(now);
+  currentDS=computeShiftByClockFrom(now);
+  $('#dsView').textContent=`${currentDS.mmdd} - ${currentDS.shift}`;
+  $('#tsView').textContent=fmtTW(now);
 }
 
-/* ===== 欄位驗證 ===== */
+/* ===== 驗證 ===== */
 const inspector=$('#inspector'), inspectorError=$('#inspectorError');
 const partNo=$('#partNo'), partError=$('#partError');
 const lotPrefix=$('#lotPrefix'), lotInput=$('#lotInput'), lotError=$('#lotError');
@@ -247,7 +261,7 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
-/* ===== API 單一入口（GET） ===== */
+/* ===== API（GET） ===== */
 function apiGet(paramsObj){
   const params=new URLSearchParams();
   Object.entries(paramsObj).forEach(([k,v])=>{ if(v!==undefined&&v!==null) params.append(k,String(v)); });
@@ -284,16 +298,15 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
-  // 送出時間與日期：完全用「裝置時間 + 已校正誤差」
   const now=nowCorrected();
   const payload={
-    date: currentDS.ymd,                 // YYYY-MM-DD（以校正後時間推得）
-    shift: currentDS.shift,              // A/B/C（以校正後時間推得）
+    date: currentDS.ymd,
+    shift: currentDS.shift,
     part_no: part,
     lot: lotDisp,
     qty: String(q),
     inspector: inspectorVal,
-    submitted_at: fmtTW(now)             // yyyy/MM/dd HH:mm:ss
+    submitted_at: fmtTW(now)
   };
 
   const btn=$('#sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
@@ -303,7 +316,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
       hideCenter(); showCenter('❌ 後端：'+(data.msg||'unknown')); setTimeout(hideCenter,1600); return;
     }
     hideCenter(); showOk(data.mode==='update'?'✅ 已更新':'✅ 已新增');
-    // 清空批號、數量；料號保留（下次點料號才一次清空）
     lotInput.value=''; qty.value=''; clearPartOnce=true;
   }catch(err){
     hideCenter(); showCenter('❌ 連線失敗：'+String(err)); setTimeout(hideCenter,1600);
@@ -315,8 +327,8 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 /* ===== 初始化 ===== */
 $('#versionTag').textContent=`版本：${FORM_VERSION}`;
 (async ()=>{
-  await initClockOffset();          // 取伺服器時間一次，算出 ±誤差，≤120s 則視為 0
-  refreshDisplays();                // 顯示當日/當班與即時時間
+  await initClockOffsetSmart();   // 台灣時區 → 直接 0；否則 ping 純文字時間，快取 10 分
+  refreshDisplays();              // 顯示當日/當班與即時時間（以校正後時間）
   setInterval(refreshDisplays,1000);
 })();
 </script>
