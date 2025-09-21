@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RT 外觀抽驗記錄表 v17.11.0</title>
   <style>
-    body { font-family: "Comic Sans MS", sans-serif; margin: 0; padding: 0; }
-    header { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; }
-    header h1 { flex: 1; text-align: center; font-family: "標楷體"; margin: 0; }
-    label { display: inline-block; width: 80px; text-align: center; font-family: "標楷體"; }
-    input, select { font-family: "Comic Sans MS", sans-serif; padding: 4px; margin: 2px; width: 65%; }
-    .btn { display: inline-block; padding: 8px 14px; background: #007BFF; color: #fff; border: none; border-radius: 6px; cursor: pointer; float: right; }
-    .status-msg { margin-top: 4px; text-align: center; font-weight: bold; }
-    .status-msg.green { color: green; }
-    .status-msg.red { color: red; }
-    hr { margin: 12px 0; }
-    .draft-list { margin-top: 10px; text-align: center; }
-    .draft-item.deleted { text-decoration: line-through; color: #888; }
-    .loading { display: none; text-align: center; }
+    body{font-family:"Comic Sans MS",sans-serif;margin:0;padding:0;}
+    header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;}
+    header h1{flex:1;text-align:center;font-family:"標楷體";margin:0;}
+    label{display:inline-block;width:80px;text-align:center;font-family:"標楷體";}
+    input,select{font-family:"Comic Sans MS",sans-serif;padding:4px;margin:2px;width:65%;}
+    .btn{display:inline-block;padding:8px 14px;background:#007BFF;color:#fff;border:none;border-radius:6px;cursor:pointer;float:right;}
+    .status-msg{margin-top:4px;text-align:center;font-weight:bold;}
+    .status-msg.green{color:green;}
+    .status-msg.red{color:red;}
+    hr{margin:12px 0;}
+    .draft-list{margin-top:10px;text-align:center;}
+    .draft-item.deleted{text-decoration:line-through;color:#888;}
+    .loading{display:none;text-align:center;}
   </style>
 </head>
 <body>
@@ -29,7 +29,7 @@
 
   <div style="padding:10px;">
     <div>
-      <label>檢驗員：</label><input type="text" id="inspector" placeholder="請輸入工號">
+      <label>檢　驗：</label><input type="text" id="inspector" placeholder="請輸入工號">
     </div>
     <div>
       <label>料　號：</label><input type="text" id="partNo" placeholder="輸入 7碼料號">
@@ -49,114 +49,109 @@
 
 <script>
 const API_BASE = "https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
-let key2Cache = { time: 0, set: new Set() };
-const CACHE_TTL = 15000; // 15秒更新一次
-const RECENT_TTL = 8000; // 剛送出的 8 秒內不標刪除線
+const TTL = 5000; // 剛送出的保護期
+let key2Cache = {time:0,set:new Set()};
+let lastSubmitKey2 = null;
+let lastSubmitTime = 0;
 
-function getCurrentDS() {
-  const now = new Date();
-  const tzNow = new Date(now.getTime() + (now.getTimezoneOffset() + -480) * 60000);
-  let shift = "A";
-  const hm = tzNow.getHours() * 100 + tzNow.getMinutes();
-  if (hm >= 840 && hm < 1640) shift = "A";
-  else if (hm >= 1640 || hm < 40) shift = "B";
-  else shift = "C";
-  const dateStr = tzNow.getFullYear() + "/" + String(tzNow.getMonth() + 1).padStart(2, "0") + "/" + String(tzNow.getDate()).padStart(2, "0");
-  return { date: dateStr, shift: shift };
+function getCurrentDS(){
+  const now=new Date();
+  let shift="A";
+  const hm=now.getHours()*100+now.getMinutes();
+  if(hm>=840 && hm<1640) shift="A";
+  else if(hm>=1640 || hm<40) shift="B";
+  else shift="C";
+  return `${now.getMonth()+1}/${now.getDate()}|${shift}`;
 }
 
-function loadDraft() {
-  const ds = getCurrentDS();
-  const raw = localStorage.getItem(`draft_${ds.date}_${ds.shift}`);
-  return raw ? JSON.parse(raw) : [];
+function loadDraft(){
+  const ds=getCurrentDS();
+  const raw=localStorage.getItem(`draft_${ds}`);
+  return raw?JSON.parse(raw):[];
+}
+function saveDraft(list){
+  const ds=getCurrentDS();
+  localStorage.setItem(`draft_${ds}`,JSON.stringify(list));
 }
 
-function saveDraft(list) {
-  const ds = getCurrentDS();
-  localStorage.setItem(`draft_${ds.date}_${ds.shift}`, JSON.stringify(list));
+function renderDrafts(){
+  const list=loadDraft().sort((a,b)=>b.ts - a.ts);
+  const wrap=document.getElementById("draftList");
+  wrap.innerHTML=list.map(d=>`<div class="draft-item${d.deleted?" deleted":""}">${d.part_no} ${d.lot} ${d.qty}</div>`).join("");
 }
 
-function renderDrafts() {
-  const list = loadDraft().sort((a, b) => b.ts - a.ts);
-  const wrap = document.getElementById("draftList");
-  wrap.innerHTML = list.map(d => `<div class="draft-item${d.deleted ? " deleted" : ""}">${d.part_no} ${d.lot} ${d.qty}</div>`).join("");
+async function refreshCache(){
+  try{
+    const r=await fetch(`${API_BASE}?action=list_recent`);
+    const j=await r.json();
+    key2Cache.set=new Set(j.map(x=>x.key2));
+    key2Cache.time=Date.now();
+    validateDrafts();
+  }catch(e){console.warn("快取更新失敗",e);}
 }
 
-async function refreshCacheAndMark() {
-  try {
-    const r = await fetch(`${API_BASE}?action=list_recent`);
-    const j = await r.json();
-    key2Cache.set = new Set(j.map(x => x.key2));
-    key2Cache.time = Date.now();
-  } catch (e) { console.warn("快取更新失敗", e); }
-  markDraftDeleted();
-}
-
-function markDraftDeleted() {
-  const list = loadDraft();
-  const now = Date.now();
-  for (const d of list) {
-    const tooFresh = now - d.ts < RECENT_TTL;
-    d.deleted = !tooFresh && !key2Cache.set.has(d.key2);
+function validateDrafts(){
+  const list=loadDraft();
+  const now=Date.now();
+  for(const d of list){
+    if(d.key2===lastSubmitKey2 && now - lastSubmitTime < TTL){
+      d.deleted=false; // 保護期內不標刪
+    }else{
+      d.deleted=!key2Cache.set.has(d.key2);
+    }
   }
   saveDraft(list);
   renderDrafts();
 }
 
-function upsertDraft(part_no, lot, qty, key, key2) {
-  let list = loadDraft();
-  const idx = list.findIndex(x => x.key === key);
-  const now = Date.now();
-  if (idx >= 0) {
-    list[idx] = { part_no, lot, qty, key, key2, ts: now, deleted: false };
-  } else {
-    list.push({ part_no, lot, qty, key, key2, ts: now, deleted: false });
+function upsertDraft(part_no,lot,qty,key,key2){
+  let list=loadDraft();
+  const idx=list.findIndex(x=>x.key===key);
+  const now=Date.now();
+  if(idx>=0){
+    list[idx]={part_no,lot,qty,key,key2,ts:now};
+  }else{
+    list.push({part_no,lot,qty,key,key2,ts:now});
   }
   saveDraft(list);
   renderDrafts();
 }
 
-document.getElementById("submitBtn").addEventListener("click", async () => {
-  const inspector = document.getElementById("inspector").value.trim();
-  const part = document.getElementById("partNo").value.trim();
-  const lot = document.getElementById("lot").value.trim();
-  const qty = document.getElementById("qty").value.trim();
-
-  if (!part || part.length !== 7) { showStatus("料號錯誤", true); return; }
-  if (!lot) { showStatus("批號必填", true); return; }
-
-  document.getElementById("loading").style.display = "block";
-  try {
-    const ds = getCurrentDS();
-    const key = `${ds.date}|${ds.shift}|${part}|${lot}`;
-    const key2 = `${ds.date}|${ds.shift}|${lot}|${qty}|TRUE`;
-
-    upsertDraft(part, lot, qty, key, key2);
-
-    const r = await fetch(`${API_BASE}?action=submit&part_no=${encodeURIComponent(part)}&lot=${encodeURIComponent(lot)}&qty=${encodeURIComponent(qty)}&inspector=${encodeURIComponent(inspector)}&key=${encodeURIComponent(key)}&key2=${encodeURIComponent(key2)}&date_shift=${encodeURIComponent(ds.date + "|" + ds.shift)}`);
+document.getElementById("submitBtn").addEventListener("click",async()=>{
+  const inspector=document.getElementById("inspector").value.trim();
+  const part=document.getElementById("partNo").value.trim();
+  const lot=document.getElementById("lot").value.trim();
+  const qty=document.getElementById("qty").value.trim();
+  if(!part || part.length!==7){showStatus("料號錯誤",true);return;}
+  if(!lot){showStatus("批號必填",true);return;}
+  document.getElementById("loading").style.display="block";
+  try{
+    const key=`${getCurrentDS()}|${part}|${lot}`;
+    const key2=`${getCurrentDS()}|${lot}|${qty}|TRUE`;
+    lastSubmitKey2 = key2;
+    lastSubmitTime = Date.now();
+    upsertDraft(part,lot,qty,key,key2);
+    const r=await fetch(`${API_BASE}?action=submit&part_no=${encodeURIComponent(part)}&lot=${encodeURIComponent(lot)}&qty=${encodeURIComponent(qty)}&inspector=${encodeURIComponent(inspector)}&key=${encodeURIComponent(key)}&key2=${encodeURIComponent(key2)}&date_shift=${encodeURIComponent(getCurrentDS())}`);
     await r.json();
-
-    showStatus("送出成功", false);
-    document.getElementById("lot").value = "";
-    document.getElementById("qty").value = "";
-  } catch (e) {
-    showStatus("送出失敗", true);
-  } finally {
-    document.getElementById("loading").style.display = "none";
+    showStatus("送出成功",false);
+    document.getElementById("lot").value="";
+    document.getElementById("qty").value="";
+  }catch(e){showStatus("送出失敗",true);}finally{
+    document.getElementById("loading").style.display="none";
   }
 });
 
-function showStatus(msg, isErr) {
-  const s = document.getElementById("statusMsg");
-  s.className = "status-msg " + (isErr ? "red" : "green");
-  s.innerText = msg;
-  setTimeout(() => { s.innerText = ""; }, 5000);
+function showStatus(msg,isErr){
+  const s=document.getElementById("statusMsg");
+  s.className="status-msg "+(isErr?"red":"green");
+  s.innerText=msg;
+  setTimeout(()=>{s.innerText="";},5000);
 }
 
-window.addEventListener("load", () => {
+window.addEventListener("load",()=>{
   renderDrafts();
-  refreshCacheAndMark();
-  setInterval(refreshCacheAndMark, CACHE_TTL);
+  refreshCache();
+  setInterval(refreshCache,15000);
 });
 </script>
 </body>
