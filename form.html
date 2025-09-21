@@ -65,7 +65,7 @@
   <div class="row">
     <div class="label">檢驗員：</div>
     <div class="ctrl">
-      <input id="inspector" maxlength="5" placeholder="輸入 5 碼工號" autocomplete="off">
+      <input id="inspector" maxlength="5" placeholder="輸入 5 碼工號">
       <div id="inspectorError" class="field-error"></div>
     </div>
   </div>
@@ -99,7 +99,7 @@
 
   <div class="row">
     <div class="label">數　量：</div>
-    <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入 批量" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+    <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入 批量"></div>
   </div>
 
   <div class="submit" id="submit-row">
@@ -446,7 +446,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 document.getElementById('langBtn').addEventListener('click',()=>alert('多國語言預留：未啟用'));
 </script>
 
-<!-- v17.8.4 integrated logic (GAS v1.4.1 + FA in lot) -->
+<!-- v17.8.7-debug integrated logic (GET-only, FA in lot, debug alerts) -->
 <style>
   .draft-stale { text-decoration: line-through; opacity: .7; }
   .input-error { outline: 2px solid #d33; }
@@ -522,11 +522,12 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
   function vLot(lot){
     const {mother, child, hasDash} = splitLot(lot);
     if (!mother) return "母批必填";
-    if (mother.length!==3) return "母批需 3 碼";
+    if (母批長度錯誤(mother)) return "母批需 3 碼";
     if (/[IiOo]/.test(mother)) return "母批禁用 I,O";
     if (hasDash){ if (!/^\d{1,2}$/.test(child)) return "子批需數字"; }
     return "";
   }
+  function 母批長度錯誤(m){ return m.length!==3; }
   function normLot(lot){
     const {mother, child, hasDash} = splitLot(lot);
     const m = mother;
@@ -576,7 +577,7 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
   }
 
   async function sendGETUpsert(params){
-    const base = (window.API_URL || window.scriptURL || "").toString().replace(/^http:\/\//i,"https://");
+    const base = API_URL.replace(/^http:\/\//i,"https://");
     const url = base + "?" + params.toString();
     const r = await fetch(url, {method:"GET", cache:"no-store"});
     let data = null; try{ data = await r.json(); }catch{}
@@ -608,9 +609,10 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
     const v = readInputs();
     if (!validateAll(v)) return;
     const lotNorm = normLot(v.lot_raw);
-    const lotCombined = (v.fa ? v.fa : "") + lotNorm; // FA + 母批[-子批] → 批號欄
-    const key = buildKey(DS, v.part, lotNorm);   // 不含 FA
-    const key2 = buildKey2(DS, v.part, lotNorm); // 不含 FA
+    const lotCombined = (v.fa ? v.fa : "") + lotNorm;
+    const key = buildKey(DS, v.part, lotNorm);
+    const key2 = buildKey2(DS, v.part, lotNorm);
+
     const params = new URLSearchParams();
     params.set("action", "upsert_get");
     params.set("date_shift", `${DS.md}|${DS.shift}`);
@@ -620,8 +622,16 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
     params.set("inspector", v.inspector);
     params.set("key", key);
     params.set("key2", key2);
+
+    alert("即將送出的參數：\\n"+JSON.stringify(Object.fromEntries(params), null, 2));
+
     let ok=false, data=null, err=null;
-    try{ const r = await sendGETUpsert(params); ok = r.ok; data = r.data; }catch(ex){ err=ex; }
+    try{
+      const r = await sendGETUpsert(params);
+      ok = r.ok; data = r.data;
+      alert("伺服器回應：\\n"+JSON.stringify(data || {}, null, 2));
+    }catch(ex){ err=ex; alert("請求例外：\\n"+ String(ex)); }
+
     if (ok){
       updateDraftAOnSuccess(v);
       updateDraftBOnSuccess(v, lotCombined, key, key2);
@@ -629,7 +639,6 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
       const qtyEl=$("#qty"); if(qtyEl) qtyEl.value="";
       attachPartClearOnce();
     } else {
-      alert("寫入失敗，請稍後重試");
       console.warn("GAS response error:", err||data);
     }
   }
@@ -689,7 +698,6 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
   });
 })();
 </script>
-
 
 </body>
 </html>
