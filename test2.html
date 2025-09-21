@@ -1,248 +1,339 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>外觀抽驗記錄表</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RT 外觀抽驗記錄表</title>
 <style>
-:root { --fg:#111; --muted:#666; --err:#c00; --ok:#0a0; --bd:#ddd; --bg:#fff; --hint:#888; }
-* { box-sizing: border-box; }
-body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,PingFang TC,Microsoft JhengHei,sans-serif; color:var(--fg); background:var(--bg); }
-.wrap { max-width: 960px; margin: 0 auto; padding: 12px; }
-.title { font-size:18px; font-weight:700; text-align:center; margin:8px 0 12px; }
-.ds-line { font-weight:700; margin: 6px 0 10px; }
-.row { display:grid; grid-template-columns: 110px 1fr; align-items:center; gap:8px; padding:6px 0; border-top:1px dashed var(--bd); }
-.row:first-child { border-top:none; }
-label { color:var(--muted); font-size:14px; letter-spacing:1px; }
-input[type="text"], input[type="number"] { width:100%; font-size:16px; padding:10px 12px; border:1px solid var(--bd); border-radius:8px; outline:none; }
-input::placeholder { color:var(--hint); }
-.input-error { border-color: var(--err); }
-.field-error { display:none; color:var(--err); font-size:13px; grid-column: 2 / span 1; }
-.actions { display:flex; gap:8px; align-items:center; padding-top:12px; }
-button { padding:10px 14px; font-size:16px; border-radius:10px; border:1px solid var(--bd); background:#f7f7f7; }
-.status { color:var(--muted); font-size:14px; }
-.ok { color:var(--ok); }
-.err { color:var(--err); }
-.table { width:100%; border-collapse: collapse; margin-top:12px; }
-.table th,.table td { border-bottom:1px solid var(--bd); padding:8px 6px; font-size:14px; text-align:left; }
-.table th { background:#fafafa; }
-.draft-stale { text-decoration: line-through; opacity:.7; }
+  :root{--maxw:520px; --labelw:92px;}
+  body{margin:0;background:#f5f5f5;font-family:"Comic Sans MS",sans-serif}
+  .wrap{max-width:var(--maxw);margin:8px auto;padding:10px 14px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .toolbar{display:grid;grid-template-columns:36px auto 36px;align-items:center;margin-bottom:6px}
+  .tool-left{justify-self:start}
+  .tool-right{justify-self:end}
+  .tool-btn{background:none;border:0;font-size:18px;line-height:1;padding:2px 6px;cursor:pointer}
+  .title{font-family:"標楷體",serif;text-align:center;font-weight:700;margin:0;font-size:1.35rem}
+  .ds-line{font-weight:700;margin:10px 0 12px}
+  .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;gap:8px;padding:8px 0;border-top:1px dashed #ddd}
+  .row:first-child{border-top:0}
+  .label{letter-spacing:2px;color:#444}
+  .ctrl>input,.ctrl>select{width:100%;font-size:16px;padding:10px 12px;border:1px solid #ddd;border-radius:8px;outline:none;background:#fff}
+  .ctrl>input::placeholder{color:#aaa}
+  .field-error{display:none;color:#c00;font-size:13px}
+  .input-error{border-color:#c00}
+  .submit{display:flex;justify-content:flex-start;align-items:center;gap:10px;padding-top:12px}
+  .btn{padding:10px 14px;font-size:16px;border-radius:10px;border:1px solid #ddd;background:#f7f7f7}
+  .ok-msg{display:none;color:#0a0}
+  .dots{display:none;color:#666}
+  .ver-left{color:#666;font-size:12px}
+  .list{margin-top:10px}
+  table{width:100%;border-collapse:collapse}
+  th,td{border-bottom:1px solid #eee;padding:8px 6px;text-align:left}
+  th{background:#fafafa}
+  .muted{color:#888;font-size:12px;text-align:center;padding:12px 0}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="title">外觀抽驗記錄表</div>
-  <div class="ds-line" id="ds-line"></div>
+  <div class="toolbar">
+    <div class="tool-left"><button id="langBtn" class="tool-btn" title="語言">🌐</button></div>
+    <h1 class="title">RT 外觀抽驗記錄表</h1>
+    <div class="tool-right"><button id="backBtn" class="tool-btn" title="返回">↩️</button></div>
+  </div>
 
-  <form id="form" autocomplete="off" novalidate>
-    <div class="row">
-      <label for="inspector">檢　驗</label>
-      <div>
-        <input id="inspector" type="text" placeholder="請輸入檢驗員" />
-        <div class="field-error" id="err-inspector"></div>
-      </div>
+  <div id="dsView" class="ds-line"></div>
+
+  <div class="row">
+    <div class="label">檢驗員：</div>
+    <div class="ctrl">
+      <input id="inspector" placeholder="輸入 5碼工號"/>
+      <div id="err-inspector" class="field-error"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">料　號：</div>
+    <div class="ctrl">
+      <input id="part" placeholder="輸入 7碼料號"/>
+      <div id="err-part" class="field-error"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">型　態：</div>
+    <div class="ctrl">
+      <select id="type"><option value=""></option></select>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">批　號：</div>
+    <div class="ctrl">
+      <input id="lot" placeholder="母批(3碼) or 母批-子批(3-2)；禁 I/O"/>
+      <div id="err-lot" class="field-error"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">數　量：</div>
+    <div class="ctrl">
+      <input id="qty" type="number" inputmode="numeric" min="1" step="1" placeholder="輸入 批量"/>
+      <div id="err-qty" class="field-error"></div>
+    </div>
+  </div>
+
+  <div class="submit" id="submit-row">
+    <div class="submit-center">
+      <div id="okMsg" class="ok-msg"></div>
+      <div id="loadingDots" class="dots">傳送中<span>.</span><span>.</span><span>.</span></div>
+    </div>
+    <button id="sendBtn" class="btn">送出</button>
+  </div>
+
+  <hr>
+
+  <div class="post">
+    <div class="bottom-info">
+      <div id="versionTag" class="ver-left">版本：v17.10.5</div>
+      <div id="clock" class="ver-left" style="float:right"></div>
+      <div style="clear:both"></div>
     </div>
 
-    <div class="row">
-      <label for="part">料　號</label>
-      <div>
-        <input id="part" type="text" inputmode="latin" placeholder="如 A12B345" />
-        <div class="field-error" id="err-part"></div>
-      </div>
+    <div class="list">
+      <table>
+        <thead><tr><th>料　號</th><th>批　號</th><th>數　量</th></tr></thead>
+        <tbody id="recentBody"><tr><td colspan="3" class="muted">(當班無草稿)</td></tr></tbody>
+      </table>
     </div>
-
-    <div class="row">
-      <label for="lot">批　號</label>
-      <div>
-        <input id="lot" type="text" placeholder="批號" />
-        <div class="field-error" id="err-lot"></div>
-      </div>
-    </div>
-
-    <div class="row">
-      <label for="qty">數　量</label>
-      <div>
-        <input id="qty" type="number" inputmode="numeric" step="1" min="1" placeholder="正整數" />
-        <div class="field-error" id="err-qty"></div>
-      </div>
-    </div>
-
-    <!-- 一次性鎖定用 -->
-    <input id="date" type="hidden" />
-    <input id="shift" type="hidden" />
-
-    <div class="actions">
-      <button id="submitBtn" type="submit">送出</button>
-      <div class="status" id="status"></div>
-    </div>
-  </form>
-
-  <!-- 若你有清單就保留這區；沒有也不影響 -->
-  <table class="table" id="recentTable" style="display:none">
-    <thead><tr><th>日期</th><th>班別</th><th>檢驗員</th><th>料號</th><th>批號</th><th>數量</th></tr></thead>
-    <tbody id="recentBody"><tr><td colspan="6">無資料</td></tr></tbody>
-  </table>
+  </div>
 </div>
 
 <script>
-/* ===== 基本設定 ===== */
-const API_BASE = (window.API_URL || window.scriptURL || ""); // 直接沿用你既有設定
-const SEND_KEYS = { action:"upsert", inspector:"inspector", part:"part_no", lot:"lot", qty:"qty", date:"date", shift:"shift" };
-const DS_KEY="ds_ymd_once", SHIFT_KEY="ds_shift_once";
-const DRAFT = { inspector:"draft_inspector", part:"draft_part", lot:"draft_lot", qty:"draft_qty" };
-const TZ_DELTA_KEY="tzTWDeltaMs";
+/* ===== 版本與 API ===== */
+const FORM_VERSION="v17.10.5";
+const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU8...8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
+const API_BASE_FALLBACK = (window.API_URL || window.scriptURL || API_BASE);
 
-const $ = (id)=>document.getElementById(id);
-const setErr = (id,msg)=>{ const el=$(id); if(!el) return; el.textContent=msg||""; el.style.display=msg?"block":"none"; };
-const setStatus = (msg, ok=null)=>{ const el=$("status"); if(!el) return; el.textContent=msg||""; el.classList.remove("ok","err"); if(ok===true) el.classList.add("ok"); if(ok===false) el.classList.add("err"); };
+/* ===== 可調參數 ===== */
+const ENABLE_RECENT_KEY2_PROTECT = true;
+const RECENT_KEY2_TTL_MS = 5000;
+const POLL_INTERVAL_MS    = 15000;
+const PING_INTERVAL_MS    = 240000;
 
-/* ===== 驗證：沿用你專案規則 ===== */
-function vInspector(s){ return (!s || s.trim().length<1) ? "請輸入檢驗員" : ""; }
-function vPart(p){
-  if (typeof p!=="string") return "料號需文字";
-  p=p.trim();
-  if (p.length!==7) return "料號需 7 碼";
-  const L=c=>/[A-Za-z]/.test(c), D=s=>/^\d+$/.test(s);
-  if (!L(p[0])) return "第1碼需英文";
-  if (!L(p[3])) return "第4碼需英文";
-  if (!D(p.slice(1,3)+p.slice(4))) return "其餘需數字";
+/* ===== 小工具 ===== */
+const $=s=>document.querySelector(s);
+function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));}
+function hw(s){return String(s||"").replace(/\s+/g," ").trim();}
+function isTPE(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Taipei'; }catch{ return false; } }
+
+/* ===== ping（相容極簡/JSON） ===== */
+async function pingNow(){
+  try{
+    const r=await fetch(`${API_BASE_FALLBACK}?action=ping&t=${Date.now()}`,{cache:'no-store'});
+    const txt=await r.text();
+    const m = txt.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
+    if(m){
+      const srv = new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]).getTime();
+      return srv;
+    }
+    const j = JSON.parse(txt);
+    if(j && j.ts) return +j.ts;
+    return Date.now();
+  }catch{ return Date.now(); }
+}
+
+/* ===== API 包裝（GET-only） ===== */
+function apiGet(obj){
+  const params=new URLSearchParams();
+  Object.entries(obj||{}).forEach(([k,v])=>{ if(v!==undefined&&v!==null) params.append(k,String(v)); });
+  params.append("t",Date.now());
+  const url=`${API_BASE_FALLBACK}?${params.toString()}`;
+  return fetch(url,{method:"GET",mode:"cors",cache:"no-store"})
+    .then(async r=>{
+      const txt=await r.text();
+      try{ return JSON.parse(txt); }catch{ return txt; }
+    });
+}
+function submitData(p){ return apiGet({action:"submit",...p}); }
+function listRecent(){ return apiGet({action:'list_recent'}); }
+
+/* ===== 草稿儲存 ===== */
+function dsStorageKey(ds){ return `draft_${ds.ymdSlash}_${ds.shift}`; }
+function getDraftList(ds){ try{ return JSON.parse(localStorage.getItem(dsStorageKey(ds))||'[]'); }catch{ return []; } }
+function saveDraftList(ds,list){ localStorage.setItem(dsStorageKey(ds), JSON.stringify(list||[])); }
+function makeKey(mmdd,shift,part,lot){ return `${mmdd}|${shift}|${part}|${lot}`; }
+function makeKey2(mmdd,shift,lot,qty,ok){ const [m,b='']=String(lot||'').split('-'); return `${mmdd}|${shift}|${m||''}|${b||''}|${ok?'TRUE':'FALSE'}`; }
+
+/* ===== 當班與時間 ===== */
+let tzDelta=0;
+async function ensureTZ(){
+  tzDelta=0;
+  if(isTPE()) return;
+  try{
+    const r=await fetch("https://worldtimeapi.org/api/timezone/Asia/Taipei",{cache:"no-store"});
+    if(!r.ok) return;
+    const j=await r.json();
+    tzDelta = j.unixtime*1000 - Date.now();
+  }catch{}
+}
+function now(){ return new Date(Date.now()+tzDelta); }
+function ymd(d){ return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`; }
+function mmdd(d){ return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`; }
+function parseShift(d){
+  const m=d.getHours()*60+d.getMinutes();
+  if(m>=520 && m<=999) return "A";
+  if(m>=1000 || m<=39) return "B";
+  return "C";
+}
+function currentDS(){
+  const n=now();
+  const shift=parseShift(n);
+  const base=new Date(n);
+  if(shift==="C") base.setDate(base.getDate()-1);
+  const ymd_ = ymd(base);
+  return { ymd: ymd_, ymdSlash: ymd_, md: mmdd(base), shift };
+}
+
+/* ===== 驗證（沿用） ===== */
+function vInspector(s){ return (!s||hw(s).length<1)?"檢驗員必填":""; }
+function vPart(s){
+  s=hw(s).toUpperCase();
+  if(s.length!==7) return "料號 7 碼";
+  if(!/^[A-Z]\d{2}[A-Z]\d{3}$/.test(s)) return "格式 A12B345";
   return "";
 }
-function vLot(s){ return (!s || !s.trim()) ? "批號不可空白" : ""; }
-function vQty(q){
-  if (q===""||q===null||q===undefined) return "數量不可空白";
-  const n=Number(q);
-  if (!Number.isFinite(n) || n<=0) return "數量需為正數";
-  if (!Number.isInteger(n)) return "需為整數";
+function vLot(s){
+  s=hw(s).toUpperCase();
+  if(!s) return "批號必填";
+  if(!/^[A-Z0-9]{3}(-[A-Z0-9]{2})?$/.test(s)) return "母批(3) 或 母批-子批(3-2)";
+  if(/[IO]/.test(s)) return "禁 I/O";
+  return "";
+}
+function vQty(v){
+  const n=+v; if(!Number.isInteger(n)||n<=0) return "正整數";
   return "";
 }
 function validateAll(){
-  const ins=$("inspector"), part=$("part"), lot=$("lot"), qty=$("qty");
-  const e1=vInspector(ins.value); setErr("err-inspector",e1); ins.classList.toggle("input-error",!!e1);
-  const e2=vPart(part.value);     setErr("err-part",e2);     part.classList.toggle("input-error",!!e2);
-  const e3=vLot(lot.value);       setErr("err-lot",e3);      lot.classList.toggle("input-error",!!e3);
-  const e4=vQty(qty.value);       setErr("err-qty",e4);      qty.classList.toggle("input-error",!!e4);
+  const e1=vInspector($('#inspector').value);
+  const e2=vPart($('#part').value);
+  const e3=vLot($('#lot').value);
+  const e4=vQty($('#qty').value);
+  $('#err-inspector').textContent=e1; $('#err-inspector').style.display=e1?"block":"none"; $('#inspector').classList.toggle('input-error',!!e1);
+  $('#err-part').textContent=e2; $('#err-part').style.display=e2?"block":"none"; $('#part').classList.toggle('input-error',!!e2);
+  $('#err-lot').textContent=e3; $('#err-lot').style.display=e3?"block":"none"; $('#lot').classList.toggle('input-error',!!e3);
+  $('#err-qty').textContent=e4; $('#err-qty').style.display=e4?"block":"none"; $('#qty').classList.toggle('input-error',!!e4);
   return !(e1||e2||e3||e4);
 }
 
-/* ===== 台北時區校正（每次載入一次） ===== */
-let tzDelta = Number(localStorage.getItem(TZ_DELTA_KEY)||0)||0;
-function inTPE(){ try { return Intl.DateTimeFormat().resolvedOptions().timeZone==="Asia/Taipei"; } catch { return false; } }
-async function ensureTZ(){
-  if (inTPE()){ tzDelta=0; localStorage.setItem(TZ_DELTA_KEY,"0"); return; }
-  try{
-    const r=await fetch("https://worldtimeapi.org/api/timezone/Asia/Taipei",{cache:"no-store"});
-    if (r.ok){ const j=await r.json(); tzDelta=j.unixtime*1000 - Date.now(); localStorage.setItem(TZ_DELTA_KEY,String(tzDelta)); }
-  }catch{}
-}
-function tpeNow(){ return new Date(Date.now()+tzDelta); }
-function ymd(d){ return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`; }
-
-/* ===== 當班解析（A:08:40–16:39, B:16:40–00:39, C:00:40–08:39→前一日） ===== */
-function computeDS(now){
-  const m=now.getHours()*60+now.getMinutes();
-  let shift="A";
-  if (m>=520 && m<=999) shift="A";
-  else if (m>=1000 || m<=39) shift="B";
-  else shift="C";
-  const d=new Date(now);
-  if (shift==="C") d.setDate(d.getDate()-1);
-  return { ymd:ymd(d), md:ymd(d).slice(5), shift };
+/* ===== UI 小件 ===== */
+function showCenter(t){ $('#loadingDots').style.display='inline-block'; if(t) $('#okMsg').textContent=t; }
+function hideCenter(){ $('#loadingDots').style.display='none'; }
+function repaintList(ds){
+  const list=getDraftList(ds);
+  const tb=$('#recentBody');
+  tb.innerHTML=list.length? list.map(r=>`<tr><td>${r.part||''}</td><td>${r.lot||''}</td><td>${r.qty||''}</td></tr>`).join("") : `<tr><td colspan="3" class="muted">(當班無草稿)</td></tr>`;
 }
 
-/* ===== 載入：校時→算班別→鎖定 DS→草稿處理 ===== */
-async function initDS(){
-  await ensureTZ();
-  const ds=computeDS(tpeNow());
-  const lastDS=localStorage.getItem(DS_KEY)||"", lastSH=localStorage.getItem(SHIFT_KEY)||"";
-
-  // 寫入鎖定值
-  localStorage.setItem(DS_KEY,ds.ymd);
-  localStorage.setItem(SHIFT_KEY,ds.shift);
-  const dsView=document.getElementById("ds-line");
-  if (dsView) dsView.textContent = `${ds.md}-${ds.shift}`;
-  const dEl=$("date"), sEl=$("shift");
-  if (dEl) dEl.value=ds.ymd; if (sEl) sEl.value=ds.shift;
-
-  // 換班：清空料號/批號/數量草稿；檢驗員獨立
-  if (lastDS && (lastDS!==ds.ymd || lastSH!==ds.shift)){
-    localStorage.removeItem(DRAFT.part);
-    localStorage.removeItem(DRAFT.lot);
-    localStorage.removeItem(DRAFT.qty);
-    $("part").value=""; $("lot").value=""; $("qty").value="";
-  }else{
-    // 同班：套用草稿
-    $("part").value = localStorage.getItem(DRAFT.part)||"";
-    $("lot").value  = localStorage.getItem(DRAFT.lot)||"";
-    $("qty").value  = localStorage.getItem(DRAFT.qty)||"";
+/* ===== 快取比對（key2） ===== */
+function readKey2Cache(ds){
+  try{ return new Set(JSON.parse(localStorage.getItem('cache_'+ds.ymdSlash+'_'+ds.shift)||'[]')); }catch{ return new Set(); }
+}
+function writeKey2Cache(ds,set){ localStorage.setItem('cache_'+ds.ymdSlash+'_'+ds.shift, JSON.stringify(Array.from(set||[]))); }
+function markOldDraftsStrikeWithCache(ds){
+  const s=readKey2Cache(ds);
+  const list=getDraftList(ds);
+  const t=Date.now();
+  for(const it of list){
+    if(ENABLE_RECENT_KEY2_PROTECT && t-(it.savedAt||0)<RECENT_KEY2_TTL_MS) { it.strike=false; continue; }
+    it.strike = !s.has(String(it.key2||""));
   }
-  // 檢驗員草稿
-  const insDraft=localStorage.getItem(DRAFT.inspector)||"";
-  if (!$("inspector").value && insDraft) $("inspector").value=insDraft;
+  saveDraftList(ds,list);
+  repaintList(ds);
 }
 
-/* ===== 送出 ===== */
-function buildParams(){
-  const ds = { date: localStorage.getItem(DS_KEY)||$("date").value||"", shift: localStorage.getItem(SHIFT_KEY)||$("shift").value||"" };
-  const p = new URLSearchParams();
-  p.set("action", SEND_KEYS.action);
-  p.set(SEND_KEYS.inspector, $("inspector").value.trim());
-  p.set(SEND_KEYS.part, $("part").value.trim());
-  p.set(SEND_KEYS.lot, $("lot").value.trim());
-  p.set(SEND_KEYS.qty, String($("qty").value).trim());
-  p.set(SEND_KEYS.date, ds.date);
-  p.set(SEND_KEYS.shift, ds.shift);
-  return p;
-}
-async function sendGET(params){
-  const base = String(API_BASE||"").replace(/^http:\/\//i,"https://");
-  if (!/^https?:\/\//i.test(base)) throw new Error("未設定 API_URL/scriptURL");
-  const url = base + "?" + params.toString();
-  const r = await fetch(url, { method:"GET", cache:"no-store" });
-  const text = await r.text();
-  let j=null; try{ j=JSON.parse(text); }catch{}
-  return j;
+/* ===== 送出流程 ===== */
+async function handleSubmitSuccess(payload){
+  markOldDraftsStrikeWithCache(currentDS()); // 先用舊快取標記
+  const ds=currentDS();
+  const key = makeKey(ds.md, ds.shift, payload.part_no, payload.lot);
+  const key2= makeKey2(ds.md, ds.shift, payload.lot, payload.qty, true);
+  const list=getDraftList(ds);
+  list.unshift({part:payload.part_no, lot:payload.lot, qty:payload.qty, key, key2, strike:false, savedAt:Date.now()});
+  saveDraftList(ds,list.slice(0,50));
+  repaintList(ds);
+  $('#okMsg').textContent='已寫入'; $('#okMsg').style.display='inline-block';
+  setTimeout(()=>{ $('#okMsg').style.display='none'; },1500);
 }
 
-/* ===== 綁定 ===== */
-document.addEventListener("DOMContentLoaded", ()=>{
-  initDS().catch(()=>{});
-  $("inspector").addEventListener("change", ()=>{ const v=$("inspector").value.trim(); if(!vInspector(v)) localStorage.setItem(DRAFT.inspector, v); });
-  $("part").addEventListener("input", ()=>{ localStorage.setItem(DRAFT.part, $("part").value); });
-  $("lot").addEventListener("input",  ()=>{ localStorage.setItem(DRAFT.lot,  $("lot").value);  });
-  $("qty").addEventListener("input",  ()=>{ localStorage.setItem(DRAFT.qty,  $("qty").value);  });
+async function submitFlow(){
+  if(!validateAll()) return;
 
-  const form=$("form");
-  const btn=$("submitBtn");
-  form.addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    if (!validateAll()){ setStatus("請先修正欄位錯誤", false); return; }
-    setStatus("送出中…", null); btn.disabled=true;
+  const ds=currentDS();
+  const payload={
+    inspector: hw($('#inspector').value),
+    part_no :  hw($('#part').value).toUpperCase(),
+    lot     :  hw($('#lot').value).toUpperCase(),
+    qty     :  String($('#qty').value).trim(),
+    date    :  ds.ymdSlash,
+    shift   :  ds.shift,
+    submitted_at: '' // 由 GAS 端決定時間
+  };
 
-    try{
-      const res = await sendGET(buildParams());
-      const ok = !!(res && (res.status==="ok" || res.ok===1 || res.ok===true));
-      if (ok){
-        setStatus("已寫入", true);
-        // 成功後：清空批號、數量；料號保留但「送出後第一次點擊才清」
-        $("lot").value=""; $("qty").value="";
-        localStorage.setItem(DRAFT.lot,""); localStorage.setItem(DRAFT.qty,"");
-        const el=$("part");
-        if (el){
-          const once=()=>{ el.value=""; el.removeEventListener("focus",once); el.removeEventListener("click",once); localStorage.removeItem(DRAFT.part); };
-          el.addEventListener("focus", once, {once:false});
-          el.addEventListener("click",  once, {once:false});
-        }
-      }else{
-        setStatus("寫入失敗", false);
-      }
-    }catch(err){
-      setStatus("網路或伺服器錯誤", false);
-    }finally{
-      btn.disabled=false;
+  const btn=$('#sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
+  try{
+    const data=await submitData({
+      ...payload,
+      // 如 GAS 回傳極簡 {ok:1,mode:'add|update'} 也能相容
+    });
+    const ok = (data && (data.status==='ok' || data.ok===1 || data.ok===true));
+    if(!ok){
+      hideCenter(); showCenter('❌ 後端：'+(data && (data.msg||data.error)||'unknown')); setTimeout(hideCenter,1600); return;
     }
-  }, {capture:true});
-});
+    await handleSubmitSuccess(payload);
+  }catch(err){
+    hideCenter(); showCenter('❌ 連線失敗：'+(err&&err.message||'fetch')); setTimeout(hideCenter,1600);
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+function startPolling(){
+  setInterval(refreshCacheAndRepaint, POLL_INTERVAL_MS);
+}
+
+/* 定時：抓後端 list_recent → 更新快取 → 重標 strike → 重繪（相容極簡回傳） */
+let __polling=false;
+async function refreshCacheAndRepaint(){
+  if(__polling) return;
+  __polling=true;
+  try{
+    const j=await listRecent();
+    let arr=[];
+    if(Array.isArray(j)) arr=j;
+    else if(j && (j.status==='ok' || j.ok===true) && Array.isArray(j.data)) arr=j.data;
+    const set=new Set(arr.map(r=> String((r.key2||""))));
+    writeKey2Cache(currentDS(),set);
+    markOldDraftsStrikeWithCache(currentDS());
+    await repaintList(currentDS());
+  }catch{} finally{ __polling=false; }
+}
+
+/* ===== 初始化 ===== */
+(async function(){
+  try{ await ensureTZ(); }catch{}
+  const ds=currentDS();
+  document.getElementById('dsView').textContent = `${ds.md}-${ds.shift}`;
+  document.getElementById('versionTag').textContent = `版本：${FORM_VERSION}`;
+  repaintList(ds);
+
+  document.getElementById('sendBtn').addEventListener('click', (e)=>{ e.preventDefault(); submitFlow(); });
+
+  // 立即同步一次
+  refreshCacheAndRepaint();
+
+  // GAS 保溫
+  setInterval(()=>{ fetch(`${API_BASE_FALLBACK}?action=ping&t=${Date.now()}`,{cache:'no-store'}).catch(()=>{}); }, PING_INTERVAL_MS);
+})();
 </script>
 </body>
 </html>
