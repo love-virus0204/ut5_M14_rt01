@@ -7,21 +7,25 @@
 <style>
 body{font-family:system-ui;margin:0;padding:20px;background:#fafafa}
 button{font-size:20px;padding:12px 24px;border-radius:8px;border:1px solid #ccc;cursor:pointer}
-pre{background:#000;color:#0f0;padding:8px;white-space:pre-wrap;margin-top:12px;border-radius:8px;font:12px ui-monospace,monospace;max-height:40vh;overflow:auto}
+pre{background:#000;color:#0f0;padding:8px;white-space:pre-wrap;margin-top:12px;border-radius:8px;font:12px ui-monospace,monospace;max-height:45vh;overflow:auto}
+.small{font-size:12px;color:#666;margin-top:8px}
 </style>
 </head>
 <body>
-<h2>GAS 測試送出</h2>
+<h2>GAS 測試送出（GET）</h2>
 <button id="testBtn">送出固定資料</button>
+<div class="small">部署：AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei</div>
 <pre id="log"></pre>
 
 <script>
-// 已填入你表單使用的完整 exec URL
-const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU8dU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
+// 你的最新版 GAS 部署 ID（已寫死）
+const DEPLOY_ID = "AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei";
+// Web App 執行網址
+const API_BASE = `https://script.google.com/macros/s/${DEPLOY_ID}/exec`;
 
 function log(msg){
   const el=document.getElementById("log");
-  el.textContent+=msg+"\n";
+  el.textContent += msg + "\n";
 }
 
 async function testSend(){
@@ -36,19 +40,33 @@ async function testSend(){
     submitted_at:"2025/09/22 03:30:00",
     t:Date.now()
   };
-  const url=API_BASE+"?"+new URLSearchParams(payload).toString();
-  log("[URL] "+url);
+  const url = API_BASE + "?" + new URLSearchParams(payload).toString();
+  log("[URL] " + url);
   try{
-    const r=await fetch(url,{method:"GET",cache:"no-store"});
-    log("[HTTP] "+r.status);
-    const txt=await r.text();
-    log("[RESP] "+txt.slice(0,200));
+    const r = await fetch(url,{method:"GET",cache:"no-store"});
+    log("[HTTP] " + r.status);
+    const txt = await r.text();
+    log("[RESP] " + txt.slice(0,400));
   }catch(e){
-    log("[ERR] "+(e&&e.message||e));
+    log("[ERR] " + (e && e.message || e));
   }
 }
 
-document.getElementById("testBtn").addEventListener("click",testSend);
+document.getElementById("testBtn").addEventListener("click", testSend);
+
+// 開頁先做一次 ping 觀測通道（不需按鈕）
+(async function autoPing(){
+  const url = API_BASE + "?action=ping&t=" + Date.now();
+  log("[PING] " + url);
+  try{
+    const r = await fetch(url,{method:"GET",cache:"no-store"});
+    log("[PING_HTTP] " + r.status);
+    const txt = await r.text();
+    log("[PING_RESP] " + txt.slice(0,200));
+  }catch(e){
+    log("[PING_ERR] " + (e && e.message || e));
+  }
+})();
 </script>
 </body>
 </html>
