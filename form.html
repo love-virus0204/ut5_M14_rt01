@@ -333,8 +333,8 @@ async function verifyAndStrike(key, part, lotDisp, qty, inspector){
   try{
     const ymd = new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replace(/\//g,'/');
     const url = `${API_URL}?action=list&date=${encodeURIComponent(ymd)}&shift=${encodeURIComponent(currentDS.shift)}&t=${Date.now()}`;
-    const r = await fetch(url, {method:'GET', cache:'no-store'});
-    const js = await r.json();
+    const r = await fetch(url, { method:'GET', cache:'no-store', mode:'no-cors' });
+    const js = /* json skipped in no-cors */ undefined;
 
     const row = (js.rows||[]).find(x => String(x.key).toUpperCase() === String(key).toUpperCase());
     let strike = false;
@@ -419,7 +419,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
       mode:'cors',
       redirect:'follow'
     });
-    const data = await res.json();
+    const data = /* json skipped in no-cors */ undefined;
 
     if (data.status !== 'ok'){
       hideCenter(); showCenter('❌ 後端：'+(data.msg||'unknown')); setTimeout(hideCenter,1500);
@@ -453,12 +453,9 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
   if (window.__gpt_ds_front_v181__) return;
   window.__gpt_ds_front_v181__ = true;
 
-  // ---- DS calculate on front-end ----
   function computeShiftAndDate(){
-    // A: 08:40–16:39, B: 16:40–00:39, C: 00:40–08:39; C uses previous day
     var now = new Date();
-    var h = now.getHours(), m = now.getMinutes();
-    var minutes = h*60 + m;
+    var minutes = now.getHours()*60 + now.getMinutes();
     var shift="A";
     if (minutes >= 520 && minutes <= 999)      shift = "A";        // 08:40–16:39
     else if (minutes >= 1000 || minutes <= 39) shift = "B";        // 16:40–00:39
@@ -477,20 +474,12 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
       var se = document.getElementById("shift");
       if (de) de.value = ds.ymd;
       if (se) se.value = ds.shift;
-      // also expose global for legacy code
       window.currentDS = { dateMD: ds.md, shift: ds.shift };
     }catch(e){}
   }
-
-  function ensureDS(){
-    var ds = computeShiftAndDate();
-    writeHidden(ds);
-    return ds;
-  }
-
+  function ensureDS(){ var ds = computeShiftAndDate(); writeHidden(ds); return ds; }
   document.addEventListener("DOMContentLoaded", ensureDS);
 
-  // ---- Enforce date in URLSearchParams to DS yyyy/MM/dd ----
   (function(){
     var _USP = window.URLSearchParams;
     if(!_USP) return;
@@ -502,14 +491,12 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
     _USP.prototype.append = function(k,v){ return _append.call(this,k,fix(k,v)); };
   })();
 
-  // ---- Also refresh DS just before form submit if a form with id=form exists ----
   (function(){
     var f = document.getElementById("form");
-    if (f){
-      f.addEventListener("submit", function(){ ensureDS(); }, {capture:true});
-    }
+    if (f){ f.addEventListener("submit", function(){ ensureDS(); }, {capture:true}); }
   })();
 })();
 </script>
+
 </body>
 </html>
