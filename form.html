@@ -695,7 +695,19 @@ document.getElementById('langBtn').addEventListener('click',()=>alert('多國語
     initSubmit();
     startPoller();
     applyStaleClasses();
+    // Robust bind: also intercept any submit buttons
+    try {
+      const btns = Array.from(document.querySelectorAll('button[type="submit"], input[type="submit"]'));
+      btns.forEach(btn => {
+        btn.addEventListener('click', function(e){ e.preventDefault(); onSubmit(e); }, {capture:true});
+      });
+    } catch(_) {}
   });
+  // Catch unexpected JS errors to surface
+  window.addEventListener('error', function(ev){
+    try { alert("JS Error: " + ev.message); } catch(_){}
+  });
+
 })();
 </script>
 
