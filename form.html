@@ -5,23 +5,31 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>RT 外觀抽驗記錄表</title>
   <style>
-    /* 不動你原本的結構；僅保底樣式，避免影響既有 CSS */
-    :root { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", Arial, sans-serif; }
-    .row{display:flex;align-items:center;gap:.5rem;margin:.6rem 0;}
-    .row label{min-width:4.5em;}
-    input,select,button{font-size:1rem;padding:.55rem .6rem;}
+    /* 版面回到 v17.10.5：標題置中、左右小圖示位 */
+    :root { font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif; }
+    .header{display:grid;grid-template-columns:2.5rem 1fr 2.5rem;align-items:center;margin:1rem 0}
+    .ico{width:2rem;height:2rem;opacity:.7}
+    h1{margin:0;text-align:center;font-size:1.8rem}
+    .row{display:flex;align-items:center;gap:.6rem;margin:.6rem auto;max-width:680px}
+    .row label{min-width:4.8em}
+    input,select,button{font-size:1rem;padding:.55rem .6rem}
     button{cursor:pointer}
-    #ver{opacity:.6;font-size:.9rem}
-    table{width:100%;border-collapse:collapse;margin-top:1rem}
-    th,td{border-bottom:1px solid #ddd;padding:.5rem .4rem;text-align:left}
+    .container{max-width:720px;margin:0 auto;padding:0 1rem}
+    footer{max-width:720px;margin:1rem auto 0;text-align:right;opacity:.6;font-size:.9rem}
+    table{width:100%;border-collapse:collapse;margin:1rem auto 0;max-width:720px}
+    th,td{border-bottom:1px solid #ddd;padding:.5rem .4rem;text-align:center}
   </style>
 </head>
 <body>
+<div class="container">
+  <!-- 左：語言球；中：標題置中；右：返回 -->
+  <div class="header">
+    <img class="ico" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M12 2a10 10 0 100 20 10 10 0 000-20Zm-1 2.06A8 8 0 014 11h7V4.06ZM4 13a8 8 0 007 6.94V13H4Zm9 6.94A8 8 0 0020 13h-7v6.94ZM13 11h7a8 8 0 00-7-6.94V11Z'/%3E%3C/svg%3E" alt="">
+    <h1>RT 外觀抽驗記錄表</h1>
+    <button id="btnBack" class="ico" title="返回" aria-label="返回" style="border:none;background:transparent">⤺</button>
+  </div>
 
-  <!-- 標題與排版維持：不嵌其他字樣 -->
-  <h2>RT 外觀抽驗記錄表 <small id="ver">v17.11.2</small></h2>
-
-  <!-- 表單骨架：四欄（檢驗員、料號、批號、數量）。不新增顯示欄位 -->
+  <!-- 表單骨架四欄：檢驗員、料號、批號、數量（與 v17.10.5 一致） -->
   <form id="form" autocomplete="off">
     <div class="row">
       <label for="inspector">檢驗員：</label>
@@ -40,7 +48,7 @@
       <input id="qty" type="number" inputmode="numeric" />
     </div>
 
-    <!-- 隱藏：送出用，頁面不顯示 -->
+    <!-- 隱藏：僅送值，不顯示 -->
     <input id="date" type="hidden" />
     <input id="shift" type="hidden" />
 
@@ -49,85 +57,82 @@
     </div>
   </form>
 
-  <!-- 下方清單：保留給你現有渲染；僅做字色著色 -->
+  <!-- 下方清單（置中表格，倒序交由你既有邏輯；這裡只做字色渲染） -->
   <table id="list">
     <thead>
-      <tr>
-        <th>日期</th><th>班別</th><th>料號</th><th>批號</th><th>數量</th><th>檢驗員</th>
-      </tr>
+      <tr><th>日期</th><th>班別</th><th>料號</th><th>批號</th><th>數量</th><th>檢驗員</th></tr>
     </thead>
     <tbody></tbody>
   </table>
+</div>
+
+<footer id="footVer">v17.11.3</footer>
 
 <script>
-/* RT Frontend v17.11.2（基於 v17.10.5，不動排版/文字）
+/* RT Frontend v17.11.3（基於 v17.10.5，不改骨架/標題）
    - 送出：GET；date 與 shift 分開
-   - 草稿B：{part_no,lot,qty,time,status}（僅此五欄）
-   - 列表字色：更新=粉(#ff1493)，新增=綠(#008000)
+   - 草稿B：{part_no,lot,qty,time,status}
+   - 列表字色：更新=粉、 新增=綠
    - 移除舊快取鍵；5 分鐘 ping；送出後清批號/數量；select 回預設；料號保留
+   - GAS URL 寫死
 */
-const API_URL = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+const API_URL="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
 (function(){
-  const $ = (s) => document.querySelector(s);
-  const $$ = (s) => Array.from(document.querySelectorAll(s));
-  const gv = (s) => { const el = $(s) || document.getElementsByName(s.replace(/^#/,''))[0]; return el ? String(el.value||'').trim() : ''; }
-  const sv = (s,v) => { const el = $(s) || document.getElementsByName(s.replace(/^#/,''))[0]; if(el) el.value = v; }
+  const $=s=>document.querySelector(s);
+  const $$=s=>Array.from(document.querySelectorAll(s));
+  const gv=s=>{const el=$(s)||document.getElementsByName(s.replace(/^#/,'')[0]);return el?String(el.value||'').trim():''}
+  const sv=(s,v)=>{const el=$(s)||document.getElementsByName(s.replace(/^#/,'')[0]);if(el)el.value=v}
 
-  // ---- 時間與班別（台北時區）----
-  function taipeiDate() {
-    try{
-      return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    }catch(_){
-      const d=new Date(),p=n=>('0'+n).slice(-2);
-      return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}`;
-    }
+  // 版頭返回（維持原行為：history.back）
+  $('#btnBack')?.addEventListener('click',()=>history.back());
+
+  // ---- 台北時間與班別 ----
+  function taipeiDate(){
+    try{ return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()) }
+    catch(_){ const d=new Date(),p=n=>('0'+n).slice(-2); return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}` }
   }
   function computeShift(){
-    try{
-      const h=parseInt(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',hour:'2-digit',hour12:false}).format(new Date()),10)||0;
-      return h<8?'C':h<16?'A':'B';
-    }catch(_){
-      const h=(new Date()).getHours(); return h<8?'C':h<16?'A':'B';
-    }
+    try{ const h=parseInt(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',hour:'2-digit',hour12:false}).format(new Date()),10)||0; return h<8?'C':h<16?'A':'B' }
+    catch(_){ const h=(new Date()).getHours(); return h<8?'C':h<16?'A':'B' }
   }
   function nowISO(){
     try{
-      return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date()).replace(' ','T');
+      return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date()).replace(' ','T')
     }catch(_){
       const d=new Date(),p=n=>('0'+n).slice(-2);
-      return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+      return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
     }
   }
 
-  // ---- 清除舊快取鍵 ----
-  ['recentKeys','serverKeys','cacheKeys','key2_cache','sync_timer'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(_){}});
+  // ---- 清掉舊快取鍵 ----
+  ['recentKeys','serverKeys','cacheKeys','key2_cache','sync_timer'].forEach(k=>{try{localStorage.removeItem(k)}catch(_){}});
 
-  // ---- 草稿B（只五欄）----
+  // ---- 草稿B（五欄）----
   const DKEY='draftB_v5';
-  const loadB = () => { try{ return JSON.parse(localStorage.getItem(DKEY))||[] }catch(_){ return [] } };
-  const saveB = (a) => localStorage.setItem(DKEY, JSON.stringify(a));
+  const loadB=()=>{try{return JSON.parse(localStorage.getItem(DKEY))||[]}catch(_){return[]}}
+  const saveB=a=>localStorage.setItem(DKEY,JSON.stringify(a));
   function upsertB(o){
-    let a = loadB().filter(x=>!(x.part_no===o.part_no && x.lot===o.lot));
+    let a=loadB().filter(x=>!(x.part_no===o.part_no&&x.lot===o.lot));
     a.push(o);
-    a.sort((A,B)=>(B.time||'').localeCompare(A.time||'')); // 時間降冪
+    a.sort((A,B)=>(B.time||'').localeCompare(A.time||'')); // 降冪
     saveB(a);
   }
 
-  // ---- 依草稿B 著色（字體顏色）----
+  // ---- 著色（字體顏色）----
   function detectIdx(tbl){
     let idx={part:-1,lot:-1};
     tbl.querySelectorAll('thead th').forEach((th,i)=>{
       const t=(th.textContent||'').trim();
-      if(idx.part<0 && /料號|料件|Part/i.test(t)) idx.part=i;
-      if(idx.lot <0 && /批號|Lot/i.test(t))        idx.lot =i;
+      if(idx.part<0 && /料號|Part/i.test(t)) idx.part=i;
+      if(idx.lot <0 && /批號|Lot/i.test(t))  idx.lot =i;
     });
     return idx;
   }
   function colorizeByDraftB(){
-    const tbl = $('#list'); if(!tbl) return;
-    const rows = tbl.querySelectorAll('tbody tr'); if(!rows.length) return;
-    const idx = detectIdx(tbl); if(idx.part<0 || idx.lot<0) return;
+    const tbl=$('#list'); if(!tbl) return;
+    const rows=tbl.querySelectorAll('tbody tr'); if(!rows.length) return;
+    const idx=detectIdx(tbl); if(idx.part<0||idx.lot<0) return;
     const map={}; loadB().forEach(x=>map[x.part_no+'|'+x.lot]=x.status);
     rows.forEach(tr=>{
       const c=tr.children;
@@ -139,48 +144,43 @@ const API_URL = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdT
     });
   }
 
-  // ---- 初始化隱藏欄位（僅送值，不改你的顯示）----
+  // 初始化隱藏送值
   sv('#date', taipeiDate());
   sv('#shift', computeShift());
 
-  // ---- 送出（GET；date/shift 分開）----
+  // ---- 送出（GET）----
   async function submitGET(){
     const base=API_URL.replace(/\/exec.*$/,'')+'/exec';
-
-    const dateOnly = gv('#date');
-    const shift    = gv('#shift') || computeShift();
-    const part_no  = gv('#part_no');
-    const lot      = gv('#lot');
-    const qty      = gv('#qty');
-    const inspector= gv('#inspector');
+    const dateOnly=gv('#date');
+    const shift=gv('#shift')||computeShift();
+    const part_no=gv('#part_no');
+    const lot=gv('#lot');
+    const qty=gv('#qty');
+    const inspector=gv('#inspector');
 
     if(!/^\d{4}\/\d{2}\/\d{2}$/.test(dateOnly)){ alert('日期需 yyyy/MM/dd'); return; }
     if(!shift){ alert('班別解析失敗'); return; }
+    if(!part_no||!lot||!qty||!inspector){ alert('欄位不得為空'); return; }
 
-    const seg=String(lot||'').split('-'); // JVK-580 → ['JVK','580']
+    const seg=String(lot||'').split('-');
     const key =`${dateOnly}|${shift}|${part_no}|${lot}`;
     const key2=`${dateOnly}|${shift}|${seg[0]||''}|${seg[1]||''}|TRUE`;
 
-    const qs = new URLSearchParams({
-      action:'submit', date:dateOnly, shift:shift,
-      part_no, lot, qty, inspector, key, key2, t:Date.now()
-    });
-
+    const qs=new URLSearchParams({action:'submit',date:dateOnly,shift,part_no,lot,qty,inspector,key,key2,t:Date.now()});
     let resp={status:'error'};
     try{
-      const r = await fetch(`${base}?${qs.toString()}`, { method:'GET', cache:'no-store' });
-      resp = await r.json();
-    }catch(e){ alert('連線失敗：Failed to fetch'); return; }
+      const r=await fetch(`${base}?${qs.toString()}`,{method:'GET',cache:'no-store'});
+      resp=await r.json();
+    }catch(_){ alert('連線失敗：Failed to fetch'); return; }
 
     if(resp.status!=='ok'){ alert('後端：'+(resp.msg||'unknown_action_get')); return; }
 
-    const op=String(resp.op||'').toLowerCase(); // insert | update
-    upsertB({part_no, lot, qty, time: nowISO(), status: (op==='update'?'更新':'新增')});
+    const op=String(resp.op||'').toLowerCase();
+    upsertB({part_no,lot,qty,time:nowISO(),status:(op==='update'?'更新':'新增')});
     try{ colorizeByDraftB(); }catch(_){}
 
-    // 送出後：清批號/數量；select 回預設；料號保留
-    const lotEl=$('#lot'); if(lotEl) lotEl.value='';
-    const qtyEl=$('#qty'); if(qtyEl) qtyEl.value='';
+    // 送出後行為：清批號/數量、select 回預設、料號保留
+    $('#lot').value=''; $('#qty').value='';
     $$('select').forEach(s=>{ try{s.selectedIndex=0;}catch(_){}});
 
     if(typeof window.list_recent==='function'){
@@ -188,19 +188,17 @@ const API_URL = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdT
     }
   }
 
-  // 綁定（缺了才補，不覆蓋你原事件）
-  const fm=$('#form'); if(fm && !fm.__v2112){ fm.addEventListener('submit',e=>{e.preventDefault();submitGET();}); fm.__v2112=true; }
-  const btn=$('#btnSubmit'); if(btn && !btn.__v2112){ btn.addEventListener('click',e=>{e.preventDefault();submitGET();}); btn.__v2112=true; }
+  // 綁定（避免重覆）
+  const fm=$('#form'); if(fm && !fm.__v2113){ fm.addEventListener('submit',e=>{e.preventDefault();submitGET();}); fm.__v2113=true; }
+  const btn=$('#btnSubmit'); if(btn && !btn.__v2113){ btn.addEventListener('click',e=>{e.preventDefault();submitGET();}); btn.__v2113=true; }
 
-  // ---- 保溫 ping（5 分鐘）----
+  // 保溫 ping（5 分鐘）
   function ping(){ fetch(API_URL.replace(/\/exec.*$/,'')+'/exec?action=ping&t='+Date.now(),{method:'GET',cache:'no-store'}).catch(()=>{}); }
-  ping(); setInterval(ping, 5*60*1000);
+  ping(); setInterval(ping,5*60*1000);
 
   // 首次著色
   try{ colorizeByDraftB(); }catch(_){}
-
 })();
 </script>
-
 </body>
 </html>
