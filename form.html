@@ -1,3 +1,4 @@
+<!-- RT 外觀記錄表 Frontend v17.10.9 | 基於 v17.10.5；僅改送參數、草稿B、字體顏色渲染、移除冗餘 -->
 <!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -120,7 +121,7 @@
 <script>
 /* ===== 版本與 API ===== */
 const FORM_VERSION="v17.10.5";
-const API_BASE="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 
 /* ===== 可調參數 ===== */
 const ENABLE_RECENT_KEY2_PROTECT = true;
@@ -473,140 +474,149 @@ $('#versionTag').textContent=`版本：${FORM_VERSION}`;
 })();
 </script>
 
-<section id="draftB_section" style="margin:16px 0;">
-  <h3 style="margin:8px 0;">草稿B</h3>
-  <div class="table-responsive">
-    <table class="table" style="width:100%;border-collapse:collapse;">
-      <thead>
-        <tr>
-          <th style="text-align:left;padding:6px 8px;">料號</th>
-          <th style="text-align:left;padding:6px 8px;">批號</th>
-          <th style="text-align:right;padding:6px 8px;">數量</th>
-          <th style="text-align:left;padding:6px 8px;">狀態</th>
-          <th style="text-align:left;padding:6px 8px;">時間</th>
-        </tr>
-      </thead>
-      <tbody id="draftB_tbody"></tbody>
-    </table>
-  </div>
-</section>
-
-
 <script>
+/* v17.10.9 patch: date+shift 送出、DraftB{part_no,lot,qty,time,status}、字體顏色渲染、移除冗餘 */
 (function(){
-  var API_URL = (window.API_URL || window.API_BASE || window.GAS_URL || "").replace(/\/exec.*$/,'') + "/exec";
-  if (!/^https:\/\/script\.google\.com\/macros\/s\//.test(API_URL)) {
-    API_URL = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
-  }
-
+  // ===== Utils =====
   function q(sel){ return document.querySelector(sel); }
-  function val(id){ var el=q(id); return el ? String(el.value||'').trim() : ''; }
-  function esc(s){ return String(s).replace(/[&<>"']/g, function(m){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];}); }
-  function nowTaipeiISO(){
-    var z = new Date();
+  function qa(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+  function val(sel){
+    var el = document.querySelector(sel) || document.querySelector(`[name="${sel.replace('#','')}"]`);
+    return el ? String(el.value||'').trim() : '';
+  }
+  function nowISO(){
     try{
-      var fmt = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
-      return fmt.format(z).replace(' ','T');
+      return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})
+        .format(new Date()).replace(' ','T');
     }catch(_){
-      var y=z.getFullYear(),m=('0'+(z.getMonth()+1)).slice(-2),d=('0'+z.getDate()).slice(-2);
-      var H=('0'+z.getHours()).slice(-2),M=('0'+z.getMinutes()).slice(-2),S=('0'+z.getSeconds()).slice(-2);
-      return y+'-'+m+'-'+d+'T'+H+':'+M+':'+S;
+      var d=new Date(),p=n=>('0'+n).slice(-2);
+      return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());
     }
   }
 
-  var DRAFTB_KEY = 'draftB_list';
-  function loadDraftB(){ try{return JSON.parse(localStorage.getItem(DRAFTB_KEY))||[];}catch(_){return [];} }
-  function saveDraftB(arr){ localStorage.setItem(DRAFTB_KEY, JSON.stringify(arr)); }
-  function pushDraftB(item){
-    var arr = loadDraftB().filter(function(x){return x.key!==item.key;});
-    arr.push(item);
-    arr.sort(function(a,b){ return b.time.localeCompare(a.time); });
-    saveDraftB(arr);
-  }
-  function renderDraftB(){
-    var tb = q('#draftB_tbody'); if(!tb) return;
-    var arr = loadDraftB();
-    tb.innerHTML = arr.map(function(row){
-      var color = row.status==='更新' ? '#ffebf0' : '#e6ffef';
-      var tm = (row.time||'').replace('T',' ');
-      return '<tr style="background:'+color+'">' +
-        '<td style="padding:6px 8px">'+esc(row.part_no||'')+'</td>' +
-        '<td style="padding:6px 8px">'+esc(row.lot||'')+'</td>' +
-        '<td style="padding:6px 8px;text-align:right">'+esc(row.qty||'')+'</td>' +
-        '<td style="padding:6px 8px">'+row.status+'</td>' +
-        '<td style="padding:6px 8px">'+tm+'</td>' +
-      '</tr>';
-    }).join('');
-  }
+  // ===== API URL（沿用既有全域，不覆蓋） =====
+  var API_URL = (window.API_URL || window.API_BASE || window.GAS_URL || '');
+  if (!API_URL) console.warn('[v17.10.9] 未偵測到 API_URL，將沿用頁面原送出。');
 
+  // ===== 清掉舊快取鍵值（一次性） =====
   ['recentKeys','serverKeys','cacheKeys','key2_cache','sync_timer'].forEach(function(k){
     try{ localStorage.removeItem(k); }catch(_){}
   });
 
-  async function submitFormGET(){
-    var part = val('#part_no');
-    var lot  = val('#lot');
-    var qty  = val('#qty');
-    var insp = val('#inspector');
+  // ===== DraftB（五欄） =====
+  var DKEY='draftB_v5';
+  function loadB(){ try{return JSON.parse(localStorage.getItem(DKEY))||[];}catch(_){return [];} }
+  function saveB(a){ localStorage.setItem(DKEY, JSON.stringify(a)); }
+  function upsertB(rec){ // {part_no, lot, qty, time, status}
+    var a = loadB().filter(function(x){ return !(x.part_no===rec.part_no && x.lot===rec.lot); });
+    a.push(rec);
+    a.sort(function(A,B){ return (B.time||'').localeCompare(A.time||''); });
+    saveB(a);
+  }
+
+  // ===== 字體顏色渲染（依料號+批號） =====
+  function detectIdx(table){
+    var idx = { part:-1, lot:-1 };
+    var ths = table.querySelectorAll('thead th');
+    ths.forEach(function(th,i){
+      var t=(th.textContent||'').trim();
+      if (idx.part<0 && /料號|料件|Part/i.test(t)) idx.part=i;
+      if (idx.lot<0  && /批號|Lot/i.test(t))       idx.lot=i;
+    });
+    return idx;
+  }
+  function colorizeByDraftB(){
+    var table = document.querySelector('table'); if(!table) return;
+    var rows  = table.querySelectorAll('tbody tr'); if(!rows.length) return;
+    var idx = detectIdx(table);
+    if (idx.part<0 || idx.lot<0) return;
+
+    // 建立 (part|lot -> status) 映射（以最新為準）
+    var map = {};
+    loadB().forEach(function(x){ map[x.part_no+'|'+x.lot] = x.status; });
+
+    rows.forEach(function(tr){
+      var c = tr.children;
+      var part = (c[idx.part]?.textContent||'').trim();
+      var lot  = (c[idx.lot ]?.textContent||'').trim();
+      var st = map[part+'|'+lot];
+      if (!st) return;
+      tr.style.textDecoration='none';
+      // 全列字色
+      tr.style.color = (st==='更新') ? '#ff0000' : '#008000'; // 紅/綠
+    });
+  }
+
+  // ===== 送出攔截：用 date+shift（GET） =====
+  async function submitGET_v109(){
+    if (!API_URL){ alert('API_URL 未設定'); return; }
+
     var dateOnly = val('#date');
     var shift    = val('#shift');
+    var part     = val('#part_no');
+    var lot      = val('#lot');
+    var qty      = val('#qty');
+    var insp     = val('#inspector');
 
-    var key  = dateOnly + '|' + shift + '|' + part + '|' + lot;
     var seg  = String(lot||'').split('-');
+    var key  = dateOnly + '|' + shift + '|' + part + '|' + lot;
     var key2 = dateOnly + '|' + shift + '|' + (seg[0]||'') + '|' + (seg[1]||'') + '|TRUE';
 
-    var draftB = loadDraftB();
-    var existed = draftB.some(function(x){ return x.key===key; });
-    var status = existed ? '更新' : '新增';
-
     var qs = new URLSearchParams({
-      action: 'submit',
-      date: dateOnly,
-      shift: shift,
-      part_no: part,
-      lot: lot,
-      qty: qty,
-      inspector: insp,
-      key: key,
-      key2: key2,
-      t: Date.now()
+      action:'submit',
+      date:dateOnly, shift:shift,
+      part_no:part, lot:lot, qty:qty, inspector:insp,
+      key:key, key2:key2, t:Date.now()
     });
+    var url = API_URL.replace(/\/exec.*$/,'') + '/exec?' + qs.toString();
 
-    var url = API_URL + '?' + qs.toString();
-    var res = await fetch(url,{method:'GET', cache:'no-store'});
-    var txt = await res.text();
-    var ok=false; try{ ok = JSON.parse(txt).status==='ok'; }catch(_){}
+    var ok=false, resp={};
+    try{
+      var r = await fetch(url,{method:'GET', cache:'no-store'});
+      resp = await r.json(); // 期望 {status:'ok', op:'insert'|'update'}
+      ok = resp && resp.status==='ok';
+    }catch(e){ console.warn(e); }
 
-    if (ok){
-      pushDraftB({ key:key, part_no:part, lot:lot, qty:qty, status:status, time: nowTaipeiISO() });
-      renderDraftB();
-      var lotEl = document.querySelector('#lot'); if(lotEl) lotEl.value='';
-      var qtyEl = document.querySelector('#qty'); if(qtyEl) qtyEl.value='';
-    }else{
-      console.warn('RESP_FAIL', txt);
-      alert('送出失敗');
+    if (!ok){ alert('送出失敗'); return; }
+
+    var op = String(resp.op||'').toLowerCase();
+    if (op==='insert' || op==='update'){
+      upsertB({ part_no:part, lot:lot, qty:qty, time:nowISO(), status: (op==='update'?'更新':'新增') });
+      colorizeByDraftB();
+    }
+
+    // 送出後：清空批號、數量；下拉恢復預設；料號與檢驗員保留
+    var el;
+    el=q('#lot'); if(el) el.value='';
+    el=q('#qty'); if(el) el.value='';
+    qa('select').forEach(function(s){ try{ s.selectedIndex = 0; }catch(_){} });
+  }
+
+  // 綁定：優先用 #btnSubmit；否則攔截第一個 form 的 submit
+  var bound=false;
+  var btn=q('#btnSubmit');
+  if (btn){
+    btn.addEventListener('click', function(ev){ ev.preventDefault(); submitGET_v109(); });
+    bound=true;
+  }
+  if (!bound){
+    var fm = q('form');
+    if (fm){
+      fm.addEventListener('submit', function(ev){ ev.preventDefault(); submitGET_v109(); });
     }
   }
 
-  var btn = document.querySelector('#btnSubmit');
-  if (btn){
-    btn.addEventListener('click', function(e){
-      e.preventDefault();
-      submitFormGET().catch(function(err){
-        console.error(err); alert('送出例外');
-      });
-    });
-  }
+  // 首次渲染上色（若已有草稿）
+  try{ colorizeByDraftB(); }catch(_){}
 
-  renderDraftB();
-
+  // ===== 5 分鐘 keep-alive ping（沿用 API_URL） =====
   function ping(){
-    var u = API_URL + '?action=ping&t=' + Date.now();
-    fetch(u, {method:'GET', cache:'no-store'}).catch(function(_){});
+    if (!API_URL) return;
+    var u = API_URL.replace(/\/exec.*$/,'') + '/exec?action=ping&t=' + Date.now();
+    fetch(u,{method:'GET', cache:'no-store'}).catch(function(){});
   }
   ping();
-  try{ setInterval(ping, 5*60*1000); }catch(_){}
-
+  setInterval(ping, 5*60*1000);
 })();
 </script>
 
