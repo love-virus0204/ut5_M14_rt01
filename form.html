@@ -2,328 +2,209 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>RT 外觀抽驗記錄表</title>
+<!-- v17.11.6（基於 .5；只改行為與頁面版號，禁止任何未要求的自動判斷與排版變更） -->
 <style>
-  :root { --fg:#111; --muted:#666; --ok:#0a0; --edit:#d2187a; }
-  body{font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,"Noto Sans TC",Arial;
-       margin:0;color:var(--fg);background:#fff;}
-  .wrap{max-width:940px;margin:0 auto;padding:20px;}
-  header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
-  header h1{font-weight:800;font-size:28px;margin:0}
-  header .ver{margin-left:8px;font-size:12px;color:var(--muted)}
-  .row{display:grid;grid-template-columns:86px 1fr;align-items:center;gap:10px;margin:12px 0;}
-  label{font-size:18px;letter-spacing:.2em}
-  input,select,button{font-size:18px;padding:12px;border:1px solid #bbb;border-radius:6px;outline:none}
-  input:focus,select:focus{border-color:#333}
-  button{cursor:pointer;background:#0b63f6;color:#fff;border:none}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .hint{color:var(--muted);font-size:12px;margin-top:4px}
-  footer{display:flex;justify-content:space-between;align-items:center;margin:16px 0 10px;color:var(--muted)}
-  table{width:100%;border-collapse:collapse;margin:10px 0 24px}
-  th,td{padding:14px 6px;border-bottom:1px solid #eee;text-align:center}
-  .badge{font-size:12px;padding:2px 6px;border-radius:999px;border:1px solid #ccc;color:#444}
-  .c-ok{color:var(--ok);font-weight:700}
-  .c-edit{color:var(--edit);font-weight:700}
-  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
-         background:#333;color:#fff;padding:12px 16px;border-radius:10px;opacity:.98;z-index:99}
-  @media (max-width:560px){ .row{grid-template-columns:72px 1fr} label{font-size:16px} }
+  html,body{margin:0;padding:0;background:#fff;color:#111;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,"Noto Sans TC","Microsoft JhengHei",sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:16px 14px 48px}
+  header{display:flex;align-items:center;gap:10px}
+  header h1{font-size:34px;letter-spacing:2px;margin:16px 0}
+  .ver{font-size:14px;color:#666;margin-left:8px}
+  .head-row{display:flex;align-items:baseline;gap:16px;margin:4px 0 10px}
+  .head-date{font-size:22px;letter-spacing:2px}
+  .row{display:flex;align-items:center;gap:12px;margin:12px 0}
+  .label{flex:0 0 72px;letter-spacing:8px;text-align:right}
+  .ctrl{flex:1}
+  input,button{font-size:18px}
+  input{width:100%;box-sizing:border-box;border:1px solid #c8c8c8;border-radius:6px;padding:12px 14px;outline:none}
+  input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+  .btn{display:inline-block;border:none;background:#1162ff;color:#fff;border-radius:10px;padding:14px 26px;cursor:pointer}
+  .btn:active{transform:translateY(1px)}
+  .muted{color:#666;font-size:14px}
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;color:#666;font-size:14px}
+  table{width:100%;border-collapse:collapse;margin-top:18px}
+  th,td{border-bottom:1px solid #e7e7e7;padding:14px 6px;text-align:center}
+  .none{padding:18px 0;color:#666;text-align:center}
+  /* 草稿B 字體色（僅字色，不改背景） */
+  .ins-row.ok  { color:#03a66d; font-weight:700; }
+  .ins-row.upd { color:#ff4da6; font-weight:700; }
+  /* 簡易吐司 */
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:92vw;background:#333;color:#fff;border-radius:10px;padding:14px 16px;font-size:18px;box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s}
+  .toast.show{opacity:1}
 </style>
 </head>
+
 <body>
 <div class="wrap">
+
   <header>
     <h1>RT 外觀抽驗記錄表</h1>
-    <span class="ver">v17.11.3</span>
+    <span class="ver" id="ver">v17.11.6</span>
   </header>
 
-  <!-- 顯示「MM/DD - 班別」 -->
-  <div class="row" style="margin-top:4px;">
-    <label id="todayShiftLabel" style="grid-column:1/3;font-weight:700"></label>
+  <div class="head-row">
+    <div class="head-date" id="headShift">MM/DD - S</div>
   </div>
 
-  <!-- 表單骨架（沿用 v17.10.5：檢驗員、料號、型態、批號、數量） -->
+  <!-- 表單骨架（沿用 .5：檢驗員、料號、批號、數量） -->
   <div class="row">
-    <label for="inspector">檢驗員：</label>
-    <input id="inspector" type="text" inputmode="latin" autocomplete="off" placeholder="請輸入檢驗員" />
-  </div>
-
-  <div class="row">
-    <label for="part_no">料　號：</label>
-    <input id="part_no" type="text" inputmode="latin" autocomplete="off" placeholder="如 A12B345" />
+    <div class="label">檢　驗：</div>
+    <div class="ctrl"><input id="inspector" type="text" placeholder="請輸入檢驗員" autocomplete="off"></div>
   </div>
 
   <div class="row">
-    <label for="type">型　態：</label>
-    <select id="type">
-      <option value="" selected>請選擇</option>
-      <option value="OK">OK</option>
-      <option value="NG">NG</option>
-    </select>
+    <div class="label">料　號：</div>
+    <div class="ctrl"><input id="part_no" type="text" placeholder="如 A12B345" autocomplete="off"></div>
   </div>
 
   <div class="row">
-    <label for="lot">批　號：</label>
-    <input id="lot" type="text" inputmode="latin" autocomplete="off" placeholder="批號" />
+    <div class="label">批　號：</div>
+    <div class="ctrl"><input id="lot" type="text" placeholder="批號" autocomplete="off"></div>
   </div>
 
   <div class="row">
-    <label for="qty">數　量：</label>
-    <input id="qty" type="text" inputmode="numeric" autocomplete="off" placeholder="正整數" />
+    <div class="label">數　量：</div>
+    <div class="ctrl"><input id="qty" type="text" placeholder="正整數" inputmode="numeric" autocomplete="off"></div>
   </div>
 
-  <div class="row" style="margin-top:8px;">
-    <span></span>
-    <button id="btnSend">送出</button>
+  <div class="row" style="margin-top:10px">
+    <div class="label"></div>
+    <div class="ctrl">
+      <button id="btnSend" class="btn">送出</button>
+    </div>
   </div>
 
-  <footer>
-    <div id="verNote" class="hint">已對齊 GAS v1.4.6，送出分送 date + shift。</div>
-    <div id="nowTs" class="hint"></div>
-  </footer>
+  <div class="foot">
+    <div class="muted">對齊 GAS v1.4.6；送出以 GET 並分送 date + shift。</div>
+    <div class="muted" id="nowTick">0000/00/00 00:00:00</div>
+  </div>
 
   <table>
     <thead>
-    <tr>
-      <th>料　號</th>
-      <th>批　號</th>
-      <th>數　量</th>
-    </tr>
+      <tr>
+        <th>料　號</th>
+        <th>批　號</th>
+        <th>數　量</th>
+      </tr>
     </thead>
-    <tbody id="draftTbody">
-      <tr><td colspan="3" class="hint" style="text-align:center">(當班無草稿)</td></tr>
+    <tbody id="tbody">
+      <tr><td class="none" colspan="3">（當班無草稿）</td></tr>
     </tbody>
   </table>
+
 </div>
 
-<div id="toast" class="toast" style="display:none"></div>
+<div id="toast" class="toast"></div>
 
 <script>
-/* ===== 常數：寫死你的 GAS URL（GET）===== */
-const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+/* v17.11.6 行為補丁（僅 JS；禁止未要求的自動判斷） */
+const API_URL = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+const PING_MS = 300000;
 
-/* ===== 版本 ===== */
-const FORM_VER = "v17.11.3";
+/* DOM（沿用 .5） */
+const $ = s => document.querySelector(s);
+const elInsp = $("#inspector");
+const elPart = $("#part_no");
+const elLot  = $("#lot");
+const elQty  = $("#qty");
+const elBtn  = $("#btnSend");
+const elBody = $("#tbody");
 
-/* ===== 工具 ===== */
-const $ = (id)=>document.getElementById(id);
-const toast = (msg)=>{ const t=$("toast"); t.textContent=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",1800); };
-const pad2 = n => String(n).padStart(2,"0");
+/* 工具 */
+const pad=n=>String(n).padStart(2,"0");
+function nowTPE(){
+  const d=new Date();
+  const y=d.getFullYear(), m=pad(d.getMonth()+1), dd=pad(d.getDate());
+  const hh=pad(d.getHours()), mm=pad(d.getMinutes()), ss=pad(d.getSeconds());
+  return {y,m,dd,hh,mm,ss, ymd:`${y}/${m}/${dd}`, md:`${m}/${dd}`, hms:`${hh}:${mm}:${ss}`};
+}
+function guessShift(h){ if(h>=6&&h<=13)return"A"; if(h>=14&&h<=21)return"B"; return"C"; }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
 
-/* ===== 取得台北時間（裝置為主，格式 yyyy/MM/dd 與 MM/DD 與 HH）===== */
-function nowTaipei() {
-  // 以裝置時間為準，僅格式化為台北
-  const d = new Date();
-  const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
-  const hh = d.getHours(), mm = d.getMinutes(), ss = d.getSeconds();
-  return {
-    y, m, day, hh, mm, ss,
-    ymd: `${y}/${pad2(m)}/${pad2(day)}`,
-    md: `${pad2(m)}/${pad2(day)}`,
-    hms: `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}`
-  };
+/* 草稿B（五欄）；換班清空 */
+const K_INFO="rt_day_shift", K_B="rt_draft_b";
+const LS={g(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}, s(k,v){localStorage.setItem(k,JSON.stringify(v))}};
+function ensureScope(){
+  const n=nowTPE(), cur={date:n.ymd, shift:guessShift(+n.hh)};
+  const prev=LS.g(K_INFO,null);
+  if(!prev || prev.date!==cur.date || prev.shift!==cur.shift){ LS.s(K_B,[]); LS.s(K_INFO,cur); }
+  return cur;
+}
+function renderB(){
+  const arr=(LS.g(K_B,[])).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(!elBody) return;
+  if(!arr.length){ elBody.innerHTML=`<tr><td class="none" colspan="3">（當班無草稿）</td></tr>`; return; }
+  elBody.innerHTML=arr.map(x=>{
+    const cls = x.status==="update" ? 'class="ins-row upd"' : 'class="ins-row ok"';
+    return `<tr ${cls}><td>${x.part_no||""}</td><td>${x.lot||""}</td><td>${x.qty||""}</td></tr>`;
+  }).join("");
 }
 
-/* ===== 班別推導（沿用你舊規則）===== */
-function guessShift(h){
-  if (h>=6 && h<=13) return "A";
-  if (h>=14 && h<=21) return "B";
-  return "C";
+/* 驗證（沿用 .5 規則） */
+function validate(){
+  const inspector=(elInsp?.value||"").trim();
+  const part=(elPart?.value||"").trim().toUpperCase();
+  const lot =(elLot ?.value||"").trim().toUpperCase();
+  const qty =(elQty ?.value||"").trim();
+  if(!inspector) return "請輸入檢驗員";
+  if(!/^[A-Za-z0-9]{5,}$/.test(part)) return "料號格式錯誤";
+  if(!lot) return "請輸入批號";
+  if(!/^[1-9]\\d*$/.test(qty)) return "數量需為正整數";
+  return {inspector,part,lot,qty};
 }
 
-/* ===== 草稿（當班）與 草稿B（列表用）===== */
-const LS_INSPECTOR = "rt.inspector";           // 檢驗員「保溫」
-const LS_DRAFT = "rt.draft";                   // 當班草稿（含欄位快填）
-const LS_DRAFT_B = "rt.draftB";                // 列表：{part_no,lot,qty,time,status}
-const LS_SHIFT_KEY = "rt.shift.key";           // 當班識別 "yyyy/MM/dd|Shift"
-
-/* 當班 key */
-function todayShiftKey() {
-  const n = nowTaipei(); const s = guessShift(n.hh);
-  return `${n.ymd}|${s}`;
-}
-
-/* 切班則清草稿 */
-function ensureDraftForShift() {
-  const key = todayShiftKey();
-  const saved = localStorage.getItem(LS_SHIFT_KEY);
-  if (saved !== key) {
-    // 換班：清除「當班草稿」與 DraftB，保留「檢驗員」
-    localStorage.setItem(LS_SHIFT_KEY, key);
-    localStorage.removeItem(LS_DRAFT);
-    localStorage.removeItem(LS_DRAFT_B);
-  }
-}
-
-/* 渲染當班日期+班別（MM/DD - S） */
-function renderTodayShift() {
-  const n = nowTaipei();
-  const s = guessShift(n.hh);
-  $("todayShiftLabel").textContent = `${n.md} - ${s}`;
-  $("nowTs").textContent = `${n.ymd} ${n.hms}`;
-}
-
-/* 載入保溫與草稿 */
-function loadDraft() {
-  const ins = localStorage.getItem(LS_INSPECTOR) || "";
-  $("inspector").value = ins;
-
-  const d = JSON.parse(localStorage.getItem(LS_DRAFT) || "{}");
-  if (d.part_no) $("part_no").value = d.part_no;
-  if (d.type) $("type").value = d.type;
-  if (d.lot) $("lot").value = d.lot;
-  if (d.qty) $("qty").value = d.qty;
-}
-
-/* 保存當班草稿 */
-function saveDraft() {
-  const d = {
-    part_no: $("part_no").value.trim(),
-    type: $("type").value,
-    lot: $("lot").value.trim(),
-    qty: $("qty").value.trim()
-  };
-  localStorage.setItem(LS_DRAFT, JSON.stringify(d));
-}
-
-/* 草稿B：只保留 {part_no, lot, qty, time, status}，時間用降冪排序 */
-function pushDraftB(entry){
-  const arr = JSON.parse(localStorage.getItem(LS_DRAFT_B) || "[]");
-  arr.unshift(entry);
-  arr.sort((a,b)=> (b.time||"") > (a.time||"") ? 1 : -1);
-  localStorage.setItem(LS_DRAFT_B, JSON.stringify(arr));
-}
-
-function renderDraftB(){
-  const arr = JSON.parse(localStorage.getItem(LS_DRAFT_B) || "[]");
-  const tb = $("draftTbody");
-  tb.innerHTML = "";
-  if (!arr.length) {
-    const tr = document.createElement("tr");
-    const td = document.createElement("td"); td.colSpan=3; td.className="hint"; td.style.textAlign="center"; td.textContent="(當班無草稿)";
-    tr.appendChild(td); tb.appendChild(tr); return;
-  }
-  for (const it of arr){
-    const tr = document.createElement("tr");
-    const td1 = document.createElement("td"); const td2 = document.createElement("td"); const td3 = document.createElement("td");
-    td1.textContent = it.part_no || "";
-    td2.textContent = it.lot || "";
-    td3.textContent = it.qty || "";
-    const cls = it.status === "update" ? "c-edit" : "c-ok";
-    td1.className = cls; td2.className = cls; td3.className = cls;
-    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
-    tb.appendChild(tr);
-  }
-}
-
-/* ===== 5 分鐘保溫（ping）===== */
-function keepAlive(){
-  const url = `${API_BASE}?action=ping&t=${Date.now()}`;
-  fetch(url).catch(()=>{ /* 靜默 */ });
-}
-setInterval(keepAlive, 5*60*1000);
-
-/* ===== 送出（GET）===== */
-function buildKey(ymd, shift, part_no, lot){
-  // 你既有定義：key = 當日|當班|料號|批號
-  const md = ymd.slice(5); // yyyy/MM/dd -> MM/dd
-  return `${md}|${shift}|${part_no}|${lot}`;
-}
-function buildKey2(ymd, shift, inspector, qty){
-  const md = ymd.slice(5);
-  return `${md}|${shift}|${inspector}|${qty}|TRUE`;
-}
+/* 送出（GET；分送 date/shift） */
+function key(date, sh, part, lot){ return `${date.slice(5)}|${sh}|${part}|${lot}`; }
+function key2(date, sh, insp, qty){ return `${date.slice(5)}|${sh}|${insp}|${qty}|TRUE`; }
 
 async function submitGET(){
-  const inspector = $("inspector").value.trim().toUpperCase();
-  const part_no   = $("part_no").value.trim().toUpperCase();
-  const type      = $("type").value; // 沿用但不上傳
-  const lot       = $("lot").value.trim().toUpperCase();
-  const qtyStr    = $("qty").value.trim();
+  const v=validate(); if(typeof v==="string"){ toast(v); return; }
+  const t=nowTPE(), date=t.ymd, sh=guessShift(+t.hh);
 
-  // 欄位驗證（沿用你既有規則，簡潔化）
-  if (!inspector){ toast("檢驗員必填"); return; }
-  if (!part_no){ toast("料號必填"); return; }
-  if (!lot){ toast("批號必填"); return; }
-  if (!/^[1-9]\d*$/.test(qtyStr)){ toast("數量需為正整數"); return; }
-  const qty = parseInt(qtyStr,10);
+  const u=new URL(API_URL);
+  u.searchParams.set("action","submit");
+  u.searchParams.set("date", date);
+  u.searchParams.set("shift", sh);
+  u.searchParams.set("part_no", v.part);
+  u.searchParams.set("lot", v.lot);
+  u.searchParams.set("qty", v.qty);
+  u.searchParams.set("inspector", v.inspector);
+  u.searchParams.set("key",  key(date, sh, v.part, v.lot));
+  u.searchParams.set("key2", key2(date, sh, v.inspector, v.qty));
 
-  // 時間與班別
-  const n = nowTaipei();
-  const ymd = n.ymd;
-  const shift = guessShift(n.hh);
-
-  // 構造 keys
-  const key  = buildKey(ymd, shift, part_no, lot);
-  const key2 = buildKey2(ymd, shift, inspector, qty);
-
-  // 檢查 DraftB 是否已有同 key 來標記狀態
-  const b = JSON.parse(localStorage.getItem(LS_DRAFT_B) || "[]");
-  const existed = b.some(x => (x.part_no===part_no && x.lot===lot));
-  const statusTag = existed ? "update" : "new";
-
-  // GET 參數（不傳 type、不傳 remark）
-  const params = new URLSearchParams({
-    action: "submit",
-    date: ymd,
-    shift,
-    part_no,
-    lot,
-    qty: String(qty),
-    inspector,
-    key,
-    key2
-  });
-  const url = `${API_BASE}?${params.toString()}`;
-
-  $("btnSend").disabled = true;
+  elBtn && (elBtn.disabled=true);
   try{
-    const resp = await fetch(url, { method:"GET" });
-    if (!resp.ok){ throw new Error(`HTTP ${resp.status}`); }
-    let data = null;
-    try { data = await resp.json(); } catch { /* 有些發佈為 text 成功字樣 */ }
-    if (data && data.status && data.status!=="ok") {
-      throw new Error(data.msg || "server_error");
-    }
+    const r=await fetch(u.toString(),{method:"GET",cache:"no-store"});
+    const j=await r.json().catch(()=>({status:"error"}));
+    if(!r.ok || j.status!=="ok"){ toast("❌ 後端："+(j.msg||"failed")); return; }
 
-    // 成功：寫入保溫、草稿、草稿B
-    localStorage.setItem(LS_INSPECTOR, inspector);
-    saveDraft(); // 更新當班內容的其餘欄位
-    pushDraftB({ part_no, lot, qty, time:`${ymd} ${n.hms}`, status: statusTag });
-    renderDraftB();
+    const list=LS.g(K_B,[]);
+    const existed=list.some(x=>x.part_no===v.part && x.lot===v.lot);
+    list.unshift({part_no:v.part, lot:v.lot, qty:v.qty, ts:Date.now(), status:existed?"update":"insert"});
+    LS.s(K_B, list.slice(0,100));
+    renderB();
 
-    // 成功後：清空「批號、數量」，料號保留；下拉恢復預設
-    $("lot").value = "";
-    $("qty").value = "";
-    $("type").value = "";
-
-    toast("✅ 已送出");
-  }catch(err){
-    toast(`❌ 連線失敗：${err.message || err}`);
+    elLot && (elLot.value="");
+    elQty && (elQty.value="");
+    toast(existed? "✔ 已更新" : "✔ 已新增");
+  }catch(e){
+    toast("❌ 連線失敗");
   }finally{
-    $("btnSend").disabled = false;
+    elBtn && (elBtn.disabled=false);
   }
 }
 
-/* ===== 綁定事件 ===== */
-function bind(){
-  $("btnSend").addEventListener("click", submitGET);
-  $("inspector").addEventListener("change", ()=>localStorage.setItem(LS_INSPECTOR, $("inspector").value.trim().toUpperCase()));
-  ["part_no","type","lot","qty"].forEach(id=>{
-    $(id).addEventListener("input", saveDraft);
-  });
-}
-
-/* ===== 啟動 ===== */
+/* 初始化（不改版面；只更新顯示文字與保溫） */
 (function init(){
-  ensureDraftForShift();
-  renderTodayShift();
-  loadDraft();
-  renderDraftB();
-  bind();
-  keepAlive();
-  // 時鐘角落刷新
-  setInterval(()=>{ $("nowTs").textContent = `${nowTaipei().ymd} ${nowTaipei().hms}`; }, 1000);
+  const n=nowTPE();
+  const head=$("#headShift"); if(head) head.textContent = `${n.md} - ${guessShift(+n.hh)}`;
+  const tick=$("#nowTick"); if(tick) tick.textContent = `${n.ymd} ${n.hms}`;
+  ensureScope(); renderB();
+  setInterval(()=>{ const t=nowTPE(); if(tick) tick.textContent = `${t.ymd} ${t.hms}`; },1000);
+  setInterval(()=>{ const p=new URL(API_URL); p.searchParams.set("action","ping"); p.searchParams.set("t",Date.now()); fetch(p).catch(()=>{}); }, PING_MS);
+  const vEl=$("#ver"); if(vEl) vEl.textContent="v17.11.6";
+  elBtn && elBtn.addEventListener("click", submitGET);
 })();
 </script>
 </body>
