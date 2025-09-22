@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GAS 連線/寫入 測試（單鍵）</title>
+  <style>
+    body{font-family: system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,Arial,"PingFang TC","Heiti TC",sans-serif;margin:20px}
+    button{font-size:18px;padding:12px 20px}
+    #log{white-space:pre-wrap;background:#111;color:#0f0;padding:12px;border-radius:8px;margin-top:16px;min-height:160px}
+    .muted{color:#888}
+  </style>
+</head>
+<body>
+  <h2>GAS 連線 / 寫入測試</h2>
+  <p class="muted">按下會先 <b>ping</b>，再以 <b>GET</b> 寫入一筆固定測試資料。</p>
+  <button id="btn">開始測試</button>
+  <div id="log"></div>
+
+<script>
+/* === 需確認：你的 GAS 部署端點（固定寫死，避免誤判） === */
+const API_URL = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+
+/* === 測試資料（僅測試用，不牽涉頁面排版與既有邏輯） === */
+function todayTaipei() {
+  const tz = "Asia/Taipei";
+  const d  = new Date();
+  const y  = new Intl.DateTimeFormat('zh-TW',{timeZone:tz,year:'numeric'}).format(d);
+  const m  = String(new Intl.DateTimeFormat('zh-TW',{timeZone:tz,month:'2-digit'}).format(d));
+  const dd = String(new Intl.DateTimeFormat('zh-TW',{timeZone:tz,day:'2-digit'}).format(d));
+  return `${y}/${m}/${dd}`;
+}
+const TEST = {
+  date: todayTaipei(),     // yyyy/MM/dd
+  shift: "C",              // 固定 C（避免任何自動判斷爭議）
+  part_no: "A12B345",
+  lot: "TEST-001",
+  qty: "1",
+  inspector: "TESTER"
+};
+TEST.key  = `${TEST.part_no}@${TEST.date}`;
+TEST.key2 = `${TEST.part_no}@${TEST.lot}`;
+
+/* === UI log === */
+function log(s){ document.getElementById('log').textContent += s + "\n"; }
+function clearLog(){ document.getElementById('log').textContent = ""; }
+
+/* === 單鍵流程：PING -> SUBMIT(GET) === */
+document.getElementById('btn').addEventListener('click', runOnce);
+
+async function runOnce(){
+  clearLog();
+  log(`[STEP] 開始測試…`);
+
+  // 1) PING
+  const pingUrl = `${API_URL}?action=ping&t=${Date.now()}`;
+  log(`[PING]\n${pingUrl}`);
+  let okPing = false;
+  try{
+    const r = await fetch(pingUrl, {method:'GET',cache:'no-cache'});
+    const t = await r.text();
+    log(`[PING_HTTP] ${r.status}\n[PING_RESP]\n${t}`);
+    okPing = r.ok;
+  }catch(e){
+    log(`[PING_ERR] ${e.name}: ${e.message}`);
+  }
+
+  // 2) SUBMIT（僅當作寫入測試；固定小筆資料）
+  const enc = encodeURIComponent;
+  const submitUrl =
+    `${API_URL}?action=submit`
+    + `&date=${enc(TEST.date)}&shift=${enc(TEST.shift)}`
+    + `&part_no=${enc(TEST.part_no)}&lot=${enc(TEST.lot)}&qty=${enc(TEST.qty)}`
+    + `&inspector=${enc(TEST.inspector)}&key=${enc(TEST.key)}&key2=${enc(TEST.key2)}`
+    + `&t=${Date.now()}`;
+
+  log(`\n[SUBMIT]\n${submitUrl}`);
+
+  try{
+    let text, status = 0;
+    try{
+      const r = await fetch(submitUrl, {method:'GET',cache:'no-cache',redirect:'follow'});
+      status = r.status;
+      text = await r.text();
+    }catch(fe){
+      log(`[FETCH_ERR] ${fe.name}: ${fe.message}`);
+      // Fallback：XHR 再試一次（仍是 GET）
+      text = await new Promise((resolve,reject)=>{
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', submitUrl, true);
+        xhr.onreadystatechange = () => {
+          if (xhr.readyState === 4) resolve(xhr.responseText||'');
+        };
+        xhr.onerror = () => reject(new Error('XMLHttpRequest network error'));
+        xhr.send(null);
+      });
+    }
+    log(`[SUBMIT_HTTP] ${status}\n[SUBMIT_RESP]\n${text || '(empty)'}`);
+
+    // 簡單判斷是否寫入成功（依你的 GAS 慣例 {status:"ok"}）
+    let data = {};
+    try{ data = text ? JSON.parse(text) : {}; }catch(_){}
+    if (data.status === 'ok'){
+      log(`[RESULT] ✅ 看起來可正常寫入（status=ok）`);
+    }else{
+      log(`[RESULT] ❌ 後端未回傳 ok（可能：參數/權限/表名/ID 問題）`);
+    }
+  }catch(e){
+    log(`[SUBMIT_ERR] ${e.name}: ${e.message}`);
+  }
+}
+</script>
+</body>
+</html>
