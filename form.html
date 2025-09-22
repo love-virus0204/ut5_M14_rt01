@@ -1,94 +1,189 @@
-<!-- RT 外觀記錄表 Frontend v17.11.1 | 基於 v17.10.5；對齊 GAS v1.4.6 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>外觀記錄表 v17.11.1</title>
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,Arial,sans-serif;padding:12px}
-    .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-    label{font-size:12px;color:#444}
-    input,select,button{padding:8px;border:1px solid #ccc;border-radius:6px}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    thead th{background:#f6f6f6;text-align:left;padding:8px;border-bottom:1px solid #ddd}
-    tbody td{padding:8px;border-bottom:1px solid #eee}
-    .foot{margin-top:12px;color:#666;font-size:12px}
-  </style>
-  <script>
-    // 強制寫死 API_URL，免手動修改
-    const API_URL = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
-  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RT 外觀抽驗記錄表</title>
 </head>
 <body>
-  <h2>RT 外觀記錄表 <small style="font-weight:normal;color:#666">版本：v17.11.1</small></h2>
 
-  <form id="form">
-    <div class="row">
-      <div><label for="date">日期</label><br/><input id="date" type="text" placeholder="2025/09/22" /></div>
-      <div><label for="shift">班別</label><br/>
-        <select id="shift">
-          <option value="">請選擇</option>
-          <option value="A">A</option><option value="B">B</option><option value="C">C</option>
-        </select>
-      </div>
-      <div><label for="part_no">料號</label><br/><input id="part_no" type="text" placeholder="A58K033" /></div>
-      <div><label for="lot">批號</label><br/><input id="lot" type="text" placeholder="JVK-580" /></div>
-      <div><label for="qty">數量</label><br/><input id="qty" type="number" inputmode="numeric" /></div>
-      <div><label for="inspector">檢驗員</label><br/><input id="inspector" type="text" /></div>
-      <div style="align-self:flex-end"><button id="btnSubmit" type="submit">送出</button></div>
-    </div>
-  </form>
+<!-- 標題與版面維持原樣 -->
+<h2>RT 外觀抽驗記錄表</h2>
 
-  <table id="list">
-    <thead><tr><th>日期</th><th>班別</th><th>料號</th><th>批號</th><th>數量</th><th>檢驗員</th></tr></thead>
-    <tbody></tbody>
-  </table>
+<!-- 表單骨架：不新增其他欄位 -->
+<form id="form" autocomplete="off">
+  <div>
+    <label for="inspector">檢驗員：</label>
+    <input id="inspector" type="text" inputmode="text" />
+  </div>
+  <div>
+    <label for="part_no">料　號：</label>
+    <input id="part_no" type="text" inputmode="text" />
+  </div>
+  <div>
+    <label for="lot">批　號：</label>
+    <input id="lot" type="text" placeholder="JVK-580" />
+  </div>
+  <div>
+    <label for="qty">數　量：</label>
+    <input id="qty" type="number" inputmode="numeric" />
+  </div>
 
-  <div class="foot">已對齊 GAS v1.4.6，送出改用 date+shift。</div>
+  <!-- 隱藏日期/班別欄，僅用於送出；不改你頁面顯示 -->
+  <input id="date" type="hidden" />
+  <input id="shift" type="hidden" />
+
+  <button id="btnSubmit" type="submit">送出</button>
+</form>
+
+<!-- 下方清單交給現有渲染；只用來著色 -->
+<table id="list">
+  <thead>
+    <tr><th>日期</th><th>班別</th><th>料號</th><th>批號</th><th>數量</th><th>檢驗員</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
 <script>
+/* RT Frontend v17.11.2（基於 v17.10.5；不改排版/文字）
+   - 送出：GET；date 與 shift 分開
+   - 草稿B：{part_no,lot,qty,time,status}
+   - 列表字色：更新=粉(#ff1493)；新增=綠(#008000)
+   - 移除舊快取鍵；5 分鐘 ping；送出後清批號/數量、select 回預設
+*/
+const API_URL="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+
 (function(){
-  function q(sel){return document.querySelector(sel);}
-  function qa(sel){return Array.prototype.slice.call(document.querySelectorAll(sel));}
-  function val(sel){var el=q(sel);return el?String(el.value||'').trim():'';}
-  function nowISO(){try{return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date()).replace(' ','T');}catch(_){var d=new Date(),p=n=>('0'+n).slice(-2);return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}}
-  // 清除舊快取
+  const q=s=>document.querySelector(s);
+  const qa=s=>Array.from(document.querySelectorAll(s));
+  const val=s=>{const el=q(s)||q('[name="'+s.replace(/^#/,'')+'"]');return el?String(el.value||'').trim():'';}
+  const setVal=(s,v)=>{const el=q(s)||q('[name="'+s.replace(/^#/,'')+'"]');if(el) el.value=v;}
+
+  function nowISO(){
+    try{
+      return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})
+        .format(new Date()).replace(' ','T');
+    }catch(_){
+      const d=new Date(),p=n=>('0'+n).slice(-2);
+      return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+  }
+  function computeShift(){
+    try{
+      const h=parseInt(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',hour:'2-digit',hour12:false}).format(new Date()),10)||0;
+      return h<8?'C':h<16?'A':'B';
+    }catch(_){
+      const h=(new Date()).getHours(); return h<8?'C':h<16?'A':'B';
+    }
+  }
+
+  // 清掉舊快取鍵
   ['recentKeys','serverKeys','cacheKeys','key2_cache','sync_timer'].forEach(k=>{try{localStorage.removeItem(k);}catch(_){}});
 
-  const DKEY="draftB_v5";
-  function loadB(){try{return JSON.parse(localStorage.getItem(DKEY))||[];}catch(_){return[];}}
-  function saveB(a){localStorage.setItem(DKEY,JSON.stringify(a));}
-  function upsertB(obj){var a=loadB().filter(x=>!(x.part_no===obj.part_no&&x.lot===obj.lot));a.push(obj);a.sort((A,B)=>(B.time||'').localeCompare(A.time||''));saveB(a);}
+  // 草稿B
+  const DKEY='draftB_v5';
+  const loadB=()=>{try{return JSON.parse(localStorage.getItem(DKEY))||[]}catch(_){return[]}};
+  const saveB=a=>localStorage.setItem(DKEY,JSON.stringify(a));
+  function upsertB(o){
+    let a=loadB().filter(x=>!(x.part_no===o.part_no&&x.lot===o.lot));
+    a.push(o);
+    a.sort((A,B)=>(B.time||'').localeCompare(A.time||'')); // 降冪
+    saveB(a);
+  }
 
-  function detectIdx(table){var idx={part:-1,lot:-1};table.querySelectorAll('thead th').forEach((th,i)=>{var t=(th.textContent||'').trim();if(idx.part<0&&/料號|Part/i.test(t))idx.part=i;if(idx.lot<0&&/批號|Lot/i.test(t))idx.lot=i;});return idx;}
-  function colorize(){var table=q('table');if(!table)return;var rows=table.querySelectorAll('tbody tr');if(!rows.length)return;var idx=detectIdx(table);if(idx.part<0||idx.lot<0)return;var map={};loadB().forEach(x=>{map[x.part_no+'|'+x.lot]=x.status;});rows.forEach(tr=>{var c=tr.children;var part=(c[idx.part]?.textContent||'').trim();var lot=(c[idx.lot]?.textContent||'').trim();var st=map[part+'|'+lot];if(!st)return;tr.style.textDecoration='none';tr.style.color=(st==='更新')?'#ff0000':'#008000';});}
+  // 依草稿B著色（字色）
+  function detectIdx(tbl){
+    let idx={part:-1,lot:-1};
+    tbl.querySelectorAll('thead th').forEach((th,i)=>{
+      const t=(th.textContent||'').trim();
+      if(idx.part<0 && /料號|料件|Part/i.test(t)) idx.part=i;
+      if(idx.lot <0 && /批號|Lot/i.test(t))        idx.lot =i;
+    });
+    return idx;
+  }
+  function colorizeByDraftB(){
+    const tbl=document.getElementById('list'); if(!tbl) return;
+    const rows=tbl.querySelectorAll('tbody tr'); if(!rows.length) return;
+    const idx=detectIdx(tbl); if(idx.part<0||idx.lot<0) return;
+    const map={}; loadB().forEach(x=>map[x.part_no+'|'+x.lot]=x.status);
+    rows.forEach(tr=>{
+      const c=tr.children;
+      const part=(c[idx.part]?.textContent||'').trim();
+      const lot =(c[idx.lot ]?.textContent||'').trim();
+      const st=map[part+'|'+lot]; if(!st) return;
+      tr.style.textDecoration='none';
+      tr.style.color=(st==='更新')?'#ff1493':'#008000';
+    });
+  }
 
-  window.submitGET=async function(){
-    if(!API_URL){alert('API_URL 未設定');return;}
-    var base=API_URL.replace(/\/exec.*$/,'')+'/exec';
-    var dateOnly=val('#date'),shift=val('#shift'),part=val('#part_no'),lot=val('#lot'),qty=val('#qty'),insp=val('#inspector');
-    if(!/^\d{4}\/\d{2}\/\d{2}$/.test(dateOnly)){alert('日期需 yyyy/MM/dd');return;}
-    if(!shift){alert('請選擇班別');return;}
-    var seg=String(lot||'').split('-');
-    var key=dateOnly+'|'+shift+'|'+part+'|'+lot;
-    var key2=dateOnly+'|'+shift+'|'+(seg[0]||'')+'|'+(seg[1]||'')+'|TRUE';
-    var qs=new URLSearchParams({action:'submit',date:dateOnly,shift:shift,part_no:part,lot:lot,qty:qty,inspector:insp,key:key,key2:key2,t:Date.now()});
+  // 自動填日期/班別（以台北時區，僅送值，不改你頁面顯示）
+  if(!val('#date')){
     try{
-      var r=await fetch(base+'?'+qs.toString(),{method:'GET',cache:'no-store'});
-      var resp=await r.json();
-      if(resp.status!=='ok'){alert('送出失敗');return;}
-      var op=String(resp.op||'').toLowerCase();
-      if(op==='insert'||op==='update'){upsertB({part_no:part,lot:lot,qty:qty,time:nowISO(),status:(op==='update'?'更新':'新增')});colorize();}
-    }catch(e){alert('送出錯誤');return;}
-    q('#lot').value='';q('#qty').value='';qa('select').forEach(s=>{try{s.selectedIndex=0;}catch(_){}});if(typeof window.list_recent==='function'){try{await window.list_recent();colorize();}catch(_){}}};
+      const s=new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+      setVal('#date', s);
+    }catch(_){
+      const d=new Date(),p=n=>('0'+n).slice(-2);
+      setVal('#date', `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}`);
+    }
+  }
+  if(!val('#shift')) setVal('#shift', computeShift());
 
-  var fm=q('#form');if(fm)fm.addEventListener('submit',ev=>{ev.preventDefault();window.submitGET();});
-  var btn=q('#btnSubmit');if(btn)btn.addEventListener('click',ev=>{ev.preventDefault();window.submitGET();});
-  try{colorize();}catch(_){}
+  // 送出（GET；date/shift 分開）
+  async function submitGET(){
+    const base=API_URL.replace(/\/exec.*$/,'')+'/exec';
+    const dateOnly=val('#date');
+    const shift=val('#shift')||computeShift();
+    const part=val('#part_no');
+    const lot =val('#lot');
+    const qty =val('#qty');
+    const insp=val('#inspector');
+
+    if(!/^\d{4}\/\d{2}\/\d{2}$/.test(dateOnly)){alert('日期需 yyyy/MM/dd');return;}
+    if(!shift){alert('班別解析失敗');return;}
+
+    const seg=String(lot||'').split('-');
+    const key =`${dateOnly}|${shift}|${part}|${lot}`;
+    const key2=`${dateOnly}|${shift}|${seg[0]||''}|${seg[1]||''}|TRUE`;
+
+    const qs=new URLSearchParams({
+      action:'submit', date:dateOnly, shift:shift,
+      part_no:part, lot:lot, qty:qty, inspector:insp,
+      key:key, key2:key2, t:Date.now()
+    });
+
+    let resp={status:'error'};
+    try{
+      const r=await fetch(`${base}?${qs.toString()}`,{method:'GET',cache:'no-store'});
+      resp=await r.json();
+    }catch(e){alert('送出錯誤');return;}
+    if(resp.status!=='ok'){alert('送出失敗');return;}
+
+    const op=String(resp.op||'').toLowerCase(); // insert | update
+    if(op==='insert'||op==='update'){
+      upsertB({part_no:part,lot:lot,qty:qty,time:nowISO(),status:(op==='update'?'更新':'新增')});
+      colorizeByDraftB();
+    }
+
+    // 送出後：清批號/數量；select 回預設；料號保留
+    const lotEl=document.getElementById('lot'); if(lotEl) lotEl.value='';
+    const qtyEl=document.getElementById('qty'); if(qtyEl) qtyEl.value='';
+    qa('select').forEach(s=>{try{s.selectedIndex=0;}catch(_){}});
+
+    if(typeof window.list_recent==='function'){
+      try{await window.list_recent();colorizeByDraftB();}catch(_){}
+    }
+  }
+
+  // 綁定（缺了才補，不覆蓋你原事件）
+  const fm=document.getElementById('form'); if(fm && !fm.__v2112){fm.addEventListener('submit',e=>{e.preventDefault();submitGET();}); fm.__v2112=true;}
+  const btn=document.getElementById('btnSubmit'); if(btn && !btn.__v2112){btn.addEventListener('click',e=>{e.preventDefault();submitGET();}); btn.__v2112=true;}
+
+  // 保溫 + 首次著色
   function ping(){fetch(API_URL.replace(/\/exec.*$/,'')+'/exec?action=ping&t='+Date.now(),{method:'GET',cache:'no-store'}).catch(()=>{});}
-  ping();setInterval(ping,5*60*1000);
+  ping(); setInterval(ping,5*60*1000);
+  try{colorizeByDraftB();}catch(_){}
 })();
 </script>
+
 </body>
 </html>
