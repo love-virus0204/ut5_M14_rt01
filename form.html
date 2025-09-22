@@ -118,50 +118,29 @@
 </div>
 
 <script>
-// === 台北時區校時（非台北→用伺服器時間校正一次，保存 delta） ===
-function __isTaipeiTZ(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone==="Asia/Taipei"; }catch(_){ return false; } }
-function __loadDelta(){ try{ return Number(localStorage.getItem("rt_tz_delta_ms")||"0"); }catch(_){ return 0; } }
-function __saveDelta(ms){ try{ localStorage.setItem("rt_tz_delta_ms", String(ms)); }catch(_){} }
-function __nowTaipei(){ return new Date(Date.now() + __loadDelta()); }
-async function __initTaipeiTimeOnce(){
-  try{
-    if(__isTaipeiTZ()){
-      const d=new Date();
-      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
-      window._dsDate=`${y}/${m}/${dd}`;
-      if(typeof computeShiftByClockFrom==="function"){
-        window._dsShift=computeShiftByClockFrom(`${y}/${m}/${dd} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:00`)||"";
-      }
-    }else{
-      const u=new URL(API_BASE); u.searchParams.set("action","ping");
-      const r=await fetch(u.toString(),{method:"GET",cache:"no-store"});
-      const j=await r.json();
-      if(j && j.server_time){
-        const s=String(j.server_time);
-        const parts=s.split(" ");
-        const serverMs=Date.parse(parts[0]+" "+(parts[1]||"00:00:00"));
-        __saveDelta(serverMs - Date.now());
-        const d2=__nowTaipei();
-        const y2=d2.getFullYear(), m2=String(d2.getMonth()+1).padStart(2,"0"), dd2=String(d2.getDate()).padStart(2,"0");
-        window._dsDate=`${y2}/${m2}/${dd2}`;
-        if(typeof computeShiftByClockFrom==="function"){
-          window._dsShift=computeShiftByClockFrom(`${y2}/${m2}/${dd2} ${String(d2.getHours()).padStart(2,"0")}:${String(d2.getMinutes()).padStart(2,"0")}:00`)||"";
-        }
-      }
-    }
-    try{
-      const el=document.getElementById("ds");
-      if(el && window._dsDate){
-        const dShow=window._dsDate.slice(5,7)+"/"+window._dsDate.slice(8,10);
-        el.textContent = window._dsShift ? `${dShow} - ${window._dsShift}` : `${dShow} - `;
-      }
-    }catch(__e){}
-  }catch(__e){}
+// === 時間：以台北時區為準（本機→Intl 轉台北），不打後端、不算差值 ===
+function __fmtTwParts(d){
+  const parts = new Intl.DateTimeFormat('zh-TW', { timeZone:'Asia/Taipei',
+    year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+  }).formatToParts(d);
+  const get = k => (parts.find(p=>p.type===k)||{value:""}).value;
+  return { y:get('year'), m:get('month'), d:get('day'), hh:get('hour'), mm:get('minute'), ss:get('second') };
 }
-document.addEventListener("DOMContentLoaded", function(){ try{__initTaipeiTimeOnce();}catch(_){}});
+function nowInTaipei(){
+  const p = __fmtTwParts(new Date());
+  return { ymd:`${p.y}/${p.m}/${p.d}`, hh:p.hh, mm:p.mm, ss:p.ss };
+}
+function computeShiftFromHour(h){ try{ h=Number(h); return (h>=6&&h<=13)?'A':(h>=14&&h<=21)?'B':'C'; }catch(_){ return ''; } }
+document.addEventListener('DOMContentLoaded',function(){
+  try{
+    const t=nowInTaipei(); const shift=computeShiftFromHour(t.hh);
+    window._dsDate=t.ymd; window._dsShift=shift;
+    const el=document.getElementById('ds'); if(el){ el.textContent = `${t.ymd.slice(5,7)}/${t.ymd.slice(8,10)} - ${shift}`; }
+  }catch(_){}
+});
 
 /* ===== 版本與 API ===== */
-const FORM_VERSION="v17.10.13";
+const FORM_VERSION="v17.10.16";
 const API_BASE="https://script.google.com/macros/s/AKfycbw81dgU81h8rNAuwch_A3LrV5ZAox4RGHu-y8yHifuSzJALSOBn7AVFd9_ld0b_15LG/exec";
 
 /* ===== 可調參數 ===== */
