@@ -353,9 +353,6 @@ document.getElementById('versionTag').textContent=`版本：${FORM_VERSION}`;
   const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
 
   renderDrafts();
-
-  // 保溫：每 5 分鐘 ping，一律 GET，不做時間校正
-   }, 300000);
 })();
 </script>
 
