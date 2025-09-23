@@ -2,75 +2,99 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<title>GAS 測試送出</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAS 寫入測試工具（text/plain 無預檢版）</title>
 <style>
-body { font-family:sans-serif; max-width:480px; margin:20px auto; }
-label { display:block; margin:8px 0 4px; }
-input { width:100%; padding:6px; }
-button { margin-top:10px; padding:8px 16px; }
-pre { background:#f5f5f5; padding:10px; white-space:pre-wrap; }
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:16px;line-height:1.4}
+  label{display:block;margin:10px 0 4px}
+  input,button,textarea{width:100%;padding:10px;font-size:16px;box-sizing:border-box}
+  textarea{height:180px;white-space:pre;overflow:auto}
+  .row{margin:6px 0}
+  .ok{color:#0a7}
+  .err{color:#c00}
+  small{color:#666}
 </style>
 </head>
 <body>
-<h2>GAS 測試送出</h2>
+<h2>GAS 寫入測試工具（text/plain 無預檢）</h2>
 
-<label>料號</label>
-<input id="part" value="A12B345">
-<label>批號</label>
-<input id="lot" value="123-01">
-<label>數量</label>
-<input id="qty" type="number" value="10">
-<label>檢驗員</label>
-<input id="inspector" value="T1234">
+<div class="row">
+  <label>API URL</label>
+  <input id="api" value="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec">
+  <small>此工具以 <code>Content-Type: text/plain</code> 送出 JSON，避免 CORS 預檢（OPTIONS）。</small>
+</div>
 
-<button onclick="submitTest()">送出測試</button>
+<div class="row"><label>日期 yyyy/MM/dd</label><input id="date" value="2025/09/23"></div>
+<div class="row"><label>班別</label><input id="shift" value="A"></div>
+<div class="row"><label>料號</label><input id="part_no" value="ABC1234"></div>
+<div class="row"><label>批號</label><input id="lot" value="LOT001"></div>
+<div class="row"><label>數量</label><input id="qty" type="number" value="10"></div>
+<div class="row"><label>檢驗員</label><input id="inspector" value="ZX"></div>
+<div class="row"><label>key2</label><input id="key2" value="2025/09/23|A|ABC1234|LOT001|TRUE"></div>
+<div class="row"><label>key</label><input id="key"  value="2025/09/23|A|ABC1234|LOT001"></div>
 
-<pre id="output"></pre>
+<button id="send">送出測試</button>
+
+<h3>送出內容</h3>
+<textarea id="out"></textarea>
+
+<h3>回傳結果</h3>
+<pre id="res" class="err"></pre>
 
 <script>
-const API_BASE = "你的部署網址";
+function $id(x){return document.getElementById(x);}
 
-function makeKey(mmdd, shift, part, lot) {
-  return mmdd + "|" + shift + "|" + part + "|" + lot;
+function payloadFromInputs(){
+  const date = $id('date').value.trim();
+  const shift = $id('shift').value.trim();
+  const part_no = $id('part_no').value.trim();
+  const lot = $id('lot').value.trim();
+  const qty = Number($id('qty').value);
+  const inspector = $id('inspector').value.trim();
+  const key2 = $id('key2').value.trim();
+  const key  = $id('key').value.trim();
+  return {
+    action: "submit",
+    date, shift, part_no, lot,
+    qty: String(qty),
+    sample_cnt: Math.min(20, qty || 0),
+    z7:0,z8:0,z9:0,z10:0,z11:0,z12:0,z13:0,
+    remark:"",
+    inspector, key2, key
+  };
 }
 
-async function submitTest() {
-  const part = document.getElementById('part').value.trim();
-  const lot  = document.getElementById('lot').value.trim();
-  const qty  = document.getElementById('qty').value.trim();
-  const ins  = document.getElementById('inspector').value.trim();
+async function send(){
+  const API = $id('api').value.trim();
+  const payload = payloadFromInputs();
+  $id('out').value = JSON.stringify(payload, null, 2);
+  $id('res').textContent = "傳送中...";
 
-  // 模擬台北時間 mmdd & shift
-  const d = new Date();
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
-  const hhmm = d.getHours()*60 + d.getMinutes();
-  const shift = hhmm>=40&&hhmm<520 ? "C" : (hhmm<1000 ? "A" : "B");
-  const mmdd = mm + "/" + dd;
-
-  const payload = {
-    action:"submit",
-    date: d.getFullYear()+"/"+mm+"/"+dd,
-    shift: shift,
-    part_no: part,
-    lot: lot,
-    qty: qty,
-    inspector: ins,
-    key: makeKey(mmdd, shift, part, lot),
-    key2: `${mmdd}|${shift}|${part}|${lot}|TRUE`
-  };
-
-  try {
-    const url = API_BASE + "?" + new URLSearchParams(payload).toString();
-    const res = await fetch(url, {cache:"no-store"});
-    const data = await res.json();
-    document.getElementById('output').textContent =
-      "回傳: " + JSON.stringify(data,null,2) + 
-      "\n判斷: " + (data.mode==="更新" ? "更新成功" : "新增成功");
-  } catch (e) {
-    document.getElementById('output').textContent = "錯誤: " + e;
+  try{
+    const resp = await fetch(API, {
+      method: "POST",
+      // 關鍵：使用 text/plain，避免 CORS 預檢 OPTIONS
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      cache: "no-store",
+      body: JSON.stringify(payload)
+    });
+    const text = await resp.text();
+    let parsed = null;
+    try{ parsed = JSON.parse(text); }catch(_){}
+    if(parsed){
+      $id('res').className = parsed.status==="ok" ? "ok" : "err";
+      $id('res').textContent = JSON.stringify(parsed, null, 2);
+    }else{
+      $id('res').className = resp.ok ? "ok" : "err";
+      $id('res').textContent = "HTTP " + resp.status + " " + resp.statusText + "\\n" + text;
+    }
+  }catch(err){
+    $id('res').className = "err";
+    $id('res').textContent = "錯誤: " + err;
   }
 }
+
+$id('send').addEventListener('click', send);
 </script>
 </body>
 </html>
