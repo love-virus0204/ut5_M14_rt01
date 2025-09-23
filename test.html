@@ -1,60 +1,75 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>外觀記錄表 v17.10.11</title>
+<meta charset="utf-8">
+<title>GAS 測試送出</title>
 <style>
-/* 保留你原有的所有 CSS 內容 */
+body { font-family:sans-serif; max-width:480px; margin:20px auto; }
+label { display:block; margin:8px 0 4px; }
+input { width:100%; padding:6px; }
+button { margin-top:10px; padding:8px 16px; }
+pre { background:#f5f5f5; padding:10px; white-space:pre-wrap; }
 </style>
 </head>
 <body>
-  <!-- 保留你原有的 HTML 排版、欄位、placeholder、送出按鈕、清單渲染等內容 -->
-  <div id="ds"></div>
-  <!-- 其他原有表單內容照舊 -->
+<h2>GAS 測試送出</h2>
+
+<label>料號</label>
+<input id="part" value="A12B345">
+<label>批號</label>
+<input id="lot" value="123-01">
+<label>數量</label>
+<input id="qty" type="number" value="10">
+<label>檢驗員</label>
+<input id="inspector" value="T1234">
+
+<button onclick="submitTest()">送出測試</button>
+
+<pre id="output"></pre>
 
 <script>
-// === 初始化：載入時 ping 一次，設定 _dsDate/_dsShift 並更新 #ds ===
-async function __initDateShiftFromPingOnce(){
-  try{
-    const u=new URL(API_URL);u.searchParams.set("action","ping");
-    const r=await fetch(u.toString(),{method:"GET",cache:"no-store"});
-    const j=await r.json();
-    if(j && j.server_time){
-      const s=String(j.server_time);
-      const d=s.split(" ")[0]||"";
-      let sh="";
-      if(typeof computeShiftByClockFrom==="function"){try{sh=computeShiftByClockFrom(s)||"";}catch(_){}}
-      window._dsDate=d;
-      if(sh) window._dsShift=sh;
-      try{
-        const mmdd=(d && d.length>=10)?(d.slice(5,7)+"/"+d.slice(8,10)):"";
-        const dsEl=document.getElementById("ds");
-        if(dsEl && mmdd){
-          const curShift=(window._dsShift||"").toString().trim();
-          dsEl.textContent = curShift ? (mmdd+" - "+curShift) : (mmdd+" - ");
-        }
-      }catch(__e){}
-    }
-  }catch(e){}
+const API_BASE = "你的部署網址";
+
+function makeKey(mmdd, shift, part, lot) {
+  return mmdd + "|" + shift + "|" + part + "|" + lot;
 }
-document.addEventListener("DOMContentLoaded",()=>{__initDateShiftFromPingOnce();});
 
-// === 保留你原有的所有初始化、驗證、草稿、渲染、送出函式 ===
+async function submitTest() {
+  const part = document.getElementById('part').value.trim();
+  const lot  = document.getElementById('lot').value.trim();
+  const qty  = document.getElementById('qty').value.trim();
+  const ins  = document.getElementById('inspector').value.trim();
 
-// 修改 payload，優先使用 _dsDate/_dsShift
-function buildPayload(){
+  // 模擬台北時間 mmdd & shift
+  const d = new Date();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  const hhmm = d.getHours()*60 + d.getMinutes();
+  const shift = hhmm>=40&&hhmm<520 ? "C" : (hhmm<1000 ? "A" : "B");
+  const mmdd = mm + "/" + dd;
+
   const payload = {
-    date:(window._dsDate||date),
-    shift:(window._dsShift||shift),
-    part_no: part_no,
+    action:"submit",
+    date: d.getFullYear()+"/"+mm+"/"+dd,
+    shift: shift,
+    part_no: part,
     lot: lot,
     qty: qty,
-    inspector: inspector,
-    key: key,
-    key2: key2
+    inspector: ins,
+    key: makeKey(mmdd, shift, part, lot),
+    key2: `${mmdd}|${shift}|${part}|${lot}|TRUE`
   };
-  return payload;
+
+  try {
+    const url = API_BASE + "?" + new URLSearchParams(payload).toString();
+    const res = await fetch(url, {cache:"no-store"});
+    const data = await res.json();
+    document.getElementById('output').textContent =
+      "回傳: " + JSON.stringify(data,null,2) + 
+      "\n判斷: " + (data.mode==="更新" ? "更新成功" : "新增成功");
+  } catch (e) {
+    document.getElementById('output').textContent = "錯誤: " + e;
+  }
 }
 </script>
 </body>
