@@ -231,16 +231,21 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
-/* ===== API（GET） ===== */
+/* ===== API（POST） ===== */
 function apiGet(params){
-  const search=new URLSearchParams(params);
-  search.append("t",Date.now());
-  const url=`${API_BASE}?${search.toString()}`;
-  return fetch(url,{method:"GET",mode:"cors",cache:"no-store"})
-    .then(async r=>{
-      const txt=await r.text();
-      try{ return JSON.parse(txt); }catch{ return {status:"parse_failed", raw:txt}; }
-    });
+  return fetch(API_BASE, {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params)
+  }).then(async r=>{
+    const txt = await r.text();
+    try { 
+      return JSON.parse(txt); 
+    } catch { 
+      return { status:"parse_failed", raw: txt }; 
+    }
+  });
 }
 function submitData(p){ return apiGet({action:"submit",...p}); }
 
@@ -312,7 +317,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
   const now=nowCorrected();
-  const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, lotDisp); // v1.4.7 需要 key
+  const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, lotDisp);
   const payload={
     date: currentDS.ymdSlash,
     shift: currentDS.shift,
@@ -353,141 +358,8 @@ document.getElementById('versionTag').textContent=`版本：${FORM_VERSION}`;
   const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
 
   renderDrafts();
+
 })();
 </script>
-
-<script>
-// === Hard-limit: POST-only submit, no GET ===
-
-// 轉大寫輔助
-function toUpperBind(sel){
-  const el = document.querySelector(sel);
-  if (!el) return;
-  el.addEventListener('input', () => { el.value = (el.value||'').toUpperCase(); });
-}
-
-// 輸入限制：英數（允許連字號）
-function alnumBind(sel){
-  const el = document.querySelector(sel);
-  if (!el) return;
-  el.addEventListener('input', ()=>{
-    el.value = (el.value||'').replace(/[^A-Za-z0-9\-]/g, '');
-  });
-}
-
-// 數字限制
-function numericBind(sel){
-  const el = document.querySelector(sel);
-  if (!el) return;
-  el.addEventListener('input', ()=>{
-    el.value = (el.value||'').replace(/[^0-9]/g, '');
-  });
-}
-
-// 批號去鍵用前綴：只處理 "FA-"，lot 原值照傳
-function lotForKey(lotRaw){ return String(lotRaw||'').replace('FA-',''); }
-
-// 組 key / key2（鍵用 lot 去 FA-；key2 固定 TRUE 尾碼）
-function buildKeys(date, shift, part_no, lotRaw){
-  const lot4 = lotForKey(lotRaw);
-  return {
-    key:  `${date}|${shift}|${part_no}|${lot4}`,
-    key2: `${date}|${shift}|${part_no}|${lot4}|TRUE`
-  };
-}
-
-// 送出：POST + 17 欄（不含 submitted_at）
-// sample_cnt 自動計算（沿用規則 Math.min(20, qty)）
-async function submitForm(){
-  const $ = (sel)=>document.querySelector(sel);
-  const date       = $('#date')?.value || '';
-  const shift      = $('#shift')?.value || '';
-  const part_no    = $('#part_no')?.value || '';
-  const lot        = $('#lot')?.value || '';
-  const qty        = Number($('#qty')?.value || 0);
-  const inspector  = $('#inspector')?.value || '';
-  const remark     = $('#remark')?.value ?? "";
-
-  // sample_cnt 自動計算
-  const sample_cnt = Math.min(20, qty);
-
-  // z7~z13 預設 0（若有欄位值則取值）
-  const z = (id)=>Number(document.querySelector('#'+id)?.value ?? 0) || 0;
-  const z7 = z('z7'),  z8 = z('z8'),  z9 = z('z9'),
-        z10 = z('z10'), z11 = z('z11'), z12 = z('z12'), z13 = z('z13');
-
-  const {key, key2} = buildKeys(date, shift, part_no, lot);
-
-  const payload = {
-    action: 'submit',
-    date, shift, part_no, lot, qty, sample_cnt,
-    z7, z8, z9, z10, z11, z12, z13,
-    inspector, remark,
-    key2, key
-  };
-
-  try{
-    const r = await fetch(API_BASE, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
-    const res = await r.json();
-    if (res.status === 'ok') {
-      if (typeof onSubmitOK === 'function') onSubmitOK(res.mode);
-      else alert(`送出成功：${res.mode||''}`);
-    } else {
-      if (typeof onSubmitError === 'function') onSubmitError(res.msg||'error');
-      else alert(`送出失敗：${res.msg||'error'}`);
-    }
-  }catch(e){
-    if (typeof onSubmitError === 'function') onSubmitError('net_fail');
-    else alert('送出失敗：net_fail');
-  }
-}
-
-document.addEventListener('DOMContentLoaded', ()=>{
-  // 綁定大小寫與輸入限制
-  toUpperBind('#lot'); 
-  toUpperBind('#part_no'); 
-  toUpperBind('#inspector');
-  alnumBind('#part_no');
-  alnumBind('#lot');
-  alnumBind('#inspector');
-  numericBind('#qty');
-
-  // 共用 qty 檢查函式（按鈕/submit 事件先檢查並阻止）
-  function ensureQtyValid(){
-    const el = document.querySelector('#qty');
-    const val = el ? el.value : '';
-    const num = Number(val);
-    if (!val || isNaN(num) || num <= 0){
-      alert('數量僅接受 > 0');
-      if (el) el.focus();
-      return false;
-    }
-    return true;
-  }
-
-  // 攔截 form submit
-  const form = document.querySelector('form');
-  if (form) form.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    if (!ensureQtyValid()) return;
-    submitForm();
-  });
-
-  // 攔截按鈕 click
-  const btn = document.querySelector('#submitBtn, button[type="submit"]');
-  if (btn) {
-    btn.addEventListener('click', (e)=>{
-      e.preventDefault();
-      if (!ensureQtyValid()) return;
-      submitForm();
-    });
-  }
-});
-</script>
-
 </body>
 </html>
