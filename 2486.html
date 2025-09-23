@@ -233,35 +233,16 @@ function showOk(msg){
 
 /* ===== API（GET） ===== */
 function apiGet(params){
-  const payload = Object.assign({}, params||{});
-  return fetch(API_BASE, {
-    method: "POST",
-    mode: "cors",
-    cache: "no-store",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify(payload)
-  }).then(async r=>{
-    const t=await r.text();
-    try{ return JSON.parse(t); }catch(_){ return {status:"parse_failed", raw:t}; }
-  });
-}?${search.toString()}`;
-  return fetch(url,{method:"POST",mode:"cors",cache:"no-store"})
+  const search=new URLSearchParams(params);
+  search.append("t",Date.now());
+  const url=`${API_BASE}?${search.toString()}`;
+  return fetch(url,{method:"GET",mode:"cors",cache:"no-store"})
     .then(async r=>{
       const txt=await r.text();
       try{ return JSON.parse(txt); }catch{ return {status:"parse_failed", raw:txt}; }
     });
 }
-function submitData(p){
-  const q = Number(p && p.qty || 0);
-  const payload = Object.assign({}, p||{});
-  if ('submitted_at' in payload) delete payload.submitted_at;
-  payload.sample_cnt = Math.min(20, q||0);
-  payload.z7=0; payload.z8=0; payload.z9=0; payload.z10=0;
-  payload.z11=0; payload.z12=0; payload.z13=0;
-  if (payload.remark == null) payload.remark = "";
-  payload.action = 'submit';
-  return apiGet(payload);
-}); }
+function submitData(p){ return apiGet({action:"submit",...p}); }
 
 /* ===== 草稿儲存（B：{料號, 批號, 數量, key, 送出成功時間, 狀態}） ===== */
 function dsStorageKey(ds){ return `draft_${ds.ymdSlash}_${ds.shift}`; }
@@ -374,7 +355,7 @@ document.getElementById('versionTag').textContent=`版本：${FORM_VERSION}`;
   renderDrafts();
 
   // 保溫：每 5 分鐘 ping，一律 GET，不做時間校正
-  setInterval(()=>{ fetch(`${API_BASE}action=ping&t=${Date.now()}`,{cache:'no-store'}).catch(()=>{}); }, 300000);
+  setInterval(()=>{ fetch(`${API_BASE}?action=ping&t=${Date.now()}`,{cache:'no-store'}).catch(()=>{}); }, 300000);
 })();
 </script>
 </body>
