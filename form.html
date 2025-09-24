@@ -236,7 +236,7 @@ function apiGet(params){
   return fetch(API_BASE, {
     method: "POST",
     cache: "no-store",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "text/plain" },
     body: JSON.stringify(params)
   }).then(async r=>{
     const txt = await r.text();
