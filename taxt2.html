@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>GAS POST 測試工具</title>
+  <style>
+    body { font-family: monospace; padding: 1rem; }
+    button { margin: 0.3rem; padding: 0.3rem 0.6rem; }
+    pre { background: #f0f0f0; padding: 1rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>GAS POST 測試工具</h2>
+  <label>GAS URL:
+    <input type="text" id="url" style="width:80%" placeholder="https://script.google.com/macros/s/.../exec">
+  </label>
+  <br><br>
+  <button onclick="send('json')">POST JSON</button>
+  <button onclick="send('urlenc')">POST x-www-form-urlencoded</button>
+  <button onclick="send('text')">POST text/plain</button>
+  <button onclick="send('formdata')">POST FormData</button>
+  <pre id="output">等待測試...</pre>
+
+<script>
+async function send(mode) {
+  const url = document.getElementById("url").value.trim();
+  if (!url) return alert("請輸入 GAS URL");
+
+  const payload = {
+    action: "submit",
+    date: "2025/09/24",
+    shift: "A",
+    part_no: "ABC1234",
+    lot: "FA-123",
+    qty: 1,
+    sample_cnt: 0,
+    z7: 0, z8: 0, z9: 0, z10: 0, z11: 0, z12: 0, z13: 0,
+    inspector: "TEST",
+    remark: "",
+    key2: "KEY2",
+    key: "KEY"
+  };
+
+  let options = { method: "POST" };
+  if (mode === "json") {
+    options.headers = {"Content-Type":"application/json"};
+    options.body = JSON.stringify(payload);
+  } else if (mode === "urlenc") {
+    options.headers = {"Content-Type":"application/x-www-form-urlencoded"};
+    options.body = new URLSearchParams(payload).toString();
+  } else if (mode === "text") {
+    options.headers = {"Content-Type":"text/plain"};
+    options.body = JSON.stringify(payload);
+  } else if (mode === "formdata") {
+    const fd = new FormData();
+    for (const k in payload) fd.append(k, payload[k]);
+    options.body = fd;
+  }
+
+  try {
+    const res = await fetch(url, options);
+    const text = await res.text();
+    let json = "";
+    try { json = JSON.stringify(JSON.parse(text), null, 2); } catch {}
+    document.getElementById("output").textContent =
+      `狀態: ${res.status}\nHeaders: ${[...res.headers].map(h=>h.join(': ')).join('\n')}\n\n回應原始：\n${text}\n\nJSON解析：\n${json}`;
+  } catch (e) {
+    document.getElementById("output").textContent = `[Fetch 錯誤] ${e}`;
+  }
+}
+</script>
+</body>
+</html>
