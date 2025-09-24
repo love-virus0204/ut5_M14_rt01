@@ -232,16 +232,37 @@ function showOk(msg){
 }
 
   // 使用 x-www-form-urlencoded
-await fetch(API_BASE, {
-  method: 'POST',
-  headers: {'Content-Type':'application/json'},
-  body: JSON.stringify({
-    action: 'submit',
-    date, shift, part_no, lot, qty, sample_cnt,
-    z7:0,z8:0,z9:0,z10:0,z11:0,z12:0,z13:0,
-    inspector, remark:'', key2, key
-  })
-});
+async function submitData() {
+  const payload = {
+    action: "submit",
+    date: document.getElementById("date").value,
+    shift: document.getElementById("shift").value,
+    part_no: document.getElementById("part_no").value,
+    lot: document.getElementById("lot").value,
+    qty: document.getElementById("qty").value,
+    sample_cnt: 0, // 或你的計算結果
+    z7: 0, z8: 0, z9: 0, z10: 0, z11: 0, z12: 0, z13: 0,
+    inspector: document.getElementById("inspector").value,
+    remark: "",
+    key2: "TEST-KEY2",
+    key: "TEST-KEY"
+  };
+
+  try {
+    const response = await fetch(API_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    console.log("回傳結果：", result);
+    alert("回傳結果：" + JSON.stringify(result));
+  } catch (err) {
+    console.error("Fetch 錯誤：", err);
+    alert("錯誤：" + err);
+  }
+}
 
 function submitData(p){ return apiGet({action:"submit",...p}); }
 
