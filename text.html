@@ -1,62 +1,19 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-<meta charset="UTF-8">
-<title>GAS POST 測試工具</title>
-<style>
-body { font-family: monospace; padding: 1rem; }
-pre { background: #222; color: #0f0; padding: 1rem; white-space: pre-wrap; }
-button { padding: 0.5rem 1rem; font-size: 1rem; }
-</style>
-</head>
-<body>
-<h2>GAS POST 測試工具</h2>
-<button id="sendBtn">送出測試資料</button>
-<pre id="log">尚未測試</pre>
-
-<script>
-const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
-
-function buildPayload(){
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth()+1).padStart(2,"0");
-  const dd = String(today.getDate()).padStart(2,"0");
-  const date = `${yyyy}/${mm}/${dd}`;
-  const lot = "FA-0001";
-  const part_no = "ABC1234";
-  return {
-    date,
-    shift: "A",
-    part_no,
-    lot,
-    qty: "10",
-    sample_cnt: "10",
-    z7: "0", z8: "0", z9: "0", z10: "0", z11: "0", z12: "0", z13: "0",
-    inspector: "TEST",
-    remark: "",
-    key2: `${date}|A|${part_no}|${lot}|TRUE`,
-    key:  `${date}|A|${part_no}|${lot}`
-  };
-}
-
-async function submitTest(){
-  const payload = buildPayload();
-  try {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ action:"submit", ...payload })
-    });
-    const text = await res.text();
-    document.getElementById("log").textContent =
-      `Status: ${res.status}\nHeaders: ${[...res.headers].map(([k,v])=>k+': '+v).join('\n')}\nRaw:\n${text}`;
-  } catch (err) {
-    document.getElementById("log").textContent = `[Fetch 錯誤] ${err}`;
-  }
-}
-
-document.getElementById("sendBtn").addEventListener("click", submitTest);
-</script>
-</body>
-</html>
+<!DOCTYPE html><meta charset="utf-8">
+<h3>GAS 表單直送測試（無預檢）</h3>
+<form id="f" method="post" action="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec" target="out">
+  <input name="action" value="submit">
+  <input name="date" value="2025/09/24">
+  <input name="shift" value="A">
+  <input name="part_no" value="ABC1234">
+  <input name="lot" value="FA-0001">
+  <input name="qty" value="10">
+  <input name="sample_cnt" value="10">
+  <input name="z7" value="0"><input name="z8" value="0"><input name="z9" value="0">
+  <input name="z10" value="0"><input name="z11" value="0"><input name="z12" value="0"><input name="z13" value="0">
+  <input name="inspector" value="TEST">
+  <input name="remark" value="">
+  <input name="key2" value="2025/09/24|A|ABC1234|FA-0001|TRUE">
+  <input name="key"  value="2025/09/24|A|ABC1234|FA-0001">
+  <button type="submit">送出測試</button>
+</form>
+<iframe name="out" style="width:100%;height:240px;border:1px solid #ccc;"></iframe>
