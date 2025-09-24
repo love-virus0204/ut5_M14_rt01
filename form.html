@@ -231,39 +231,49 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
-  // 使用 x-www-form-urlencoded
-// 單一版 submitData：可直接抓表單，也可接外部 payload 覆寫
-async function submitData(p) {
-  const payload = p || {
-    action: "submit",
-    date: document.getElementById("date").value,
-    shift: document.getElementById("shift").value,
-    part_no: document.getElementById("part_no").value,
-    lot: document.getElementById("lot").value,
-    qty: document.getElementById("qty").value,
-    sample_cnt: 0,                 // 你要的自動計算再塞進來
-    z7:0, z8:0, z9:0, z10:0, z11:0, z12:0, z13:0,
-    inspector: document.getElementById("inspector").value,
-    remark: "",
-    key2: "TEST-KEY2",
-    key: "TEST-KEY"
-  };
 
-  try {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+/* ===== API（POST urlencoded） ===== */
+function submitData(p){
+  // 補預設值與規則（僅送必要欄位；不送 submitted_at）
+  var qn = Number(p.qty) || 0;
+  var sample_cnt = qn > 20 ? 20 : qn;
 
-    // 兼容非 JSON 回應，避免崩潰
-    const txt = await res.text();
-    try { return JSON.parse(txt); }
-    catch { return { status: res.ok ? "ok_raw" : "error", raw: txt }; }
-  } catch (e) {
-    return { status: "error", msg: e.message };
-  }
+  // z7..z13 預設 0；remark 預設空字串
+  var z7  = (p.z7  == null || p.z7  === '') ? 0 : p.z7;
+  var z8  = (p.z8  == null || p.z8  === '') ? 0 : p.z8;
+  var z9  = (p.z9  == null || p.z9  === '') ? 0 : p.z9;
+  var z10 = (p.z10 == null || p.z10 === '') ? 0 : p.z10;
+  var z11 = (p.z11 == null || p.z11 === '') ? 0 : p.z11;
+  var z12 = (p.z12 == null || p.z12 === '') ? 0 : p.z12;
+  var z13 = (p.z13 == null || p.z13 === '') ? 0 : p.z13;
+  var remark = (p.remark == null) ? '' : p.remark;
+
+  // 用 URLSearchParams 組 form-urlencoded
+  var params = new URLSearchParams();
+  params.append('action','submit');
+  params.append('date',       p.date);
+  params.append('shift',      p.shift);
+  params.append('part_no',    p.part_no);
+  params.append('lot',        p.lot);
+  params.append('qty',        String(p.qty));
+  params.append('sample_cnt', String(sample_cnt));
+  params.append('z7',  String(z7));
+  params.append('z8',  String(z8));
+  params.append('z9',  String(z9));
+  params.append('z10', String(z10));
+  params.append('z11', String(z11));
+  params.append('z12', String(z12));
+  params.append('z13', String(z13));
+  params.append('inspector',  p.inspector);
+  params.append('remark',     remark);
+  params.append('key2',       p.key2);
+  params.append('key',        p.key);
+
+  return fetch(API_BASE, { method:'POST', body: params, cache:'no-store' })
+    .then(function(r){ return r.text(); })
+    .then(function(t){ try{ return JSON.parse(t); } catch(_){ return {status:'parse_failed', raw:t}; } });
 }
+
 //function submitData(p){ return //apiGet({action:"submit",...p}); }
 
 /* ===== 草稿儲存（B：{料號, 批號, 數量, key, 送出成功時間, 狀態}） ===== */
