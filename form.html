@@ -232,44 +232,16 @@ function showOk(msg){
 }
 
   // 使用 x-www-form-urlencoded
-async function apiGet(params){
-  if(!params || !params.action) return {status:"error", msg:"no_action"};
-
-  // 逾時控制，避免長時間卡住被解讀成 Failed to fetch
-  const t = 15000;
-  const ctrl = new AbortController();
-  const to = setTimeout(()=>ctrl.abort("timeout"), t);
-
-  // 1) 首選：不設 headers 的 x-www-form-urlencoded（最不容易觸發預檢）
-  try{
-    const r1 = await fetch(API_BASE, {
-      method:"POST",
-      cache:"no-store",
-      body: new URLSearchParams(params),
-      signal: ctrl.signal
-    });
-    clearTimeout(to);
-    const txt1 = await r1.text();
-    try{ return JSON.parse(txt1); }catch{ return {status:"parse_failed", raw:txt1}; }
-  }catch(e1){
-    // 2) 後備：application/json
-    try{
-      const r2 = await fetch(API_BASE, {
-        method:"POST",
-        cache:"no-store",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(params),
-        signal: ctrl.signal
-      });
-      clearTimeout(to);
-      const txt2 = await r2.text();
-      try{ return JSON.parse(txt2); }catch{ return {status:"parse_failed", raw:txt2}; }
-    }catch(e2){
-      clearTimeout(to);
-      return { status:"net_failed", e1:String(e1) };
-    }
-  }
-}
+await fetch(API_BASE, {
+  method: 'POST',
+  headers: {'Content-Type':'application/json'},
+  body: JSON.stringify({
+    action: 'submit',
+    date, shift, part_no, lot, qty, sample_cnt,
+    z7:0,z8:0,z9:0,z10:0,z11:0,z12:0,z13:0,
+    inspector, remark:'', key2, key
+  })
+});
 
 function submitData(p){ return apiGet({action:"submit",...p}); }
 
