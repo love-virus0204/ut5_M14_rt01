@@ -264,7 +264,20 @@ async function submitData() {
   }
 }
 
-function submitData(p){ return apiGet({action:"submit",...p}); }
+async function submitData(p) {
+  try {
+    const res = await fetch(API_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "submit", ...p })
+    });
+    const json = await res.json();
+    return json;
+  } catch (e) {
+    return { status: "error", msg: e.message };
+  }
+}
+//function submitData(p){ return //apiGet({action:"submit",...p}); }
 
 /* ===== 草稿儲存（B：{料號, 批號, 數量, key, 送出成功時間, 狀態}） ===== */
 function dsStorageKey(ds){ return `draft_${ds.ymdSlash}_${ds.shift}`; }
