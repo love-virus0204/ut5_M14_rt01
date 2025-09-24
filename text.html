@@ -1,19 +1,126 @@
-<!DOCTYPE html><meta charset="utf-8">
-<h3>GAS 表單直送測試（無預檢）</h3>
-<form id="f" method="post" action="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec" target="out">
-  <input name="action" value="submit">
-  <input name="date" value="2025/09/24">
-  <input name="shift" value="A">
-  <input name="part_no" value="ABC1234">
-  <input name="lot" value="FA-0001">
-  <input name="qty" value="10">
-  <input name="sample_cnt" value="10">
-  <input name="z7" value="0"><input name="z8" value="0"><input name="z9" value="0">
-  <input name="z10" value="0"><input name="z11" value="0"><input name="z12" value="0"><input name="z13" value="0">
-  <input name="inspector" value="TEST">
-  <input name="remark" value="">
-  <input name="key2" value="2025/09/24|A|ABC1234|FA-0001|TRUE">
-  <input name="key"  value="2025/09/24|A|ABC1234|FA-0001">
-  <button type="submit">送出測試</button>
-</form>
-<iframe name="out" style="width:100%;height:240px;border:1px solid #ccc;"></iframe>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GAS POST 測試工具（零干擾）</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:14px;}
+  input,button,textarea{width:100%;box-sizing:border-box;font-size:16px;margin:6px 0;padding:10px}
+  pre{white-space:pre-wrap;background:#111;color:#eee;padding:12px;border-radius:8px}
+  .row{display:grid;grid-template-columns:140px 1fr;gap:8px;align-items:center}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  small{color:#666}
+</style>
+</head>
+<body>
+<h2>GAS POST 測試工具</h2>
+
+<label>API URL（你的 GAS Web App 發佈網址）</label>
+<input id="api" placeholder="https://script.google.com/macros/s/xxx/exec" />
+
+<label>送出資料（17 欄；第16欄 submitted_at 由後端自產）</label>
+<textarea id="json" rows="14">{
+  "action": "submit",
+  "date": "2025/09/24",
+  "shift": "A",
+  "part_no": "ABC1234",
+  "lot": "FA-001",
+  "qty": 10,
+  "sample_cnt": 0,
+  "z7": 0, "z8": 0, "z9": 0, "z10": 0, "z11": 0, "z12": 0, "z13": 0,
+  "inspector": "ZZZ",
+  "remark": "",
+  "key2": "2025/09/24|A|ABC1234|FA-001|TRUE",
+  "key":  "2025/09/24|A|ABC1234|FA-001"
+}</textarea>
+<small>★ 依你的 GAS：<b>application/json</b> 會進 JSON 解析；否則使用 <b>e.parameter</b>（x-www-form-urlencoded / text/plain）。</small>
+
+<div class="btns">
+  <button id="btnForm">POST 表單（x-www-form-urlencoded，推薦）</button>
+  <button id="btnJson">POST JSON（可能預檢）</button>
+</div>
+
+<h3>回應</h3>
+<pre id="out">(尚未測試)</pre>
+
+<script>
+const $ = sel => document.querySelector(sel);
+const out = $('#out');
+
+function show(result){
+  out.textContent = result;
+}
+
+function kvFromJson(){
+  // 安全解析使用者輸入
+  let obj = {};
+  try { obj = JSON.parse($('#json').value); }
+  catch(e){ show('輸入 JSON 解析失敗：' + e.message); throw e; }
+  return obj;
+}
+
+function buildFormBody(obj){
+  const sp = new URLSearchParams();
+  Object.entries(obj).forEach(([k,v]) => sp.append(k, String(v)));
+  return sp;
+}
+
+async function postForm(){
+  const url = $('#api').value.trim();
+  if(!url) return show('請輸入 API URL');
+  const data = kvFromJson();
+  const body = buildFormBody(data); // 走 e.parameter（無預檢）
+
+  show('送出中（表單）...');
+  try{
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+      body
+    });
+    const txt = await res.text();
+    let json;
+    try{ json = JSON.parse(txt); }catch(_){}
+    show(
+      '狀態: ' + res.status + '\n' +
+      'content-type: ' + (res.headers.get('content-type')||'(無)') + '\n\n' +
+      '── raw ──\n' + txt + '\n\n' +
+      (json ? '── json ──\n' + JSON.stringify(json, null, 2) : '')
+    );
+  }catch(e){
+    show('[Fetch 錯誤] ' + e);
+  }
+}
+
+async function postJson(){
+  const url = $('#api').value.trim();
+  if(!url) return show('請輸入 API URL');
+  const data = kvFromJson();
+
+  show('送出中（JSON）...');
+  try{
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' }, // 可能觸發預檢
+      body: JSON.stringify(data)
+    });
+    const txt = await res.text();
+    let json;
+    try{ json = JSON.parse(txt); }catch(_){}
+    show(
+      '狀態: ' + res.status + '\n' +
+      'content-type: ' + (res.headers.get('content-type')||'(無)') + '\n\n' +
+      '── raw ──\n' + txt + '\n\n' +
+      (json ? '── json ──\n' + JSON.stringify(json, null, 2) : '')
+    );
+  }catch(e){
+    show('[Fetch 錯誤] ' + e);
+  }
+}
+
+$('#btnForm').addEventListener('click', postForm);
+$('#btnJson').addEventListener('click', postJson);
+</script>
+</body>
+</html>
