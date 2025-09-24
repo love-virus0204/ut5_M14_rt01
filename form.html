@@ -232,15 +232,16 @@ function showOk(msg){
 }
 
   // 使用 x-www-form-urlencoded
-async function submitData() {
-  const payload = {
+async function submitData(p) {
+  // 如果有傳 p，就用 p；否則收集表單內容
+  const payload = p || {
     action: "submit",
     date: document.getElementById("date").value,
     shift: document.getElementById("shift").value,
     part_no: document.getElementById("part_no").value,
     lot: document.getElementById("lot").value,
     qty: document.getElementById("qty").value,
-    sample_cnt: 0, // 或你的計算結果
+    sample_cnt: 0, // 或自動計算
     z7: 0, z8: 0, z9: 0, z10: 0, z11: 0, z12: 0, z13: 0,
     inspector: document.getElementById("inspector").value,
     remark: "",
@@ -249,31 +250,16 @@ async function submitData() {
   };
 
   try {
-    const response = await fetch(API_BASE, {
+    const res = await fetch(API_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-
-    const result = await response.json();
-    console.log("回傳結果：", result);
-    alert("回傳結果：" + JSON.stringify(result));
-  } catch (err) {
-    console.error("Fetch 錯誤：", err);
-    alert("錯誤：" + err);
-  }
-}
-
-async function submitData(p) {
-  try {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "submit", ...p })
-    });
     const json = await res.json();
+    console.log("回傳結果：", json);
     return json;
   } catch (e) {
+    console.error("Fetch 錯誤：", e);
     return { status: "error", msg: e.message };
   }
 }
