@@ -1,129 +1,50 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GAS 連線綜合診斷工具（可視化回饋）</title>
-<style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:16px;line-height:1.45;background:#fafafa}
-  section{background:#fff;padding:12px 14px;margin:10px 0;border:1px solid #e5e5e5;border-radius:8px}
-  h2{font-size:18px;margin:0 0 8px}
-  label{display:block;margin:8px 0 4px;font-weight:600}
-  input,textarea,button,select{width:100%;box-sizing:border-box;padding:10px;margin:4px 0;font-size:14px}
-  textarea{height:150px;white-space:pre;overflow:auto}
-  .log{background:#111;color:#ddd;padding:8px;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;border-radius:6px}
-  .muted{color:#999} .ok{color:#8f8} .err{color:#f99} .info{color:#8cf}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-</style>
+<meta charset="UTF-8">
+<title>Fetch 測試 (完整欄位)</title>
 </head>
 <body>
-<section>
-  <h2>1) 目標與資料</h2>
-  <label>GAS Web App URL</label>
-  <input id="api" value="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec">
-  <div class="row">
-    <div><label>日期 yyyy/MM/dd</label><input id="date" value="2025/09/23"></div>
-    <div><label>班別</label><select id="shift"><option>A</option><option>B</option><option>C</option></select></div>
-  </div>
-  <div class="row">
-    <div><label>料號</label><input id="part_no" value="ABC1234"></div>
-    <div><label>批號</label><input id="lot" value="LOT001"></div>
-  </div>
-  <div class="row">
-    <div><label>數量</label><input id="qty" type="number" value="10"></div>
-    <div><label>檢驗員</label><input id="inspector" value="ZX"></div>
-  </div>
-  <small class="muted">會自動補：sample_cnt=Math.min(20, qty)；z7~z13=0；remark=""；key/key2 自動組合（TRUE）。</small>
-</section>
-
-<section>
-  <h2>2) 測試按鈕</h2>
-  <div class="btns">
-    <button id="btnBuild">建立 payload</button>
-    <button id="btnPing">POST ping</button>
-    <button id="btnPlain">POST text/plain（無預檢）</button>
-    <button id="btnJSON">POST application/json（可能預檢）</button>
-    <button id="btnForm">POST x-www-form-urlencoded</button>
-    <button id="btnGET">GET 可達性</button>
-  </div>
-</section>
-
-<section>
-  <h2>3) 送出內容</h2>
-  <textarea id="payload" placeholder="先按『建立 payload』"></textarea>
-</section>
-
-<section>
-  <h2>4) 回饋 Log</h2>
-  <div id="log" class="log">（等待操作）</div>
-</section>
+<h3>Fetch POST 測試 (完整欄位)</h3>
+<pre id="out">尚未送出</pre>
+<button id="btn">送出測試</button>
 
 <script>
-const $ = (id)=>document.getElementById(id);
-const stamp = ()=>new Date().toLocaleTimeString();
-const log = (msg, cls='info')=>{
-  const box = $('log');
-  box.innerHTML += "\n["+stamp()+"] <span class='"+cls+"'>"+msg+"</span>";
-  box.scrollTop = box.scrollHeight;
-};
+const API_BASE="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-const buildPayload = ()=>{
-  const date = $('date').value.trim();
-  const shift = $('shift').value.trim();
-  const part_no = $('part_no').value.trim().toUpperCase();
-  const lot = $('lot').value.trim().toUpperCase();
-  const qty = Number($('qty').value)||0;
-  const inspector = $('inspector').value.trim().toUpperCase();
-  const key = `${date}|${shift}|${part_no}|${lot}`;
-  const key2 = `${date}|${shift}|${part_no}|${lot}|TRUE`;
-  const p = {
-    action:'submit', date, shift, part_no, lot,
-    qty:String(qty), sample_cnt: Math.min(20, qty),
-    z7:0,z8:0,z9:0,z10:0,z11:0,z12:0,z13:0,
-    remark:'', inspector, key2, key
-  };
-  $('payload').value = JSON.stringify(p, null, 2);
-  log('已建立 payload', 'ok');
-  return p;
-};
+document.getElementById("btn").onclick=async function(){
+  const params=new URLSearchParams();
+  // 1..18 欄位 (第16 submitted_at 後端自補)
+  params.append("action","submit");
+  params.append("date","2025/09/25");
+  params.append("shift","A");
+  params.append("part_no","ABC1234");
+  params.append("lot","L001");
+  params.append("qty","100");
+  params.append("sample_cnt","20");
+  params.append("z7","0");
+  params.append("z8","0");
+  params.append("z9","0");
+  params.append("z10","0");
+  params.append("z11","0");
+  params.append("z12","0");
+  params.append("z13","0");
+  params.append("inspector","QA01");
+  params.append("remark","");
+  params.append("key2","TESTKEY2");
+  params.append("key","2025/09/25|A|ABC1234|L001");
 
-const ensurePayload = ()=>{ if(!$('payload').value.trim()) return buildPayload(); return JSON.parse($('payload').value); };
-
-async function runFetch(desc, options){
-  const api = $('api').value.trim();
-  log("開始："+desc, 'info');
   try{
-    const res = await fetch(api, options);
-    const txt = await res.text();
-    log("完成：HTTP "+res.status, res.ok ? 'ok' : 'err');
-    log(txt, res.ok ? 'ok' : 'err');
-  }catch(e){
-    log("失敗："+e, 'err');
-  }
-}
-
-$('btnBuild').onclick = ()=>buildPayload();
-$('btnPing').onclick  = ()=>runFetch('POST ping', { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'ping'}) });
-$('btnPlain').onclick = ()=>{ const p = ensurePayload(); runFetch('POST text/plain', { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(p) }); };
-$('btnJSON').onclick  = ()=>{ const p = ensurePayload(); runFetch('POST application/json', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) }); };
-$('btnForm').onclick  = ()=>{ const p = ensurePayload(); const form = new URLSearchParams(); Object.keys(p).forEach(k=>form.append(k, p[k])); runFetch('POST x-www-form-urlencoded', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: form.toString() }); };
-$('btnGET').onclick   = async ()=>{
-  const api = $('api').value.trim();
-  log("開始：GET 可達性", 'info');
-  try{
-    const res = await fetch(api+'?action=ping', { method:'GET', cache:'no-store' });
-    const txt = await res.text();
-    log("完成：HTTP "+res.status, res.ok ? 'ok' : 'err');
-    log(txt+"\n(提示: 你的 doGet 已禁用，正常應為 get_disabled 或 405)", res.ok ? 'ok' : 'err');
-  }catch(e){
-    log("失敗："+e, 'err');
+    const res=await fetch(API_BASE,{
+      method:"POST",
+      body:params   // URLSearchParams，自動帶 form-urlencoded
+    });
+    const txt=await res.text();
+    document.getElementById("out").textContent=txt;
+  }catch(err){
+    document.getElementById("out").textContent="錯誤: "+err;
   }
 };
-
-// 預先建立一次 payload
-buildPayload();
-log('可直接按上方任一測試按鈕', 'muted');
 </script>
 </body>
 </html>
