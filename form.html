@@ -231,23 +231,18 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
-/* ===== API（POST） ===== */
+/* ===== API（POST x-www-form-urlencoded） ===== */
 function apiGet(params){
-  // 將 JSON 物件轉換為 URL 編碼格式
   const formData = new URLSearchParams();
   for (const key in params) {
-    if (params.hasOwnProperty(key)) {
-      formData.append(key, params[key]);
-    }
+    formData.append(key, params[key]);
   }
   
   return fetch(API_BASE, {
     method: "POST",
     cache: "no-store",
-    headers: { 
-      "Content-Type": "application/x-www-form-urlencoded"  // 改這行
-    },
-    body: formData  // 改這行
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: formData
   }).then(async r=>{
     const txt = await r.text();
     try { 
