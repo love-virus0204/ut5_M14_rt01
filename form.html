@@ -96,7 +96,9 @@
 
   <div class="submit" id="submit-row">
     <div class="submit-center"><div id="okMsg" class="ok-msg"></div></div>
-    <button id="sendBtn" class="btn">送出</button>
+//    <button id="sendBtn" class="btn">送出
+<button id="submitBtn" onclick="submitData().then(r => toast(JSON.stringify(r)))">送出
+</button>
   </div>
 
   <hr>
@@ -232,8 +234,8 @@ function showOk(msg){
 }
 
   // 使用 x-www-form-urlencoded
+// 單一版 submitData：可直接抓表單，也可接外部 payload 覆寫
 async function submitData(p) {
-  // 如果有傳 p，就用 p；否則收集表單內容
   const payload = p || {
     action: "submit",
     date: document.getElementById("date").value,
@@ -241,8 +243,8 @@ async function submitData(p) {
     part_no: document.getElementById("part_no").value,
     lot: document.getElementById("lot").value,
     qty: document.getElementById("qty").value,
-    sample_cnt: 0, // 或自動計算
-    z7: 0, z8: 0, z9: 0, z10: 0, z11: 0, z12: 0, z13: 0,
+    sample_cnt: 0,                 // 你要的自動計算再塞進來
+    z7:0, z8:0, z9:0, z10:0, z11:0, z12:0, z13:0,
     inspector: document.getElementById("inspector").value,
     remark: "",
     key2: "TEST-KEY2",
@@ -255,11 +257,12 @@ async function submitData(p) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    const json = await res.json();
-    console.log("回傳結果：", json);
-    return json;
+
+    // 兼容非 JSON 回應，避免崩潰
+    const txt = await res.text();
+    try { return JSON.parse(txt); }
+    catch { return { status: res.ok ? "ok_raw" : "error", raw: txt }; }
   } catch (e) {
-    console.error("Fetch 錯誤：", e);
     return { status: "error", msg: e.message };
   }
 }
