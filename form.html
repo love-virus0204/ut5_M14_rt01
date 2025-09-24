@@ -96,12 +96,11 @@
 
   <div class="submit" id="submit-row">
     <div class="submit-center"><div id="okMsg" class="ok-msg"></div></div>
-  <button id="submitBtn"       onclick="submitData().then(r => toast(JSON.stringify(r)))">送出
-</button>
+
+  <button id="submitBtn" type="button" onclick="submitData().then(r => toast(JSON.stringify(r)))">送出</button>
+
   </div>
-
   <hr>
-
   <div class="bottom-info">
     <div id="versionTag" class="ver-left">版本：v17.10.9h</div>
     <div id="tsView" class="time-right"></div>
