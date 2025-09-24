@@ -232,13 +232,33 @@ function showOk(msg){
 }
 
   // 使用 x-www-form-urlencoded
-function apiGet(params){
-  return fetch(API_BASE, {
-    method: "POST",
-    cache: "no-store",
-    body: new URLSearchParams(params)   // 不寫 headers
-  }).then(r => r.json());
-} 
+async function apiGet(params){
+  // 1) JSON POST（最快速）
+  try{
+    const r = await fetch(API_BASE, {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params)
+    });
+    const t = await r.text();
+    try { return JSON.parse(t); } catch { return {status:"parse_failed", raw:t}; }
+  }catch(e1){
+    // 2) 退回：x-www-form-urlencoded（不設 headers，避免預檢）
+    try{
+      const r2 = await fetch(API_BASE, {
+        method: "POST",
+        cache: "no-store",
+        body: new URLSearchParams(params)
+      });
+      const t2 = await r2.text();
+      try { return JSON.parse(t2); } catch { return {status:"parse_failed", raw:t2}; }
+    }catch(e2){
+      return { status:"net_failed", e1:String(e1), e2:String(e2) };
+    }
+  }
+}
+
 function submitData(p){ return apiGet({action:"submit",...p}); }
 
 /* ===== 草稿儲存（B：{料號, 批號, 數量, key, 送出成功時間, 狀態}） ===== */
