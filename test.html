@@ -6,15 +6,14 @@
 </head>
 <body>
 <h3>Fetch POST 測試 (完整欄位)</h3>
-<pre id="out">尚未送出</pre>
 <button id="btn">送出測試</button>
+<pre id="out">尚未送出</pre>
 
 <script>
 const API_BASE="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-document.getElementById("btn").onclick=async function(){
+function doPostTest(){
   const params=new URLSearchParams();
-  // 1..18 欄位 (第16 submitted_at 後端自補)
   params.append("action","submit");
   params.append("date","2025/09/25");
   params.append("shift","A");
@@ -22,29 +21,19 @@ document.getElementById("btn").onclick=async function(){
   params.append("lot","L001");
   params.append("qty","100");
   params.append("sample_cnt","20");
-  params.append("z7","0");
-  params.append("z8","0");
-  params.append("z9","0");
-  params.append("z10","0");
-  params.append("z11","0");
-  params.append("z12","0");
-  params.append("z13","0");
+  params.append("z7","0"); params.append("z8","0"); params.append("z9","0");
+  params.append("z10","0"); params.append("z11","0"); params.append("z12","0"); params.append("z13","0");
   params.append("inspector","QA01");
   params.append("remark","");
   params.append("key2","TESTKEY2");
   params.append("key","2025/09/25|A|ABC1234|L001");
 
-  try{
-    const res=await fetch(API_BASE,{
-      method:"POST",
-      body:params   // URLSearchParams，自動帶 form-urlencoded
-    });
-    const txt=await res.text();
-    document.getElementById("out").textContent=txt;
-  }catch(err){
-    document.getElementById("out").textContent="錯誤: "+err;
-  }
-};
-</script>
-</body>
+  fetch(API_BASE,{method:"POST",body:params})
+    .then(r=>r.text())
+    .then(t=>document.getElementById("out").textContent=t)
+    .catch(err=>document.getElementById("out").textContent="錯誤:"+err);
+}
+
+document.getElementById("btn").addEventListener("click",doPostTest);
+</script></body>
 </html>
