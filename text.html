@@ -1,71 +1,209 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!doctype html>
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>POST 測試工具</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    pre { background: #f4f4f4; padding: 10px; border-radius: 6px; }
-    button { padding: 8px 16px; margin-top: 10px; cursor: pointer; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GAS POST 測試工具</title>
+<style>
+  :root { --fg:#111; --bg:#fff; --muted:#666; --ok:#14a44d; --err:#e63946; --box:#f6f8fa; --border:#e5e7eb; }
+  *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+  body{margin:0;background:var(--bg);color:var(--fg);padding:20px;line-height:1.45}
+  h1{font-size:20px;margin:0 0 14px}
+  label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+  input,textarea,button{width:100%;font-size:15px}
+  input,textarea{border:1px solid var(--border);border-radius:8px;background:#fff;padding:10px 12px}
+  textarea{min-height:240px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .row{display:grid;gap:12px}
+  .grid-2{grid-template-columns:1fr 1fr}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);background:#111;color:#fff;
+       border-radius:10px;padding:12px 14px;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn.secondary{background:#fff;color:#111}
+  .muted{color:var(--muted)}
+  .card{background:var(--box);border:1px solid var(--border);border-radius:12px;padding:12px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+  .status-ok{color:var(--ok);font-weight:600}
+  .status-err{color:var(--err);font-weight:600}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+</style>
 </head>
 <body>
-  <h2>GAS POST 測試工具</h2>
+  <h1>GAS POST 測試工具</h1>
 
-  <label>API URL：
-    <input id="api" type="text" size="80"
-      value="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec">
-  </label>
+  <label>API URL（你的 GAS 佈署網址 /exec）</label>
+  <input id="api" placeholder="https://script.google.com/macros/s/XXXX/exec" />
 
-  <h3>測試資料</h3>
-  <pre id="payload"></pre>
+  <div class="bar">
+    <button class="btn" id="btnBuild">建立範例 payload</button>
+    <button class="btn secondary" id="btnNow">日期改成今天</button>
+  </div>
 
-  <button onclick="runTest()">送出 POST 測試</button>
+  <label>送出內容（application/json）</label>
+  <textarea id="payload"></textarea>
 
-  <h3>結果</h3>
-  <pre id="result">(等待測試...)</pre>
+  <div class="bar">
+    <button class="btn" id="btnPost">送出 POST（application/json）</button>
+    <button class="btn secondary" id="btnClear">清空結果</button>
+  </div>
 
-  <script>
-  async function runTest(){
-    const payload = {
+  <div class="row grid-2">
+    <div>
+      <label>請求摘要</label>
+      <div class="card mono" id="reqBox">（尚未送出）</div>
+    </div>
+    <div>
+      <label>回應摘要</label>
+      <div class="card mono" id="resBox">（尚未收到）</div>
+    </div>
+  </div>
+
+  <label>原始回應本文</label>
+  <div class="card mono" id="rawBox">（無）</div>
+
+<script>
+(function(){
+  const apiEl = document.getElementById('api');
+  const payloadEl = document.getElementById('payload');
+  const reqBox = document.getElementById('reqBox');
+  const resBox = document.getElementById('resBox');
+  const rawBox = document.getElementById('rawBox');
+
+  // 預設填一個常見的 submit 範例
+  function buildSample(){
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    const dateStr = `${yyyy}/${mm}/${dd}`;
+
+    const sample = {
       action: "submit",
-      date: "2025/09/24",
+      date: dateStr,
       shift: "A",
       part_no: "ABC1234",
       lot: "FA-001",
       qty: 10,
       sample_cnt: 0,
-      z7: 0, z8: 0, z9: 0, z10: 0, z11: 0, z12: 0, z13: 0,
+      z7:0,z8:0,z9:0,z10:0,z11:0,z12:0,z13:0,
       inspector: "ZZZ",
       remark: "",
       key2: "TEST-KEY2",
       key: "TEST-KEY"
     };
+    payloadEl.value = JSON.stringify(sample, null, 2);
+  }
 
-    document.getElementById("payload").textContent =
-      JSON.stringify(payload, null, 2);
+  // 僅更新日期欄位
+  function setToday(){
+    try{
+      const obj = JSON.parse(payloadEl.value || "{}");
+      const t = new Date();
+      const yyyy = t.getFullYear();
+      const mm = String(t.getMonth()+1).padStart(2,'0');
+      const dd = String(t.getDate()).padStart(2,'0');
+      obj.date = `${yyyy}/${mm}/${dd}`;
+      payloadEl.value = JSON.stringify(obj, null, 2);
+    }catch(_){}
+  }
+
+  function showReqSummary(url, headers, body){
+    reqBox.textContent =
+`POST ${url}
+headers: ${JSON.stringify(headers)}
+body:
+${typeof body === 'string' ? body : JSON.stringify(body, null, 2)}`;
+  }
+
+  function showResSummary(ok, status, statusText, headersObj){
+    const cls = ok ? 'status-ok' : 'status-err';
+    const lines = [`狀態：${status} ${statusText}`];
+    const headers = [];
+    for (const [k,v] of Object.entries(headersObj)) headers.push(`${k}: ${v}`);
+    lines.push('headers:');
+    lines.push(headers.length ? headers.join('\n') : '(無)');
+    resBox.innerHTML = `<span class="${cls}">${ok ? '成功' : '失敗'}</span>\n` + lines.join('\n');
+  }
+
+  function setRaw(text){
+    rawBox.textContent = text;
+  }
+
+  // 核心：POST application/json（含完整錯誤與細節）
+  async function postJSON(){
+    const url = apiEl.value.trim();
+    let bodyText = payloadEl.value.trim();
+
+    if (!url) { alert('請先填 API URL'); return; }
+    if (!bodyText) { alert('payload 為空'); return; }
+
+    // 驗證 JSON
+    let bodyObj = null;
+    try {
+      bodyObj = JSON.parse(bodyText);
+    } catch (e) {
+      alert('payload 不是有效 JSON：\n' + e.message);
+      return;
+    }
+
+    const headers = { 'Content-Type': 'application/json' };
+    showReqSummary(url, headers, bodyObj);
+    setRaw('（等待回應中…）');
+    resBox.textContent = '（等待回應中…）';
+
+    // 加入 15 秒逾時
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), 15000);
 
     try {
-      const res = await fetch(document.getElementById("api").value, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(bodyObj),
+        cache: 'no-store',
+        redirect: 'follow',
+        signal: ctrl.signal
       });
 
+      clearTimeout(t);
+
+      // 收集 headers
+      const headersObj = {};
+      res.headers.forEach((v,k)=>headersObj[k]=v);
+
+      // 直接以文字讀取，避免 JSON.parse 失敗就看不到原文
       const text = await res.text();
-      let out = `HTTP 狀態碼: ${res.status}\n回傳原始文字:\n${text}`;
-      try {
-        const json = JSON.parse(text);
-        out += `\n\n解析 JSON:\n${JSON.stringify(json, null, 2)}`;
-      } catch(e) {
-        out += `\n\n⚠️ JSON 解析失敗: ${e.message}`;
+      setRaw(text);
+
+      let parsed = null;
+      try { parsed = JSON.parse(text); } catch(_){}
+
+      showResSummary(res.ok, res.status, res.statusText, headersObj);
+
+      // 額外把 JSON 解析結果附註
+      if (parsed !== null) {
+        rawBox.textContent = text + '\n\n[解析為 JSON]\n' + JSON.stringify(parsed, null, 2);
       }
-      document.getElementById("result").textContent = out;
+
     } catch (err) {
-      document.getElementById("result").textContent =
-        `❌ Fetch 錯誤: ${err.message}`;
+      clearTimeout(t);
+      showResSummary(false, 0, err.name || 'Error', {});
+      setRaw(`[Fetch 錯誤]\n${err.message || String(err)}`);
     }
   }
-  </script>
+
+  // 綁定
+  document.getElementById('btnBuild').addEventListener('click', buildSample);
+  document.getElementById('btnNow').addEventListener('click', setToday);
+  document.getElementById('btnPost').addEventListener('click', postJSON);
+  document.getElementById('btnClear').addEventListener('click', ()=>{
+    reqBox.textContent = '（已清空）';
+    resBox.textContent = '（已清空）';
+    rawBox.textContent = '（已清空）';
+  });
+
+  // 初始：帶一個空白 URL、產生範例 payload
+  buildSample();
+})();
+</script>
 </body>
 </html>
