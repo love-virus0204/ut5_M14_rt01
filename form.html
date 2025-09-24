@@ -231,13 +231,21 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
-/* ===== API（POST） ===== */
+
+/* ===== API（POST x-www-form-urlencoded）簡單版 ===== */
 function apiGet(params){
+  // 直接建立 form-data 字串
+  const formDataString = Object.keys(params)
+    .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key]))
+    .join('&');
+  
   return fetch(API_BASE, {
     method: "POST",
     cache: "no-store",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: formData
+    headers: { 
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: formDataString  // 直接傳送字串
   }).then(async r=>{
     const txt = await r.text();
     try { 
