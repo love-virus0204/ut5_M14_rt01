@@ -59,18 +59,15 @@ function doPost(e){
   return _json({status:"error", msg:"unknown_action"});
 }
 
-/* 寫入：命中 key 覆寫 1..19；未命中 appendRow（20..21 由後端補空）
+/* 寫入1..19：命中 key 覆寫 1..19
    依需求：
-   - 欄1 直接使用前端 p.date（不轉型、不防呆）
-   - 欄16 使用 GAS 系統時間轉 Asia/Taipei 字串
    - 維護一份一維 row，更新與新增共用；deleted 一律寫 "TRUE"
 */
 function _submit(sheet, p){
   var submittedAt = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy/MM/dd HH:mm:ss');
-
   // 一維列資料（1..19）
   var row = [
-    p.date,               // 1 date（前端提供）
+    p.date,               // 1
     p.shift,              // 2
     p.part_no,            // 3
     p.lot,                // 4
@@ -85,10 +82,10 @@ function _submit(sheet, p){
     p.z13,                // 13
     p.inspector,          // 14
     p.remark,             // 15
-    submittedAt,          // 16 submitted_at（台北時間字串）
+    submittedAt,          // 16
     p.key2,               // 17
     p.key,                // 18
-    "TRUE"                // 19 deleted（固定 TRUE）
+    "TRUE"                // 19
   ];
 
   var hitRow = _findRowByKey(sheet, String(p.key));
@@ -96,11 +93,7 @@ function _submit(sheet, p){
     sheet.getRange(hitRow, 1, 1, 19).setValues([row]); // 覆寫 1..19
     return _json({status:"ok", mode:"更新"});
   } else {
-    sheet.appendRow([
-      ...row,             // 1..19
-      "",                 // 20 admin_id
-      ""                  // 21 deleted_at
-    ]);
+    sheet.appendRow([...row, "", ""]);
     return _json({status:"ok", mode:"新增"});
   }
 }
@@ -115,9 +108,7 @@ function _softDelete(sheet, p){
   var deletedAt  = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy/MM/dd HH:mm:ss');
 
   sheet.getRange(row, 18, 1, 4).setValues([
-    ["DEL", "FALSE", admin_id, deletedAt] // 18 key, 19 deleted, 20 admin_id, 21 deleted_at
-  ]);
-
+    ["DEL", "FALSE", admin_id, deletedAt]]);
   return _json({status:"ok"});
 }
 
