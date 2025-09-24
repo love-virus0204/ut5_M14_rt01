@@ -1,342 +1,71 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GAS 連線測試工具</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #4285f4;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .test-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        button {
-            background-color: #4285f4;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 5px;
-        }
-        button:hover {
-            background-color: #3367d6;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .result {
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 4px;
-            white-space: pre-wrap;
-            font-family: monospace;
-            font-size: 12px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .success {
-            background-color: #e6f4ea;
-            border: 1px solid #34a853;
-        }
-        .error {
-            background-color: #fce8e6;
-            border: 1px solid #ea4335;
-        }
-        .info {
-            background-color: #e8f0fe;
-            border: 1px solid #4285f4;
-        }
-        .input-group {
-            margin: 10px 0;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        textarea {
-            height: 100px;
-            resize: vertical;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>POST 測試工具</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 6px; }
+    button { padding: 8px 16px; margin-top: 10px; cursor: pointer; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>GAS 連線測試工具</h1>
-        
-        <div class="test-section">
-            <h3>1. 基本連線測試</h3>
-            <p>測試 GAS 端點是否可連線</p>
-            <button id="testPing">測試 Ping</button>
-            <div id="pingResult" class="result"></div>
-        </div>
-        
-        <div class="test-section">
-            <h3>2. 模擬表單提交</h3>
-            <p>使用您的實際表單數據進行測試</p>
-            
-            <div class="input-group">
-                <label for="testInspector">檢驗員 (5碼工號):</label>
-                <input type="text" id="testInspector" value="A1234" maxlength="5">
-            </div>
-            
-            <div class="input-group">
-                <label for="testPartNo">料號 (7碼):</label>
-                <input type="text" id="testPartNo" value="A58K052" maxlength="7">
-            </div>
-            
-            <div class="input-group">
-                <label for="testLot">批號:</label>
-                <input type="text" id="testLot" value="ABC-12">
-            </div>
-            
-            <div class="input-group">
-                <label for="testQty">數量:</label>
-                <input type="number" id="testQty" value="100">
-            </div>
-            
-            <button id="testSubmit">測試提交</button>
-            <div id="submitResult" class="result"></div>
-        </div>
-        
-        <div class="test-section">
-            <h3>3. 自訂請求測試</h3>
-            <p>手動輸入 JSON 數據進行測試</p>
-            
-            <div class="input-group">
-                <label for="customJson">自訂 JSON 數據:</label>
-                <textarea id="customJson">{
-  "action": "submit",
-  "date": "2024/01/15",
-  "shift": "A",
-  "part_no": "A58K052",
-  "lot": "ABC-12",
-  "qty": "100",
-  "inspector": "A1234",
-  "key": "01/15|A|A58K052|ABC-12",
-  "key2": "01/15|A|A58K052|ABC-12|TRUE"
-}</textarea>
-            </div>
-            
-            <button id="testCustom">測試自訂請求</button>
-            <div id="customResult" class="result"></div>
-        </div>
-        
-        <div class="test-section">
-            <h3>4. 診斷資訊</h3>
-            <button id="runDiagnostics">執行完整診斷</button>
-            <div id="diagnosticsResult" class="result"></div>
-        </div>
-    </div>
+  <h2>GAS POST 測試工具</h2>
 
-    <script>
-        const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
-        
-        // 工具函數
-        function showResult(elementId, message, isSuccess) {
-            const element = document.getElementById(elementId);
-            element.textContent = message;
-            element.className = 'result ' + (isSuccess ? 'success' : 'error');
-        }
-        
-        function showInfo(elementId, message) {
-            const element = document.getElementById(elementId);
-            element.textContent = message;
-            element.className = 'result info';
-        }
-        
-        // 測試函數
-        async function testPing() {
-            showInfo('pingResult', '測試中...');
-            
-            try {
-                const response = await fetch(API_BASE, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({action: 'ping'})
-                });
-                
-                const resultText = await response.text();
-                const isSuccess = response.ok;
-                
-                showResult('pingResult', 
-                    `狀態碼: ${response.status} ${response.statusText}\n\n` +
-                    `回應內容:\n${resultText}\n\n` +
-                    `請求URL: ${API_BASE}`,
-                    isSuccess
-                );
-            } catch (error) {
-                showResult('pingResult', 
-                    `錯誤: ${error.message}\n\n` +
-                    `詳細資訊: ${error}\n\n` +
-                    `請檢查:\n` +
-                    `1. 網路連線是否正常\n` +
-                    `2. GAS URL 是否正確\n` +
-                    `3. GAS 是否已部署為網頁應用程式`,
-                    false
-                );
-            }
-        }
-        
-        async function testSubmit() {
-            showInfo('submitResult', '提交中...');
-            
-            const payload = {
-                action: "submit",
-                date: new Date().toLocaleDateString('zh-TW').replace(/-/g, '/'),
-                shift: "A",
-                part_no: document.getElementById('testPartNo').value,
-                lot: document.getElementById('testLot').value,
-                qty: document.getElementById('testQty').value,
-                inspector: document.getElementById('testInspector').value,
-                key: `${new Date().getMonth()+1}/${new Date().getDate()}|A|${document.getElementById('testPartNo').value}|${document.getElementById('testLot').value}`,
-                key2: `${new Date().getMonth()+1}/${new Date().getDate()}|A|${document.getElementById('testPartNo').value}|${document.getElementById('testLot').value}|TRUE`
-            };
-            
-            try {
-                const response = await fetch(API_BASE, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                
-                const resultText = await response.text();
-                const isSuccess = response.ok;
-                
-                showResult('submitResult', 
-                    `狀態碼: ${response.status} ${response.statusText}\n\n` +
-                    `請求數據:\n${JSON.stringify(payload, null, 2)}\n\n` +
-                    `回應內容:\n${resultText}`,
-                    isSuccess
-                );
-            } catch (error) {
-                showResult('submitResult', 
-                    `錯誤: ${error.message}\n\n` +
-                    `請求數據:\n${JSON.stringify(payload, null, 2)}\n\n` +
-                    `詳細錯誤: ${error}`,
-                    false
-                );
-            }
-        }
-        
-        async function testCustom() {
-            showInfo('customResult', '測試中...');
-            
-            try {
-                const customJson = document.getElementById('customJson').value;
-                const payload = JSON.parse(customJson);
-                
-                const response = await fetch(API_BASE, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                
-                const resultText = await response.text();
-                const isSuccess = response.ok;
-                
-                showResult('customResult', 
-                    `狀態碼: ${response.status} ${response.statusText}\n\n` +
-                    `請求數據:\n${JSON.stringify(payload, null, 2)}\n\n` +
-                    `回應內容:\n${resultText}`,
-                    isSuccess
-                );
-            } catch (error) {
-                showResult('customResult', 
-                    `錯誤: ${error.message}\n\n` +
-                    `請檢查 JSON 格式是否正確`,
-                    false
-                );
-            }
-        }
-        
-        async function runDiagnostics() {
-            showInfo('diagnosticsResult', '執行診斷中...');
-            
-            let diagnostics = '';
-            
-            // 測試1: 基本連線
-            diagnostics += '=== 基本連線測試 ===\n';
-            try {
-                const response = await fetch(API_BASE, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({action: 'ping'})
-                });
-                diagnostics += `✓ 連線成功 (狀態碼: ${response.status})\n`;
-            } catch (error) {
-                diagnostics += `✗ 連線失敗: ${error.message}\n`;
-            }
-            
-            // 測試2: CORS 檢查
-            diagnostics += '\n=== CORS 檢查 ===\n';
-            try {
-                const response = await fetch(API_BASE, {method: 'OPTIONS'});
-                diagnostics += `✓ OPTIONS 請求成功\n`;
-                
-                // 檢查 CORS 頭部
-                const corsHeaders = [];
-                if (response.headers.get('access-control-allow-origin')) {
-                    corsHeaders.push('access-control-allow-origin');
-                }
-                if (response.headers.get('access-control-allow-methods')) {
-                    corsHeaders.push('access-control-allow-methods');
-                }
-                
-                diagnostics += `CORS 頭部: ${corsHeaders.join(', ') || '無'}\n`;
-            } catch (error) {
-                diagnostics += `✗ CORS 檢查失敗: ${error.message}\n`;
-            }
-            
-            // 測試3: 瀏覽器資訊
-            diagnostics += '\n=== 瀏覽器環境 ===\n';
-            diagnostics += `User Agent: ${navigator.userAgent}\n`;
-            diagnostics += `線上狀態: ${navigator.onLine ? '線上' : '離線'}\n`;
-            
-            showInfo('diagnosticsResult', diagnostics);
-        }
-        
-        // 事件監聽
-        document.getElementById('testPing').addEventListener('click', testPing);
-        document.getElementById('testSubmit').addEventListener('click', testSubmit);
-        document.getElementById('testCustom').addEventListener('click', testCustom);
-        document.getElementById('runDiagnostics').addEventListener('click', runDiagnostics);
-        
-        // 頁面載入時自動執行基本測試
-        window.addEventListener('load', () => {
-            showInfo('pingResult', '點擊"測試 Ping"按鈕開始測試');
-            showInfo('submitResult', '填寫表單數據後點擊"測試提交"');
-            showInfo('customResult', '編輯 JSON 數據後點擊"測試自訂請求"');
-            showInfo('diagnosticsResult', '點擊"執行完整診斷"獲取詳細資訊');
-        });
-    </script>
+  <label>API URL：
+    <input id="api" type="text" size="80"
+      value="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec">
+  </label>
+
+  <h3>測試資料</h3>
+  <pre id="payload"></pre>
+
+  <button onclick="runTest()">送出 POST 測試</button>
+
+  <h3>結果</h3>
+  <pre id="result">(等待測試...)</pre>
+
+  <script>
+  async function runTest(){
+    const payload = {
+      action: "submit",
+      date: "2025/09/24",
+      shift: "A",
+      part_no: "ABC1234",
+      lot: "FA-001",
+      qty: 10,
+      sample_cnt: 0,
+      z7: 0, z8: 0, z9: 0, z10: 0, z11: 0, z12: 0, z13: 0,
+      inspector: "ZZZ",
+      remark: "",
+      key2: "TEST-KEY2",
+      key: "TEST-KEY"
+    };
+
+    document.getElementById("payload").textContent =
+      JSON.stringify(payload, null, 2);
+
+    try {
+      const res = await fetch(document.getElementById("api").value, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await res.text();
+      let out = `HTTP 狀態碼: ${res.status}\n回傳原始文字:\n${text}`;
+      try {
+        const json = JSON.parse(text);
+        out += `\n\n解析 JSON:\n${JSON.stringify(json, null, 2)}`;
+      } catch(e) {
+        out += `\n\n⚠️ JSON 解析失敗: ${e.message}`;
+      }
+      document.getElementById("result").textContent = out;
+    } catch (err) {
+      document.getElementById("result").textContent =
+        `❌ Fetch 錯誤: ${err.message}`;
+    }
+  }
+  </script>
 </body>
 </html>
