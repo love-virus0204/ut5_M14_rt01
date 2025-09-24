@@ -231,17 +231,14 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
-  // 使用 x-www-form-urlencoded（www 方式）包一個 payload 欄位
+  // 使用 x-www-form-urlencoded
 function apiGet(params){
-  const body = new URLSearchParams(params).toString(); // 直接展平
   return fetch(API_BASE, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
     cache: "no-store",
-    body
+    body: new URLSearchParams(params)   // 不寫 headers
   }).then(r => r.json());
-}
-
+} 
 function submitData(p){ return apiGet({action:"submit",...p}); }
 
 /* ===== 草稿儲存（B：{料號, 批號, 數量, key, 送出成功時間, 狀態}） ===== */
