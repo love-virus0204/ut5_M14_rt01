@@ -17,7 +17,6 @@
   .muted{color:var(--muted)}
   .grp{margin:12px 0 6px;font-weight:700}
   .range{margin:8px 0 8px;color:#334155;font-size:13px}
-  .pill{display:inline-block;border:1px solid #cbd5e1;border-radius:999px;padding:2px 8px;font-size:12px;margin-right:6px}
   table{width:100%;border-collapse:collapse}
   th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;font-size:14px}
   th{color:#334155;background:#f9fafb}
@@ -49,7 +48,7 @@
 
 <script>
 const CFG = {
-  version: "browse v1.7.0",
+  version: "browse v1.7.1",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
@@ -134,17 +133,14 @@ function pickRecentThree(rows){
   return pairs;
 }
 
-// 顯示查詢範圍與總筆數
-function renderRange(pairs, totalCount){
+// 顯示「有效資料:?筆」
+function renderCount(totalCount){
   const box = document.getElementById('range');
-  const part = pairs.length
-    ? pairs.map(p=>`<span class="pill">${toMMDD(p.ymd)}</span><span class="pill">${p.sh}</span>`).join(' ')
-    : '<span class="pill">無</span>';
-  box.innerHTML = `查詢範圍：${part}　｜　符合筆數：<strong>${totalCount}</strong>`;
+  box.textContent = `有效資料：${totalCount} 筆`;
   box.style.display = "";
 }
 
-// 渲染表格（只三欄）
+// 渲染表格（每組標題：mm/dd - 班；只三欄）
 function render(groups){
   const root = document.getElementById('root');
   root.innerHTML = "";
@@ -152,7 +148,7 @@ function render(groups){
     const sec = document.createElement('section');
     const hdr = document.createElement('div');
     hdr.className = "grp";
-    hdr.textContent = `日期／班別：${toMMDD(g.ymd)} - ${g.sh}`;
+    hdr.textContent = `${toMMDD(g.ymd)} - ${g.sh}`;
     sec.appendChild(hdr);
 
     const table = document.createElement('table');
@@ -193,19 +189,18 @@ function render(groups){
   const valid = rows.filter(isValid);
   if (valid.length === 0){
     elStat.textContent = "無有效資料";
+    renderCount(0);
     return;
   }
 
   const last3 = pickRecentThree(valid);
-  // 分組
   const groups = last3.map(({ymd,sh})=>{
     const rs = valid.filter(r=>String(r.date)===ymd && String(r.shift)===sh);
     return { ymd, sh, rows: rs };
   }).filter(g=>g.rows.length>0);
 
-  // 顯示查詢範圍與總筆數（有效且符合條件的）
   const totalCount = groups.reduce((acc,g)=>acc+g.rows.length, 0);
-  renderRange(last3, totalCount);
+  renderCount(totalCount);
 
   if (groups.length===0){
     elStat.textContent = "無符合條件資料";
