@@ -20,8 +20,12 @@
   table{width:100%;border-collapse:collapse}
   th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;font-size:14px}
   th{color:#334155;background:#f9fafb}
-  /* 料號數值置中：只影響資料列第一欄 */
+  /* 料號表頭置中 */
+  th:first-child{ text-align:center; }
+  /* 料號數值置中（資料列第一欄） */
   tbody td:first-child{ text-align:center; }
+  /* 數量數值置中（資料列最後一欄） */
+  tbody td:last-child{ text-align:center; }
   /* 依班別渲染表格 tbody 背景色 */
   table.shift-A tbody{ background:#fef9c3; } /* 淡黃 */
   table.shift-B tbody{ background:#cffafe; } /* 淡藍 */
@@ -54,7 +58,7 @@
 
 <script>
 const CFG = {
-  version: "browse v1.7.5",
+  version: "browse v1.7.6",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
@@ -146,7 +150,7 @@ function renderCount(total){
   box.style.display = "";
 }
 
-// 渲染（表格區上色，表頭全形空白，料號數值置中）
+// 渲染（表格區上色，表頭全形空白，料號表頭置中，料號數值置中，數量數值置中）
 function render(groups){
   const root = document.getElementById('root'); root.innerHTML="";
   for(const g of groups){
