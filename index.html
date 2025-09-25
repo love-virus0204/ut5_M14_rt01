@@ -11,6 +11,8 @@
   }
   html,body{height:100%}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:#0f172a}
+
+  /* 容器 100% */
   .wrap{width:100%; margin:22px auto 32px}
   .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
   .hdr{padding:16px 18px 10px;border-bottom:1px solid #e5e7eb;text-align:center}
@@ -18,9 +20,9 @@
   .sub{color:#475569;font-size:12px;margin-top:4px}
   .content{padding:14px}
 
-  /* 按鈕群縮到 75% 並置中，與上方線條距離 20px */
+  /* 按鈕群 75% 並置中；第一顆與上方線距離 20px；直排 4×1 間距 20px */
   .grid-wrap{width:75%; margin:20px auto 0;}
-  .grid{display:grid;grid-template-columns:1fr;gap:20px} /* 單欄直排，間距 20px */
+  .grid{display:grid;grid-template-columns:1fr;gap:20px}
 
   .btn{
     display:flex;align-items:center;justify-content:center;
@@ -28,12 +30,14 @@
     color:#0f172a;font-weight:600;text-decoration:none;
     font-family:"DFKai-SB","標楷體","PMingLiU",serif;
     font-size:16px;line-height:1.2;text-align:center;
+    letter-spacing:.35em;          /* 每字左右留距 */
   }
   .btn1{background:var(--btn1); border-color:#cffafe;}
   .btn2{background:var(--btn2); border-color:#e2e8f0;}
   .btn3{background:var(--btn3); border-color:#fed7aa;}
   .btn4{background:var(--btn4); border-color:#bfdbfe;}
 
+  /* 三燈置中 */
   .status-row{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap}
   .item{display:flex;align-items:center;gap:8px}
   .item.gas .label{font-family:"Comic Sans MS","Comic Sans",cursive}
@@ -41,7 +45,12 @@
   .ok{background:var(--ok)!important;border-color:var(--ok)!important}
   .err{background:var(--err)!important;border-color:var(--err)!important}
 
-  .foot{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;color:#475569;font-size:12px}
+  /* 底部兩列：上列著作、下列版本+時間（同寬對齊） */
+  .footline, .foot{
+    padding:6px 14px;display:flex;align-items:center;justify-content:space-between;
+    color:#475569;font-size:12px
+  }
+  .foot{padding:10px 14px}
 </style>
 </head>
 <body>
@@ -50,13 +59,14 @@
       <div class="title">RT外觀抽驗記錄表</div>
       <div class="sub">入口導航</div>
     </div>
+
     <div class="content">
       <div class="grid-wrap">
         <div class="grid">
-          <a class="btn btn1" href="browse.html">　每日記錄表　</a>
-          <a class="btn btn2" href="form.html">　外觀記錄表　</a>
-          <a class="btn btn3" href="formPro.html">　外觀記錄表　</a>
-          <a class="btn btn4" href="admin.html">　安全管理員　</a>
+          <a class="btn btn1" href="browse.html">每日記錄表</a>
+          <a class="btn btn2" href="form.html">外觀記錄表</a>
+          <a class="btn btn3" href="formPro.html">外觀記錄表</a>
+          <a class="btn btn4" href="admin.html">安全管理員</a>
         </div>
       </div>
 
@@ -66,6 +76,11 @@
         <div class="item"><span id="dot-sheet" class="dot"></span><span class="label">表名</span></div>
       </div>
     </div>
+
+    <div class="footline">
+      <div>著作 16F51</div>
+      <div></div>
+    </div>
     <div class="foot">
       <div>版本 <span id="ver"></span></div>
       <div id="now"></div>
@@ -74,10 +89,10 @@
 
 <script>
 const CFG = {
-  version: "v0.4.5-index-ui",
+  version: "v0.4.6-index-ui",
   apiBase: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec",
   targetParam: "check",
-  firstDelayMs: 500,
+  firstDelayMs: 1000,
   nextDelayMs: 59000
 };
 document.getElementById('ver').textContent = CFG.version;
