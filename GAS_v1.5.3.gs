@@ -134,20 +134,29 @@ function _listRecent(sheet){
   var lastCol  = sheet.getLastColumn();
   var startRow = Math.max(2, lastRow - 150 + 1);
   var rows     = lastRow - startRow + 1;
-
   var values = sheet.getRange(startRow, 1, rows, lastCol).getValues();
-  values.reverse();
+  values.reverse(); // 由新到舊
 
   var data = values.map(function(r, i){
     return {
       row_index: lastRow - i,
-      date: r[0], shift: r[1], part_no: r[2], lot: r[3], qty: r[4], sample_cnt: r[5],
-      z7: r[6], z8: r[7], z9: r[8], z10: r[9], z11: r[10], z12: r[11], z13: r[12],
-      inspector: r[13], remark: r[14],
-      submitted_at: r[15], key2: r[16], key: r[17],
-      deleted: r[18], admin_id: r[19], deleted_at: r[20]
+      date: _toSerial(r[0]),
+      shift: r[1],
+      part_no: r[2],
+      lot: r[3],
+      qty: r[4],
+      sample_cnt: r[5],
+      z7: r[6], z8: r[7], z9: r[8],
+      z10: r[9], z11: r[10], z12: r[11], z13: r[12],
+      inspector: r[13],
+      remark: r[14],
+      submitted_at: r[15],
+      key2: r[16],
+      key: r[17],
+      deleted: r[18]
     };
   });
+
   return _json(data);
 }
 
@@ -156,10 +165,7 @@ function _sheet(){
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   return ss ? ss.getSheetByName(SHEET_NAME) : null;
 }
-function _json(obj){
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+
 function _findRowByKey(sheet, key){
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return 0;
@@ -169,4 +175,21 @@ function _findRowByKey(sheet, key){
     if (String(keys[i][0]) === key) return i + 2;
   }
   return 0;
+}
+
+/*** 新增：日期序號轉換（Google/Excel 基準：1899-12-30） ***/
+function _toSerial(v){
+  if (v == null || v === "") return "";
+  if (typeof v === "number") return v;             // 已是序號
+  if (Object.prototype.toString.call(v) === "[object Date]") {
+    var epoch = Date.UTC(1899,11,30);              // 1899-12-30
+    return (v.getTime() - epoch) / 86400000;       // 可含小數=時間
+  }
+  // 其他型別：不處理，回空字串（避免誤判）
+  return "";
+}
+
+function _json(obj){
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
