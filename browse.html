@@ -89,14 +89,24 @@ async function fetchRecent(){
   }catch{ setNetLight(false,"網路錯誤"); return { ok:false, rows:[] }; }
 }
 
-// 有效
-function isValid(r){ return String(r.deleted).toUpperCase() === "TRUE"; }
-
-// mm/dd
+// mm/dd 輸出
 function toMMDD(s){
-  const t = String(s||"").trim();
-  const m = t.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (s == null) return "";
+  if (typeof s === "number") {
+    const base = Date.UTC(1899,11,30);
+    const dt = new Date(base + s*86400000);
+    const mm = String(dt.getUTCMonth()+1).padStart(2,"0");
+    const dd = String(dt.getUTCDate()).padStart(2,"0");
+    return `${mm}/${dd}`;
+  }
+  const t = String(s).trim();
+  const pure = t.split("T")[0].split(" ")[0];
+  // yyyy-mm-dd / yyyy/mm/dd
+  let m = pure.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
   if (m) return `${m[2].padStart(2,"0")}/${m[3].padStart(2,"0")}`;
+  // mm-dd / mm/dd
+  m = pure.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+  if (m) return `${m[1].padStart(2,"0")}/${m[2].padStart(2,"0")}`;
   return t;
 }
 
