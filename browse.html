@@ -16,7 +16,7 @@
   .content{padding:14px 16px}
   .muted{color:var(--muted)}
   .grp{margin:12px 0 6px;font-weight:700}
-  .range{margin:8px 0 14px;color:#334155;font-size:13px}
+  .range{margin:8px 0 8px;color:#334155;font-size:13px}
   .pill{display:inline-block;border:1px solid #cbd5e1;border-radius:999px;padding:2px 8px;font-size:12px;margin-right:6px}
   table{width:100%;border-collapse:collapse}
   th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;font-size:14px}
@@ -49,7 +49,7 @@
 
 <script>
 const CFG = {
-  version: "browse v1.6.2",
+  version: "browse v1.7.0",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
@@ -73,7 +73,7 @@ function setNetLight(ok, msg){
   txt.textContent = msg || "回傳";
 }
 
-// 取資料 + 依「陣列或 status:ok」判斷綠燈
+// 取資料 + 依「陣列或 status:ok」判綠燈
 async function fetchRecent(){
   const form = new URLSearchParams({ action:"list_recent" });
   const dbg = document.getElementById('dbg');
@@ -85,11 +85,10 @@ async function fetchRecent(){
       dbg.textContent = `HTTP ${res.status} ${res.statusText}`;
       return { ok:false, rows:[] };
     }
-    const text = await res.text(); // 優先拿文字以利除錯
+    const text = await res.text();
     let data;
-    try{
-      data = JSON.parse(text);
-    }catch(_){
+    try{ data = JSON.parse(text); }
+    catch(_){
       setNetLight(false, "非JSON");
       dbg.style.display = "block";
       dbg.textContent = `回應非 JSON：\n` + text.slice(0,2000);
@@ -111,7 +110,15 @@ async function fetchRecent(){
 // 有效（TRUE=顯示）
 function isValid(r){ return String(r.deleted).toUpperCase() === "TRUE"; }
 
-// 最近三班（依回傳順序）
+// mm/dd 顯示
+function toMMDD(s){
+  const t = String(s||"").trim();
+  const m = t.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (m) return `${m[2].padStart(2,"0")}/${m[3].padStart(2,"0")}`;
+  return t; // 已是 mm/dd 就原樣
+}
+
+// 最近三班（依回傳順序，鍵= date + shift）
 function pickRecentThree(rows){
   const pairs = [];
   const seen = new Set();
@@ -127,16 +134,17 @@ function pickRecentThree(rows){
   return pairs;
 }
 
-// 顯示查詢範圍
-function renderRange(pairs){
+// 顯示查詢範圍與總筆數
+function renderRange(pairs, totalCount){
   const box = document.getElementById('range');
-  box.innerHTML = '查詢範圍：' + (pairs.length
-    ? pairs.map(p=>`<span class="pill">${p.ymd}</span><span class="pill">${p.sh}</span>`).join(' ')
-    : '<span class="pill">無</span>');
+  const part = pairs.length
+    ? pairs.map(p=>`<span class="pill">${toMMDD(p.ymd)}</span><span class="pill">${p.sh}</span>`).join(' ')
+    : '<span class="pill">無</span>';
+  box.innerHTML = `查詢範圍：${part}　｜　符合筆數：<strong>${totalCount}</strong>`;
   box.style.display = "";
 }
 
-// 渲染表格
+// 渲染表格（只三欄）
 function render(groups){
   const root = document.getElementById('root');
   root.innerHTML = "";
@@ -144,14 +152,14 @@ function render(groups){
     const sec = document.createElement('section');
     const hdr = document.createElement('div');
     hdr.className = "grp";
-    hdr.innerHTML = `日期 <span class="pill">${g.ymd}</span>　班別 <span class="pill">${g.sh}</span>`;
+    hdr.textContent = `日期／班別：${toMMDD(g.ymd)} - ${g.sh}`;
     sec.appendChild(hdr);
 
     const table = document.createElement('table');
     table.innerHTML = `
       <thead>
         <tr>
-          <th>料號</th><th>批號</th><th>抽樣數</th><th>不良數</th><th>檢驗員</th><th>備註</th>
+          <th>料號</th><th>批號</th><th>數量</th>
         </tr>
       </thead>
       <tbody></tbody>`;
@@ -163,10 +171,7 @@ function render(groups){
       tr.innerHTML = `
         <td>${get(r.part_no)}</td>
         <td>${get(r.lot)}</td>
-        <td>${get(r.sample_cnt)}</td>
-        <td>${get(r.z7)}</td>
-        <td>${get(r.inspector)}</td>
-        <td>${get(r.remark)}</td>`;
+        <td>${get(r.sample_cnt)}</td>`;
       tb.appendChild(tr);
     }
     sec.appendChild(table);
@@ -192,12 +197,15 @@ function render(groups){
   }
 
   const last3 = pickRecentThree(valid);
-  renderRange(last3);
-
+  // 分組
   const groups = last3.map(({ymd,sh})=>{
     const rs = valid.filter(r=>String(r.date)===ymd && String(r.shift)===sh);
     return { ymd, sh, rows: rs };
   }).filter(g=>g.rows.length>0);
+
+  // 顯示查詢範圍與總筆數（有效且符合條件的）
+  const totalCount = groups.reduce((acc,g)=>acc+g.rows.length, 0);
+  renderRange(last3, totalCount);
 
   if (groups.length===0){
     elStat.textContent = "無符合條件資料";
