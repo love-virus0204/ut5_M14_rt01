@@ -16,15 +16,17 @@
   .content{padding:14px 16px}
   .muted{color:var(--muted)}
   .grp{margin:12px 0 6px;font-weight:700}
+  .range{margin:8px 0 14px;color:#334155;font-size:13px}
+  .pill{display:inline-block;border:1px solid #cbd5e1;border-radius:999px;padding:2px 8px;font-size:12px;margin-right:6px}
   table{width:100%;border-collapse:collapse}
   th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;font-size:14px}
   th{color:#334155;background:#f9fafb}
-  .pill{display:inline-block;border:1px solid #cbd5e1;border-radius:999px;padding:2px 8px;font-size:12px}
   .foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
   .net{display:flex;align-items:center;gap:8px}
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
   .ok{background:var(--ok)!important;border-color:var(--ok)!important}
   .err{background:var(--err)!important;border-color:var(--err)!important}
+  .dbg{margin-top:10px;font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;display:none}
 </style>
 </head>
 <body>
@@ -35,22 +37,24 @@
   </div>
   <div class="content">
     <div id="status" class="muted">載入中…</div>
+    <div id="range" class="range" style="display:none"></div>
     <div id="root" style="display:none"></div>
+    <div id="dbg" class="dbg"></div>
   </div>
   <div class="foot">
-    <div class="net"><span id="net-dot" class="dot"></span><span>回傳</span></div>
+    <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
     <div>版本 <span id="ver"></span>　|　<span id="now"></span></div>
   </div>
 </div>
 
 <script>
 const CFG = {
-  version: "last3shift v1.2",
+  version: "browse v1.6.0",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
 
-// 即時時鐘
+// 時鐘
 (function tick(){
   const el = document.getElementById('now');
   const tz = "Asia/Taipei";
@@ -60,37 +64,60 @@ document.getElementById('ver').textContent = CFG.version;
   setTimeout(tick, 1000);
 })();
 
-// 設定燈號
-function setNetLight(ok){
+// 燈號
+function setNetLight(ok, msg){
   const dot = document.getElementById('net-dot');
+  const txt = document.getElementById('net-msg');
   dot.classList.remove('ok','err');
   dot.classList.add(ok ? 'ok' : 'err');
+  if (msg) txt.textContent = msg; else txt.textContent = "回傳";
 }
 
-// 取資料 (POST, action=list_recent)
+// 取資料 + 診斷
 async function fetchRecent(){
   const form = new URLSearchParams({ action:"list_recent" });
+  const dbg = document.getElementById('dbg');
   try{
     const res = await fetch(CFG.api, { method:"POST", body: form });
-    if (!res.ok) throw new Error("http_"+res.status);
-    const data = await res.json();
-    if (data && data.status === "ok"){  // 判斷旗標
-      setNetLight(true);
-      return Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
-    }else{
-      setNetLight(false);
-      return [];
+    if (!res.ok){
+      setNetLight(false, "HTTP錯誤");
+      dbg.style.display = "block";
+      dbg.textContent = `HTTP ${res.status} ${res.statusText}`;
+      return { ok:false, rows:[], reason:"http" };
     }
-  }catch(e){
-    setNetLight(false);
-    throw e;
+    let text = await res.text(); // 先取文字以便除錯
+    let data = null;
+    try {
+      data = JSON.parse(text);
+    } catch(parseErr){
+      setNetLight(false, "非JSON");
+      dbg.style.display = "block";
+      dbg.textContent = `回應非 JSON：\n` + text.slice(0,2000);
+      return { ok:false, rows:[], reason:"non_json", raw:text };
+    }
+    if (data && data.status === "ok"){
+      setNetLight(true, "回傳OK");
+      const arr = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
+      return { ok:true, rows: arr, raw:data };
+    }else{
+      setNetLight(false, "status!=ok");
+      dbg.style.display = "block";
+      dbg.textContent = `JSON 旗標不是 ok：\n` + JSON.stringify(data, null, 2).slice(0,2000);
+      return { ok:false, rows:[], reason:"status_not_ok", raw:data };
+    }
+  }catch(err){
+    setNetLight(false, "網路錯誤");
+    const dbg = document.getElementById('dbg');
+    dbg.style.display = "block";
+    dbg.textContent = `fetch 例外：\n` + String(err);
+    return { ok:false, rows:[], reason:"network", error:err };
   }
 }
 
 // 有效
 function isValid(r){ return String(r.deleted).toUpperCase() === "TRUE"; }
 
-// 最近三班
+// 最近三班（依回傳順序）
 function pickRecentThree(rows){
   const pairs = [];
   const seen = new Set();
@@ -106,7 +133,16 @@ function pickRecentThree(rows){
   return pairs;
 }
 
-// 渲染
+// 顯示查詢範圍
+function renderRange(pairs){
+  const box = document.getElementById('range');
+  box.innerHTML = '查詢範圍：' + (pairs.length
+    ? pairs.map(p=>`<span class="pill">${p.ymd}</span><span class="pill">${p.sh}</span>`).join(' ')
+    : '<span class="pill">無</span>');
+  box.style.display = "";
+}
+
+// 渲染表格
 function render(groups){
   const root = document.getElementById('root');
   root.innerHTML = "";
@@ -148,28 +184,34 @@ function render(groups){
 // 主流程
 (async function main(){
   const elStat = document.getElementById('status');
-  try{
-    const raw = await fetchRecent();
-    const rows = raw.filter(isValid);
-    if (rows.length === 0){
-      elStat.textContent = "無有效資料";
-      return;
-    }
-    const last3 = pickRecentThree(rows);
-    const groups = last3.map(({ymd,sh})=>{
-      const rs = rows.filter(r=>String(r.date)===ymd && String(r.shift)===sh);
-      return { ymd, sh, rows: rs };
-    }).filter(g=>g.rows.length>0);
+  const { ok, rows } = await fetchRecent();
 
-    if (groups.length===0){
-      elStat.textContent = "無符合條件資料";
-      return;
-    }
-    elStat.textContent = "";
-    render(groups);
-  }catch(err){
-    document.getElementById('status').textContent = "讀取失敗";
+  // 保留文字提示
+  if (!ok){
+    elStat.textContent = "讀取失敗或旗標非 ok";
+    return;
   }
+
+  const valid = rows.filter(isValid);
+  if (valid.length === 0){
+    elStat.textContent = "無有效資料";
+    return;
+  }
+
+  const last3 = pickRecentThree(valid);
+  renderRange(last3);
+
+  const groups = last3.map(({ymd,sh})=>{
+    const rs = valid.filter(r=>String(r.date)===ymd && String(r.shift)===sh);
+    return { ymd, sh, rows: rs };
+  }).filter(g=>g.rows.length>0);
+
+  if (groups.length===0){
+    elStat.textContent = "無符合條件資料";
+    return;
+  }
+  elStat.textContent = "";
+  render(groups);
 })();
 </script>
 </body>
