@@ -8,7 +8,7 @@
   :root{
     --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e;
     --ok:#10b981; --err:#ef4444;
-    /* 更淡的班別底色 */
+    /* 更淡的班別底色（貼近 index 風格） */
     --a:#fffbea; /* 淡黃 更淡 */
     --b:#eefcff; /* 淡藍 更淡 */
     --c:#f7f2ff; /* 淡紫 更淡 */
@@ -24,19 +24,17 @@
   .muted{color:var(--muted)}
   .grp{margin:12px 0 6px;font-weight:700}
   .range{margin:8px 0 8px;color:#334155;font-size:13px}
-  table{width:100%;border-collapse:collapse}
-  th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;font-size:14px}
-  th{color:#334155;background:#f9fafb}
-  /* 料號表頭置中 */
-  th:first-child{ text-align:center; }
-  /* 料號數值置中（資料列第一欄） */
-  tbody td:first-child{ text-align:center; }
-  /* 數量數值：左對齊（覆蓋任何預設） */
-  tbody td:last-child{ text-align:left !important; }
-  /* 依班別渲染表格 tbody 更淡底色 */
+
+  /* ===== 表格樣式：對齊 form 下方數值區 ===== */
+  table{width:100%;border-collapse:collapse;font-size:14px;font-family:"Comic Sans MS",sans-serif}
+  th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
+  th{background:#f9fafb;color:#334155}
+
+  /* 依班別渲染表格 tbody 更淡底色（僅數據區） */
   table.shift-A tbody{ background:var(--a); }
   table.shift-B tbody{ background:var(--b); }
   table.shift-C tbody{ background:var(--c); }
+
   .foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
   .net{display:flex;align-items:center;gap:8px}
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
@@ -65,7 +63,7 @@
 
 <script>
 const CFG = {
-  version: "browse v1.7.7",
+  version: "browse v1.7.8",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
@@ -89,7 +87,7 @@ function setNetLight(ok, msg){
   txt.textContent = msg || "回傳";
 }
 
-// 取資料（POST action=list_recent），並以「陣列或 status:ok」判綠燈
+// 取資料
 async function fetchRecent(){
   const form = new URLSearchParams({ action:"list_recent" });
   const dbg = document.getElementById('dbg');
@@ -123,10 +121,10 @@ async function fetchRecent(){
   }
 }
 
-// 後端：deleted === "TRUE" 才顯示
+// 有效
 function isValid(r){ return r && String(r.deleted).toUpperCase() === "TRUE"; }
 
-// 日期序號 → mm/dd（UTC，避免時區偏差）
+// 日期序號 → mm/dd（UTC）
 function serialToMMDD(n){
   const days = Math.floor(Number(n));
   const baseUTC = Date.UTC(1899,11,30);
@@ -150,14 +148,14 @@ function pickRecentThree(rows){
   return pairs;
 }
 
-// 顯示「有效資料：? 筆」
+// 有效資料數
 function renderCount(total){
   const box = document.getElementById('range');
   box.textContent = `有效資料：${total} 筆`;
   box.style.display = "";
 }
 
-// 渲染（表格區上色，表頭全形空白；料號表頭置中；料號數值置中；數量數值左對齊且加全形空白）
+// 渲染
 function render(groups){
   const root = document.getElementById('root'); root.innerHTML="";
   for(const g of groups){
@@ -169,7 +167,7 @@ function render(groups){
     sec.appendChild(hdr);
 
     const table = document.createElement('table');
-    table.classList.add(`shift-${g.sh}`); // A/B/C → 套對應底色到 tbody
+    table.classList.add(`shift-${g.sh}`); // A/B/C → 對應底色
     table.innerHTML = `
       <thead>
         <tr><th>料　　號</th><th>批　號</th><th>數　量</th></tr>
@@ -182,7 +180,7 @@ function render(groups){
       tr.innerHTML = `
         <td>${r.part_no ?? ""}</td>
         <td>${r.lot ?? ""}</td>
-        <td>　${r.qty ?? ""}</td>`; /* 數量：前置全形空白，不置中 */
+        <td>${r.qty ?? ""}</td>`;  /* 置中，無前置空白 */
       tb.appendChild(tr);
     }
     sec.appendChild(table);
