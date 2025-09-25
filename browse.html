@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>僅瀏覽（最近三班）</title>
 <style>
-  :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; --ok:#10b981; --err:#ef4444; }
+  :root{
+    --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e;
+    --ok:#10b981; --err:#ef4444;
+    /* 更淡的班別底色 */
+    --a:#fffbea; /* 淡黃 更淡 */
+    --b:#eefcff; /* 淡藍 更淡 */
+    --c:#f7f2ff; /* 淡紫 更淡 */
+  }
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{width:96%;max-width:980px;margin:18px auto}
@@ -24,12 +31,12 @@
   th:first-child{ text-align:center; }
   /* 料號數值置中（資料列第一欄） */
   tbody td:first-child{ text-align:center; }
-  /* 數量數值置中（資料列最後一欄） */
-  tbody td:last-child{ text-align:center; }
-  /* 依班別渲染表格 tbody 背景色 */
-  table.shift-A tbody{ background:#fef9c3; } /* 淡黃 */
-  table.shift-B tbody{ background:#cffafe; } /* 淡藍 */
-  table.shift-C tbody{ background:#e9d5ff; } /* 淡紫 */
+  /* 數量數值：左對齊（覆蓋任何預設） */
+  tbody td:last-child{ text-align:left !important; }
+  /* 依班別渲染表格 tbody 更淡底色 */
+  table.shift-A tbody{ background:var(--a); }
+  table.shift-B tbody{ background:var(--b); }
+  table.shift-C tbody{ background:var(--c); }
   .foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
   .net{display:flex;align-items:center;gap:8px}
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
@@ -58,7 +65,7 @@
 
 <script>
 const CFG = {
-  version: "browse v1.7.6",
+  version: "browse v1.7.7",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
@@ -150,7 +157,7 @@ function renderCount(total){
   box.style.display = "";
 }
 
-// 渲染（表格區上色，表頭全形空白，料號表頭置中，料號數值置中，數量數值置中）
+// 渲染（表格區上色，表頭全形空白；料號表頭置中；料號數值置中；數量數值左對齊且加全形空白）
 function render(groups){
   const root = document.getElementById('root'); root.innerHTML="";
   for(const g of groups){
@@ -175,7 +182,7 @@ function render(groups){
       tr.innerHTML = `
         <td>${r.part_no ?? ""}</td>
         <td>${r.lot ?? ""}</td>
-        <td>${r.sample_cnt ?? ""}</td>`;
+        <td>　${r.qty ?? ""}</td>`; /* 數量：前置全形空白，不置中 */
       tb.appendChild(tr);
     }
     sec.appendChild(table);
