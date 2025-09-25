@@ -14,7 +14,22 @@ const SPREADSHEET_ID = '1AYD5Poy7DQmXw-QSHUkFUq0iT7TIxF76BpNilyPsz-U';
 const SHEET_NAME     = 'Records';
 
 /* 路由 */
-function doGet(e){ return _json({status:"error", msg:"get_disabled"}); }
+function doGet(e){
+  var p = (e && e.parameter) || {};
+  var target = String(p.target || "");
+  var payload = { status:"ok", msg:"get_disabled" }; // 只要能回就是活著
+  if (!target) return _json(payload);
+  var ss;
+  try {
+    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    payload.fileExists = true;
+  } catch (_) {
+    return _json(payload); // 檔案不存在就直接回，不崩潰
+  }
+  var found = ss.getSheets().some(function(sh){ return sh.getName() === SHEET_NAME; });
+  if (found) payload.sheetExists = true;
+  return _json(payload);
+}
 
 function doPost(e){
   if (!e || !e.postData) return _json({status:"error", msg:"no_post_data"});
@@ -144,14 +159,4 @@ function _sheet(){
 function _json(obj){
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
-}
-function _findRowByKey(sheet, key){
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return 0;
-  var count = lastRow - 1;
-  var keys  = sheet.getRange(2, 18, count, 1).getValues(); // 18=key
-  for (var i=0;i<count;i++){
-    if (String(keys[i][0]) === key) return i + 2;
-  }
-  return 0;
 }
