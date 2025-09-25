@@ -18,9 +18,9 @@
   .sub{color:#475569;font-size:12px;margin-top:4px}
   .content{padding:14px}
 
-  /* 按鈕群縮到 75% 並置中 */
-  .grid-wrap{width:75%; margin:0 auto;}
-  .grid{display:grid;grid-template-columns:1fr;gap:20px} /* 單欄直排，間距加大 */
+  /* 按鈕群縮到 75% 並置中，與上方線條距離 20px */
+  .grid-wrap{width:75%; margin:20px auto 0;}
+  .grid{display:grid;grid-template-columns:1fr;gap:20px} /* 單欄直排，間距 20px */
 
   .btn{
     display:flex;align-items:center;justify-content:center;
@@ -53,10 +53,10 @@
     <div class="content">
       <div class="grid-wrap">
         <div class="grid">
-          <a class="btn btn1" href="browse.html">每日記錄表</a>
-          <a class="btn btn2" href="form.html">外觀記錄表</a>
-          <a class="btn btn3" href="formPro.html">外觀記錄表</a>
-          <a class="btn btn4" href="admin.html">安全管理員</a>
+          <a class="btn btn1" href="browse.html">　每日記錄表　</a>
+          <a class="btn btn2" href="form.html">　外觀記錄表　</a>
+          <a class="btn btn3" href="formPro.html">　外觀記錄表　</a>
+          <a class="btn btn4" href="admin.html">　安全管理員　</a>
         </div>
       </div>
 
@@ -74,10 +74,10 @@
 
 <script>
 const CFG = {
-  version: "v0.4.4-index-ui",
+  version: "v0.4.5-index-ui",
   apiBase: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec",
   targetParam: "check",
-  firstDelayMs: 1000,
+  firstDelayMs: 500,
   nextDelayMs: 59000
 };
 document.getElementById('ver').textContent = CFG.version;
