@@ -11,30 +11,36 @@
   }
   html,body{height:100%}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:#0f172a}
-  .wrap{width:75%; margin:22px auto 32px} /* 容器 75% 並置中 */
+  .wrap{width:100%; margin:22px auto 32px}
   .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
   .hdr{padding:16px 18px 10px;border-bottom:1px solid #e5e7eb;text-align:center}
   .title{font-size:20px;font-weight:700;color:var(--brand)}
   .sub{color:#475569;font-size:12px;margin-top:4px}
   .content{padding:14px}
-  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+
+  /* 按鈕群縮到 75% 並置中 */
+  .grid-wrap{width:75%; margin:0 auto;}
+  .grid{display:grid;grid-template-columns:1fr;gap:20px} /* 單欄直排，間距加大 */
+
   .btn{
     display:flex;align-items:center;justify-content:center;
-    padding:10px 12px;border-radius:12px;border:1px solid #e5e7eb;
+    padding:12px;border-radius:12px;border:1px solid #e5e7eb;
     color:#0f172a;font-weight:600;text-decoration:none;
     font-family:"DFKai-SB","標楷體","PMingLiU",serif;
-    font-size:16px;line-height:1.15;text-align:center;
+    font-size:16px;line-height:1.2;text-align:center;
   }
   .btn1{background:var(--btn1); border-color:#cffafe;}
   .btn2{background:var(--btn2); border-color:#e2e8f0;}
   .btn3{background:var(--btn3); border-color:#fed7aa;}
   .btn4{background:var(--btn4); border-color:#bfdbfe;}
-  .status-row{margin-top:14px;display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap}
+
+  .status-row{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap}
   .item{display:flex;align-items:center;gap:8px}
   .item.gas .label{font-family:"Comic Sans MS","Comic Sans",cursive}
   .dot{width:12px;height:12px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
   .ok{background:var(--ok)!important;border-color:var(--ok)!important}
   .err{background:var(--err)!important;border-color:var(--err)!important}
+
   .foot{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;color:#475569;font-size:12px}
 </style>
 </head>
@@ -45,12 +51,15 @@
       <div class="sub">入口導航</div>
     </div>
     <div class="content">
-      <div class="grid">
-        <a class="btn btn1" href="browse.html">每日記錄表</a>
-        <a class="btn btn2" href="form.html">外觀記錄表</a>
-        <a class="btn btn3" href="formPro.html">外觀記錄表</a>
-        <a class="btn btn4" href="admin.html">安全管理員</a>
+      <div class="grid-wrap">
+        <div class="grid">
+          <a class="btn btn1" href="browse.html">每日記錄表</a>
+          <a class="btn btn2" href="form.html">外觀記錄表</a>
+          <a class="btn btn3" href="formPro.html">外觀記錄表</a>
+          <a class="btn btn4" href="admin.html">安全管理員</a>
+        </div>
       </div>
+
       <div class="status-row">
         <div class="item gas"><span id="dot-alive" class="dot"></span><span class="label">GAS</span></div>
         <div class="item"><span id="dot-file" class="dot"></span><span class="label">檔案</span></div>
@@ -65,14 +74,15 @@
 
 <script>
 const CFG = {
-  version: "v0.4.3-index-ui",
+  version: "v0.4.4-index-ui",
   apiBase: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec",
   targetParam: "check",
-  firstDelayMs: 1000,   // 改 1 秒
-  nextDelayMs: 59000    // 改 59 秒
+  firstDelayMs: 1000,
+  nextDelayMs: 59000
 };
 document.getElementById('ver').textContent = CFG.version;
 
+// 台北時間
 function tick(){
   const tz = "Asia/Taipei";
   const now = new Date();
@@ -98,7 +108,9 @@ async function getStatus(){
     const url=CFG.apiBase+"?target="+encodeURIComponent(CFG.targetParam)+"&_="+Date.now();
     const res=await fetch(url,{method:"GET",cache:"no-store"});
     const aliveState=res.ok?'ok':'err';
-    let data=null; try{data=await res.json();}catch(_){data=null;}
+
+    let data=null; try{data=await res.json();}catch(_){}
+
     setDot(elAlive,aliveState);
     setDot(elFile, data&&data.fileExists===true?'ok':null);
     setDot(elSheet,data&&data.sheetExists===true?'ok':null);
@@ -106,8 +118,13 @@ async function getStatus(){
     setDot(elAlive,'err'); setDot(elFile,null); setDot(elSheet,null);
   }
 }
+
 (async function loop(){
-  while(true){await sleep(CFG.firstDelayMs);await getStatus();await sleep(CFG.nextDelayMs);}
+  while(true){
+    await sleep(CFG.firstDelayMs);
+    await getStatus();
+    await sleep(CFG.nextDelayMs);
+  }
 })();
 </script>
 </body>
