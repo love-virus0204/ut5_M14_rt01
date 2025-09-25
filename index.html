@@ -15,11 +15,10 @@
   .wrap{width:100%; margin:22px auto 32px}
   .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
   .hdr{padding:16px 18px 10px;border-bottom:1px solid #e5e7eb;text-align:center}
-  .title{font-size:20px;font-weight:700;color:var(--brand)}
+  .title{font-size:22px;font-weight:700;color:var(--brand);letter-spacing:0.25em}
   .sub{color:#475569;font-size:12px;margin-top:4px}
   .content{padding:14px}
 
-  /* 按鈕群縮到 75% 並置中；第一顆與上方線距離 10px；直排 4×1 間距 20px */
   .grid-wrap{width:75%; margin:10px auto 0;}
   .grid{display:grid;grid-template-columns:1fr;gap:20px}
 
@@ -36,7 +35,6 @@
   .btn3{background:var(--btn3); border-color:#fed7aa;}
   .btn4{background:var(--btn4); border-color:#bfdbfe;}
 
-  /* 三燈置中，下移 10px */
   .status-row{margin-top:28px;display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap}
   .item{display:flex;align-items:center;gap:8px}
   .item.gas .label{font-family:"Comic Sans MS","Comic Sans",cursive}
@@ -44,12 +42,11 @@
   .ok{background:var(--ok)!important;border-color:var(--ok)!important}
   .err{background:var(--err)!important;border-color:var(--err)!important}
 
-  /* 著作列緊貼版本列 */
-  .footline, .foot{
-    padding:6px 14px;display:flex;align-items:center;justify-content:space-between;
-    color:#475569;font-size:12px
-  }
-  .foot{padding:10px 14px;margin-top:0}
+  /* 著作列與版本列像段落換行一樣的距離 */
+  .footline{margin:0 14px 2px;display:flex;align-items:center;justify-content:space-between;
+    color:#475569;font-size:12px;line-height:1.4}
+  .foot{margin:0 14px 8px;display:flex;align-items:center;justify-content:space-between;
+    color:#475569;font-size:12px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -88,10 +85,10 @@
 
 <script>
 const CFG = {
-  version: "v0.4.7-index-ui",
+  version: "v0.4.8-index-ui",
   apiBase: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec",
   targetParam: "check",
-  firstDelayMs: 250,
+  firstDelayMs: 1000,
   nextDelayMs: 59000
 };
 document.getElementById('ver').textContent = CFG.version;
