@@ -20,6 +20,12 @@
   table{width:100%;border-collapse:collapse}
   th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;font-size:14px}
   th{color:#334155;background:#f9fafb}
+  /* 料號數值置中：只影響資料列第一欄 */
+  tbody td:first-child{ text-align:center; }
+  /* 依班別渲染表格 tbody 背景色 */
+  table.shift-A tbody{ background:#fef9c3; } /* 淡黃 */
+  table.shift-B tbody{ background:#cffafe; } /* 淡藍 */
+  table.shift-C tbody{ background:#e9d5ff; } /* 淡紫 */
   .foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
   .net{display:flex;align-items:center;gap:8px}
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
@@ -48,7 +54,7 @@
 
 <script>
 const CFG = {
-  version: "browse v1.7.4",
+  version: "browse v1.7.5",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
@@ -109,21 +115,21 @@ async function fetchRecent(){
 // 後端：deleted === "TRUE" 才顯示
 function isValid(r){ return r && String(r.deleted).toUpperCase() === "TRUE"; }
 
-// 將日期序號轉 mm/dd（只吃序號；避免多餘轉換）
+// 日期序號 → mm/dd（UTC，避免時區偏差）
 function serialToMMDD(n){
-  const days = Math.floor(Number(n));                // 取整數天
-  const baseUTC = Date.UTC(1899,11,30);             // 1899-12-30
-  const dt = new Date(baseUTC + days*86400000);     // 用 UTC 避免時區偏移
+  const days = Math.floor(Number(n));
+  const baseUTC = Date.UTC(1899,11,30);
+  const dt = new Date(baseUTC + days*86400000);
   const mm = String(dt.getUTCMonth()+1).padStart(2,"0");
   const dd = String(dt.getUTCDate()).padStart(2,"0");
   return `${mm}/${dd}`;
 }
 
-// 取最近三個 (date_serial + shift) 組合（依回傳順序）
+// 最近三個 (date序號 + shift)
 function pickRecentThree(rows){
   const pairs=[], seen=new Set();
   for(const r of rows){
-    const serial = Math.floor(Number(r.date));  // 你的後端已改：date 為序號
+    const serial = Math.floor(Number(r.date));
     const sh = String(r.shift);
     const k = serial+"|"+sh;
     if(seen.has(k)) continue;
@@ -140,7 +146,7 @@ function renderCount(total){
   box.style.display = "";
 }
 
-// 渲染（標題：班別/日期：mm/dd - A；表格三欄）
+// 渲染（表格區上色，表頭全形空白，料號數值置中）
 function render(groups){
   const root = document.getElementById('root'); root.innerHTML="";
   for(const g of groups){
@@ -152,8 +158,11 @@ function render(groups){
     sec.appendChild(hdr);
 
     const table = document.createElement('table');
+    table.classList.add(`shift-${g.sh}`); // A/B/C → 套對應底色到 tbody
     table.innerHTML = `
-      <thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead>
+      <thead>
+        <tr><th>料　　號</th><th>批　號</th><th>數　量</th></tr>
+      </thead>
       <tbody></tbody>`;
     const tb = table.querySelector('tbody');
 
