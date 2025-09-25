@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>僅瀏覽（最近三班）</title>
 <style>
-  :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; }
+  :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; --ok:#10b981; --err:#ef4444; }
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{width:96%;max-width:980px;margin:18px auto}
@@ -20,7 +20,11 @@
   th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;font-size:14px}
   th{color:#334155;background:#f9fafb}
   .pill{display:inline-block;border:1px solid #cbd5e1;border-radius:999px;padding:2px 8px;font-size:12px}
-  .foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:var(--muted);font-size:12px}
+  .foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
+  .net{display:flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
+  .ok{background:var(--ok)!important;border-color:var(--ok)!important}
+  .err{background:var(--err)!important;border-color:var(--err)!important}
 </style>
 </head>
 <body>
@@ -34,14 +38,14 @@
     <div id="root" style="display:none"></div>
   </div>
   <div class="foot">
-    <div>版本 <span id="ver"></span></div>
-    <div id="now"></div>
+    <div class="net"><span id="net-dot" class="dot"></span><span>回傳</span></div>
+    <div>版本 <span id="ver"></span>　|　<span id="now"></span></div>
   </div>
 </div>
 
 <script>
 const CFG = {
-  version: "browse v1.4.0",
+  version: "last3shift v1.2",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
@@ -56,32 +60,47 @@ document.getElementById('ver').textContent = CFG.version;
   setTimeout(tick, 1000);
 })();
 
+// 設定燈號
+function setNetLight(ok){
+  const dot = document.getElementById('net-dot');
+  dot.classList.remove('ok','err');
+  dot.classList.add(ok ? 'ok' : 'err');
+}
+
 // 取資料 (POST, action=list_recent)
 async function fetchRecent(){
   const form = new URLSearchParams({ action:"list_recent" });
-  const res = await fetch(CFG.api, {
-    method: "POST",
-    body: form
-  });
-  if (!res.ok) throw new Error("http_"+res.status);
-  let data = null;
-  try { data = await res.json(); } catch(_) { throw new Error("bad_json"); }
-  return Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [];
+  try{
+    const res = await fetch(CFG.api, { method:"POST", body: form });
+    if (!res.ok) throw new Error("http_"+res.status);
+    const data = await res.json();
+    if (data && data.status === "ok"){  // 判斷旗標
+      setNetLight(true);
+      return Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
+    }else{
+      setNetLight(false);
+      return [];
+    }
+  }catch(e){
+    setNetLight(false);
+    throw e;
+  }
 }
 
-// 找最近三個「日期+班別」
+// 有效
+function isValid(r){ return String(r.deleted).toUpperCase() === "TRUE"; }
+
+// 最近三班
 function pickRecentThree(rows){
-  const list = rows.map(r=>({
-    ymd: String(r.date),
-    sh:  String(r.shift)
-  }));
-  const seen = new Set();
   const pairs = [];
-  for (const it of list){
-    const k = `${it.ymd}|${it.sh}`;
+  const seen = new Set();
+  for (const r of rows){
+    const ymd = String(r.date);
+    const sh  = String(r.shift);
+    const k = ymd+"|"+sh;
     if (seen.has(k)) continue;
     seen.add(k);
-    pairs.push(it);
+    pairs.push({ymd, sh});
     if (pairs.length>=3) break;
   }
   return pairs;
@@ -131,32 +150,23 @@ function render(groups){
   const elStat = document.getElementById('status');
   try{
     const raw = await fetchRecent();
-
-    // 僅顯示有效
-    const validRows = raw.filter(r=>String(r.deleted).toUpperCase()==="TRUE");
-
-    if (validRows.length === 0){
+    const rows = raw.filter(isValid);
+    if (rows.length === 0){
       elStat.textContent = "無有效資料";
       return;
     }
-
-    // 最近三個日期+班別
-    const last3 = pickRecentThree(validRows);
-
-    // 分組
+    const last3 = pickRecentThree(rows);
     const groups = last3.map(({ymd,sh})=>{
-      const rows = validRows.filter(r=>String(r.date)===ymd && String(r.shift)===sh);
-      return {ymd, sh, rows};
+      const rs = rows.filter(r=>String(r.date)===ymd && String(r.shift)===sh);
+      return { ymd, sh, rows: rs };
     }).filter(g=>g.rows.length>0);
 
     if (groups.length===0){
       elStat.textContent = "無符合條件資料";
       return;
     }
-
     elStat.textContent = "";
     render(groups);
-
   }catch(err){
     document.getElementById('status').textContent = "讀取失敗";
   }
