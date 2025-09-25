@@ -160,3 +160,13 @@ function _json(obj){
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
+function _findRowByKey(sheet, key){
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+  var count = lastRow - 1;
+  var keys  = sheet.getRange(2, 18, count, 1).getValues(); // 18=key
+  for (var i=0;i<count;i++){
+    if (String(keys[i][0]) === key) return i + 2;
+  }
+  return 0;
+}
