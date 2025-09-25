@@ -6,42 +6,48 @@
 <title>RT外觀抽驗記錄表 | Index</title>
 <style>
   :root{
-    --wrap-w:95%; --max-w:900px;
-    --ok:#10b981; --err:#ef4444; --muted:#6b7280; --bg:#f8fafc; --brand:#0f766e;
+    --wrap-w:75%;  /* 左右各 12.5% 內縮 */
+    --ok:#10b981; --err:#ef4444; --bg:#f8fafc; --brand:#0f766e;
     --btn1:#ecfeff; --btn2:#f1f5f9; --btn3:#fff7ed; --btn4:#eff6ff;
   }
   html,body{height:100%}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:#0f172a}
-  .wrap{width:var(--wrap-w);max-width:var(--max-w);margin:22px auto 32px}
+  .wrap{width:var(--wrap-w); margin:22px auto 32px}
   .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
   .hdr{padding:16px 18px 10px;border-bottom:1px solid #e5e7eb;text-align:center}
   .title{font-size:20px;font-weight:700;color:var(--brand)}
   .sub{color:#475569;font-size:12px;margin-top:4px}
   .content{padding:14px}
-  .grid-wrap{width:75%; margin:0 auto;}
+
+  /* 四顆按鈕區：容器 75% 寬已處理，內部 100% 置中 */
   .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .btn{
-    display:flex; align-items:center; justify-content:center;
-    padding:10px 12px;
-    border-radius:12px; border:1px solid #e5e7eb;
-    color:#0f172a; font-weight:600; text-decoration:none;
+    display:flex;align-items:center;justify-content:center;
+    padding:10px 12px;border-radius:12px;border:1px solid #e5e7eb;
+    color:#0f172a;font-weight:600;text-decoration:none;
     font-family:"DFKai-SB","標楷體","PMingLiU",serif;
-    font-size:16px; line-height:1.15;
+    font-size:16px;line-height:1.15;text-align:center;letter-spacing:0; /* 無額外間距 */
   }
   .btn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(2,6,23,.08);border-color:#d1d5db}
   .btn1{background:var(--btn1); border-color:#cffafe;}
   .btn2{background:var(--btn2); border-color:#e2e8f0;}
   .btn3{background:var(--btn3); border-color:#fed7aa;}
   .btn4{background:var(--btn4); border-color:#bfdbfe;}
-  .btn .txt{display:inline-block; text-align:center; letter-spacing:0.4px;}
+
+  /* 三燈置中 */
   .status-row{margin-top:14px;display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap}
-  .item{display:flex;align-items:center;gap:8px;}
-  .item.gas .label{font-family:"Comic Sans MS","Comic Sans",cursive;}
+  .item{display:flex;align-items:center;gap:8px}
+  .item.gas .label{font-family:"Comic Sans MS","Comic Sans",cursive} /* 只有 GAS 用 Comic Sans */
   .dot{width:12px;height:12px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1;transition:background .15s,border-color .15s}
   .ok{background:var(--ok)!important;border-color:var(--ok)!important}
   .err{background:var(--err)!important;border-color:var(--err)!important}
+
   .foot{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;color:#475569;font-size:12px}
-  @media (max-width:760px){.grid-wrap{width:100%}.grid{grid-template-columns:1fr}}
+
+  @media (max-width:760px){
+    .wrap{width:92%}
+    .grid{grid-template-columns:1fr}
+  }
 </style>
 </head>
 <body>
@@ -51,15 +57,14 @@
       <div class="sub">入口導航</div>
     </div>
     <div class="content">
-      <div class="grid-wrap">
-        <div class="grid">
-          <a class="btn btn1" href="browse.html"><span class="txt">　每日記錄表　</span></a>
-          <a class="btn btn2" href="form.html"><span class="txt">　外觀記錄表　</span></a>
-          <a class="btn btn3" href="formPro.html"><span class="txt">　外觀記錄表　</span></a>
-          <a class="btn btn4" href="admin.html"><span class="txt">　安全管理員　</span></a>
-        </div>
+      <div class="grid">
+        <a class="btn btn1" href="browse.html">每日記錄表</a>
+        <a class="btn btn2" href="form.html">外觀記錄表</a>
+        <a class="btn btn3" href="formPro.html">外觀記錄表</a>
+        <a class="btn btn4" href="admin.html">安全管理員</a>
       </div>
 
+      <!-- 三燈（置中；回傳後依結果覆寫狀態，避免舊綠燈殘留） -->
       <div class="status-row">
         <div class="item gas"><span id="dot-alive" class="dot"></span><span class="label">GAS</span></div>
         <div class="item"><span id="dot-file"  class="dot"></span><span class="label">檔案</span></div>
@@ -74,7 +79,7 @@
 
 <script>
 const CFG = {
-  version: "v0.4.1-index-ui",
+  version: "v0.4.2-index-ui",
   apiBase: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec",
   targetParam: "check",
   firstDelayMs: 7000,
@@ -103,6 +108,7 @@ function setDot(el, state){
   el.classList.remove('ok','err');
   if (state === 'ok') el.classList.add('ok');
   else if (state === 'err') el.classList.add('err');
+  // state === null → 灰色中立
 }
 const sleep = ms => new Promise(r=>setTimeout(r, ms));
 
@@ -115,12 +121,16 @@ async function getStatus(){
     let data = null;
     try{ data = await res.json(); }catch(_){ data = null; }
 
+    // 依結果覆寫（缺值 → 設為中立）
     setDot(elAlive, aliveState);
-    if (data && data.fileExists === true) setDot(elFile, 'ok');
-    if (data && data.sheetExists === true) setDot(elSheet, 'ok');
+    setDot(elFile,  data && data.fileExists  === true ? 'ok' : null);
+    setDot(elSheet, data && data.sheetExists === true ? 'ok' : null);
 
   }catch(e){
+    // 網路錯誤 → 只把 GAS 轉紅，其他設為中立
     setDot(elAlive, 'err');
+    setDot(elFile,  null);
+    setDot(elSheet, null);
   }
 }
 
