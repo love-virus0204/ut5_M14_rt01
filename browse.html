@@ -48,7 +48,7 @@
 
 <script>
 const CFG = {
-  version: "browse v1.7.2",
+  version: "browse v1.7.4",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
@@ -72,87 +72,97 @@ function setNetLight(ok, msg){
   txt.textContent = msg || "回傳";
 }
 
-// 取資料
+// 取資料（POST action=list_recent），並以「陣列或 status:ok」判綠燈
 async function fetchRecent(){
   const form = new URLSearchParams({ action:"list_recent" });
   const dbg = document.getElementById('dbg');
   try{
     const res = await fetch(CFG.api, { method:"POST", body: form });
-    if (!res.ok){ setNetLight(false, "HTTP錯誤"); return { ok:false, rows:[] }; }
+    if (!res.ok){
+      setNetLight(false, "HTTP錯誤");
+      dbg.style.display="block";
+      dbg.textContent=`HTTP ${res.status} ${res.statusText}`;
+      return { ok:false, rows:[] };
+    }
     const text = await res.text();
     let data;
-    try{ data = JSON.parse(text); }catch(_){ setNetLight(false,"非JSON"); return { ok:false, rows:[] }; }
+    try{ data = JSON.parse(text); }
+    catch(_){
+      setNetLight(false, "非JSON");
+      dbg.style.display="block";
+      dbg.textContent=`回應非 JSON：\n`+text.slice(0,2000);
+      return { ok:false, rows:[] };
+    }
     const okFlag = Array.isArray(data) || (data && data.status === "ok");
     setNetLight(okFlag, okFlag ? "回傳OK" : "旗標錯誤");
     const rows = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
     return { ok: okFlag, rows };
-  }catch{ setNetLight(false,"網路錯誤"); return { ok:false, rows:[] }; }
-}
-
-// mm/dd 輸出
-function toMMDD(s){
-  if (s == null) return "";
-  if (typeof s === "number") {
-    const base = Date.UTC(1899,11,30);
-    const dt = new Date(base + s*86400000);
-    const mm = String(dt.getUTCMonth()+1).padStart(2,"0");
-    const dd = String(dt.getUTCDate()).padStart(2,"0");
-    return `${mm}/${dd}`;
+  }catch(err){
+    setNetLight(false, "網路錯誤");
+    const dbg = document.getElementById('dbg');
+    dbg.style.display="block";
+    dbg.textContent=`fetch 例外：\n`+String(err);
+    return { ok:false, rows:[] };
   }
-  const t = String(s).trim();
-  const pure = t.split("T")[0].split(" ")[0];
-  // yyyy-mm-dd / yyyy/mm/dd
-  let m = pure.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
-  if (m) return `${m[2].padStart(2,"0")}/${m[3].padStart(2,"0")}`;
-  // mm-dd / mm/dd
-  m = pure.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
-  if (m) return `${m[1].padStart(2,"0")}/${m[2].padStart(2,"0")}`;
-  return t;
 }
 
-// 最近三班
+// 後端：deleted === "TRUE" 才顯示
+function isValid(r){ return r && String(r.deleted).toUpperCase() === "TRUE"; }
+
+// 將日期序號轉 mm/dd（只吃序號；避免多餘轉換）
+function serialToMMDD(n){
+  const days = Math.floor(Number(n));                // 取整數天
+  const baseUTC = Date.UTC(1899,11,30);             // 1899-12-30
+  const dt = new Date(baseUTC + days*86400000);     // 用 UTC 避免時區偏移
+  const mm = String(dt.getUTCMonth()+1).padStart(2,"0");
+  const dd = String(dt.getUTCDate()).padStart(2,"0");
+  return `${mm}/${dd}`;
+}
+
+// 取最近三個 (date_serial + shift) 組合（依回傳順序）
 function pickRecentThree(rows){
   const pairs=[], seen=new Set();
   for(const r of rows){
-    const ymd=String(r.date), sh=String(r.shift), k=ymd+"|"+sh;
+    const serial = Math.floor(Number(r.date));  // 你的後端已改：date 為序號
+    const sh = String(r.shift);
+    const k = serial+"|"+sh;
     if(seen.has(k)) continue;
-    seen.add(k); pairs.push({ymd,sh});
+    seen.add(k); pairs.push({serial, sh});
     if(pairs.length>=3) break;
   }
   return pairs;
 }
 
-// 顯示「有效資料:?筆」
-function renderCount(totalCount){
-  const box=document.getElementById('range');
-  box.textContent=`有效資料：${totalCount} 筆`;
-  box.style.display="";
+// 顯示「有效資料：? 筆」
+function renderCount(total){
+  const box = document.getElementById('range');
+  box.textContent = `有效資料：${total} 筆`;
+  box.style.display = "";
 }
 
-// 渲染表格
+// 渲染（標題：班別/日期：mm/dd - A；表格三欄）
 function render(groups){
-  const root=document.getElementById('root'); root.innerHTML="";
+  const root = document.getElementById('root'); root.innerHTML="";
   for(const g of groups){
-    const sec=document.createElement('section');
-    const hdr=document.createElement('div');
-    hdr.className="grp";
-    hdr.textContent=`班別/日期：${toMMDD(g.ymd)} - ${g.sh}`;
+    const sec = document.createElement('section');
+
+    const hdr = document.createElement('div');
+    hdr.className = "grp";
+    hdr.textContent = `班別/日期：${serialToMMDD(g.serial)} - ${g.sh}`;
     sec.appendChild(hdr);
 
-    const table=document.createElement('table');
-    table.innerHTML=`
-      <thead>
-        <tr><th>料號</th><th>批號</th><th>數量</th></tr>
-      </thead><tbody></tbody>`;
-    const tb=table.querySelector('tbody');
+    const table = document.createElement('table');
+    table.innerHTML = `
+      <thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead>
+      <tbody></tbody>`;
+    const tb = table.querySelector('tbody');
 
     for(const r of g.rows){
-      const tr=document.createElement('tr');
-      const get=(x,def="")=>(x==null?def:x);
-      tr.innerHTML=`
-        <td>${get(r.part_no)}</td>
-        <td>${get(r.lot)}</td>
-        <td>${get(r.sample_cnt)}</td>`;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.part_no ?? ""}</td>
+        <td>${r.lot ?? ""}</td>
+        <td>${r.sample_cnt ?? ""}</td>`;
       tb.appendChild(tr);
     }
     sec.appendChild(table);
@@ -163,23 +173,25 @@ function render(groups){
 
 // 主流程
 (async function main(){
-  const elStat=document.getElementById('status');
-  const {ok,rows}=await fetchRecent();
-  if(!ok){ elStat.textContent="讀取失敗或旗標錯誤"; return; }
-  const valid=rows.filter(isValid);
+  const elStat = document.getElementById('status');
+  const { ok, rows } = await fetchRecent();
+  if(!ok){ elStat.textContent = "讀取失敗或旗標錯誤"; return; }
+
+  const valid = rows.filter(isValid);
   if(valid.length===0){ elStat.textContent="無有效資料"; renderCount(0); return; }
 
-  const last3=pickRecentThree(valid);
-  const groups=last3.map(({ymd,sh})=>{
-    const rs=valid.filter(r=>String(r.date)===ymd && String(r.shift)===sh);
-    return {ymd,sh,rows:rs};
+  const last3 = pickRecentThree(valid);
+  const groups = last3.map(({serial,sh})=>{
+    const rs = valid.filter(r=>Math.floor(Number(r.date))===serial && String(r.shift)===sh);
+    return { serial, sh, rows: rs };
   }).filter(g=>g.rows.length>0);
 
-  const totalCount=groups.reduce((acc,g)=>acc+g.rows.length,0);
-  renderCount(totalCount);
+  const total = groups.reduce((sum,g)=>sum+g.rows.length,0);
+  renderCount(total);
 
   if(groups.length===0){ elStat.textContent="無符合條件資料"; return; }
-  elStat.textContent=""; render(groups);
+  elStat.textContent = "";
+  render(groups);
 })();
 </script>
 </body>
