@@ -49,7 +49,7 @@
 
 <script>
 const CFG = {
-  version: "browse v1.6.0",
+  version: "browse v1.6.2",
   api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
@@ -70,10 +70,10 @@ function setNetLight(ok, msg){
   const txt = document.getElementById('net-msg');
   dot.classList.remove('ok','err');
   dot.classList.add(ok ? 'ok' : 'err');
-  if (msg) txt.textContent = msg; else txt.textContent = "回傳";
+  txt.textContent = msg || "回傳";
 }
 
-// 取資料 + 診斷
+// 取資料 + 依「陣列或 status:ok」判斷綠燈
 async function fetchRecent(){
   const form = new URLSearchParams({ action:"list_recent" });
   const dbg = document.getElementById('dbg');
@@ -83,38 +83,32 @@ async function fetchRecent(){
       setNetLight(false, "HTTP錯誤");
       dbg.style.display = "block";
       dbg.textContent = `HTTP ${res.status} ${res.statusText}`;
-      return { ok:false, rows:[], reason:"http" };
+      return { ok:false, rows:[] };
     }
-    let text = await res.text(); // 先取文字以便除錯
-    let data = null;
-    try {
+    const text = await res.text(); // 優先拿文字以利除錯
+    let data;
+    try{
       data = JSON.parse(text);
-    } catch(parseErr){
+    }catch(_){
       setNetLight(false, "非JSON");
       dbg.style.display = "block";
       dbg.textContent = `回應非 JSON：\n` + text.slice(0,2000);
-      return { ok:false, rows:[], reason:"non_json", raw:text };
+      return { ok:false, rows:[] };
     }
-    if (data && data.status === "ok"){
-      setNetLight(true, "回傳OK");
-      const arr = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
-      return { ok:true, rows: arr, raw:data };
-    }else{
-      setNetLight(false, "status!=ok");
-      dbg.style.display = "block";
-      dbg.textContent = `JSON 旗標不是 ok：\n` + JSON.stringify(data, null, 2).slice(0,2000);
-      return { ok:false, rows:[], reason:"status_not_ok", raw:data };
-    }
+    const okFlag = Array.isArray(data) || (data && data.status === "ok");
+    setNetLight(okFlag, okFlag ? "回傳OK" : "旗標錯誤");
+    const rows = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+    return { ok: okFlag, rows, raw:data };
   }catch(err){
     setNetLight(false, "網路錯誤");
     const dbg = document.getElementById('dbg');
     dbg.style.display = "block";
     dbg.textContent = `fetch 例外：\n` + String(err);
-    return { ok:false, rows:[], reason:"network", error:err };
+    return { ok:false, rows:[] };
   }
 }
 
-// 有效
+// 有效（TRUE=顯示）
 function isValid(r){ return String(r.deleted).toUpperCase() === "TRUE"; }
 
 // 最近三班（依回傳順序）
@@ -186,9 +180,8 @@ function render(groups){
   const elStat = document.getElementById('status');
   const { ok, rows } = await fetchRecent();
 
-  // 保留文字提示
   if (!ok){
-    elStat.textContent = "讀取失敗或旗標非 ok";
+    elStat.textContent = "讀取失敗或旗標錯誤";
     return;
   }
 
