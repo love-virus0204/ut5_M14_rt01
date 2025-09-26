@@ -351,9 +351,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const motherChild=r.mother+(r.hasChild?('-'+r.child):'');
   lotInput.value=motherChild;
 
-  const qty=Number(qty.value);
-  if(!(qty>0)){ setFieldError(qty,qty,'數量需 > 0'); return; }
-
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
   try{
     setTimeout(function(){ try{ saveDraftA(payload); }catch(_){ } }, 0);
