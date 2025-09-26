@@ -252,9 +252,9 @@ function submitData(p){
   params.append('lot', p.lot);
   params.append('qty', p.qty);
   params.append('sample_cnt', sample_cnt);
-  params.append('z7', 0);
-  params.append('z8', 0);
-  params.append('z9', 0);
+  params.append('z07', 0);
+  params.append('z08', 0);
+  params.append('z09', 0);
   params.append('z10', 0);
   params.append('z11', 0);
   params.append('z12', 0);
@@ -355,6 +355,14 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 const now=nowCorrected();
   const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
   const payload={
+    z07: 0,
+    z08: 0,
+    z09: 0,
+    z10: 0,
+    z11: 0,
+    z12: 0,
+    z13: 0,
+    remark: '',
     date: currentDS.ymdSlash,
     shift: currentDS.shift,
     part_no: part,
