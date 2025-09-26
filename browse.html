@@ -181,7 +181,9 @@ function render(groups){
     sec.appendChild(hdr);
 
     const table = document.createElement('table');
-    table.classList.add(`t${idx}`); // A/B/C → 對應底色
+    table.classList.add(`t${idx}`); 
+    // table.classList.add(shift-${g.sh});
+    // A/B/C → 對應底色
     table.innerHTML = `
       <thead>
         <tr><th>料　　號</th><th>批　號</th><th>數　量</th></tr>
