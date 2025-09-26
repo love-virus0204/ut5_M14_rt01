@@ -247,6 +247,7 @@ function ymdToSerial(ymd){
 function submitData(p){
   const keyLot = String(lotDisp).replace(/^FA-/i, '');
 
+  const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
   const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
 
   var sample_cnt = qn > 20 ? 20 : qn;
@@ -350,10 +351,8 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const motherChild=r.mother+(r.hasChild?('-'+r.child):'');
   lotInput.value=motherChild;
 
-  const q=Number(qty.value);
-  if(!(q>0)){ setFieldError(qty,qty,'數量需 > 0'); return; }
-
-  const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
+  const qty=Number(qty.value);
+  if(!(qty>0)){ setFieldError(qty,qty,'數量需 > 0'); return; }
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
   try{
