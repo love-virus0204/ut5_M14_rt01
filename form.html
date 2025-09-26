@@ -241,7 +241,6 @@ function showOk(msg){
 /* ===== API（POST urlencoded） ===== */
 // 用 URLSearchParams 組 form-urlencoded
 function submitData(p){
-  //var qn = Number(p.qty) || 0;
   var sample_cnt = p.qty > 20 ? 20 : p.qty;
 
   var params = new URLSearchParams();
@@ -349,7 +348,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
-  
   // 組鍵用批號，剔除前綴 FA-
   const keyLot = String(lotDisp).replace(/^FA-/i, '');
 const now=nowCorrected();
@@ -368,6 +366,7 @@ const now=nowCorrected();
     part_no: part,
     lot: lotDisp,
     qty: q,
+    sample_cnt: q > 20 ? 20 : q,
     inspector: inspectorVal,
     submitted_at: fmtTW(now),
     key: submitKey,
