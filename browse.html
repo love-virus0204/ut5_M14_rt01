@@ -31,20 +31,9 @@
   th{background:#f9fafb;color:#334155}
 
   /* 依班別渲染表格 tbody 更淡底色（僅數據區） */
-/* A 班藍色系 */
-table.shift-A tbody tr:nth-child(odd){background:linear-gradient(180deg,#ebf4ff 0%,#f0f9ff 100%)}
-table.shift-A tbody tr:nth-child(even){background:linear-gradient(180deg,#dbeafe 0%,#eff6ff 100%)}
-
-/* B 班橘色系 */
-table.shift-B tbody tr:nth-child(odd){background:linear-gradient(180deg,#fff7ed 0%,#fffbeb 100%)}
-table.shift-B tbody tr:nth-child(even){background:linear-gradient(180deg,#ffedd5 0%,#fff7ed 100%)}
-
-/* C 班紫色系 */
-table.shift-C tbody tr:nth-child(odd){background:linear-gradient(180deg,#f5f3ff 0%,#faf5ff 100%)}
-table.shift-C tbody tr:nth-child(even){background:linear-gradient(180deg,#ede9fe 0%,#f5f3ff 100%)}
-
-/* 滑鼠移上去 */
-tbody tr:hover{background:linear-gradient(180deg,#e0f2fe 0%,#bae6fd 100%)}
+  table.shift-A tbody{ background:var(--a); }
+  table.shift-B tbody{ background:var(--b); }
+  table.shift-C tbody{ background:var(--c); }
 
   .foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
   .net{display:flex;align-items:center;gap:8px}
@@ -52,6 +41,18 @@ tbody tr:hover{background:linear-gradient(180deg,#e0f2fe 0%,#bae6fd 100%)}
   .ok{background:var(--ok)!important;border-color:var(--ok)!important}
   .err{background:var(--err)!important;border-color:var(--err)!important}
   .dbg{margin-top:10px;font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;display:none}
+
+/* === per-table stripes by index === */
+table.t1 tbody tr:nth-child(odd){background:linear-gradient(180deg,#f5f3ff 0%,#faf5ff 100%)}
+table.t1 tbody tr:nth-child(even){background:linear-gradient(180deg,#ede9fe 0%,#f5f3ff 100%)}
+
+table.t2 tbody tr:nth-child(odd){background:linear-gradient(180deg,#f9fafb 0%,#f3f4f6 100%)}
+table.t2 tbody tr:nth-child(even){background:linear-gradient(180deg,#e5e7eb 0%,#f9fafb 100%)}
+
+table.t3 tbody tr:nth-child(odd){background:linear-gradient(180deg,#fff7ed 0%,#fffbeb 100%)}
+table.t3 tbody tr:nth-child(even){background:linear-gradient(180deg,#ffedd5 0%,#fff7ed 100%)}
+
+#root table tbody tr:hover{background:linear-gradient(180deg,#e0f2fe 0%,#bae6fd 100%)}
 </style>
 </head>
 <body>
@@ -169,7 +170,9 @@ function renderCount(total){
 // 渲染
 function render(groups){
   const root = document.getElementById('root'); root.innerHTML="";
+  let idx = 0;
   for(const g of groups){
+    idx++;
     const sec = document.createElement('section');
 
     const hdr = document.createElement('div');
@@ -178,7 +181,7 @@ function render(groups){
     sec.appendChild(hdr);
 
     const table = document.createElement('table');
-    table.classList.add(`shift-${g.sh}`); // A/B/C → 對應底色
+    table.classList.add(`t${idx}`); // A/B/C → 對應底色
     table.innerHTML = `
       <thead>
         <tr><th>料　　號</th><th>批　號</th><th>數　量</th></tr>
