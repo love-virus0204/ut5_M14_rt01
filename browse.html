@@ -8,9 +8,10 @@
   :root{
     --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e;
     --ok:#10b981; --err:#ef4444;
-    --a:#fffbea; /* 淡黃 */
-    --b:#eefcff; /* 淡藍 */
-    --c:#f7f2ff; /* 淡紫 */
+    /* 更淡的班別底色（貼近 index 風格） */
+    --a:#fffbea; /* 淡黃 更淡 */
+    --b:#eefcff; /* 淡藍 更淡 */
+    --c:#f7f2ff; /* 淡紫 更淡 */
   }
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
@@ -179,7 +180,7 @@ function render(groups){
     hdr.textContent = `班別/日期：${serialToMMDD(g.serial)} - ${g.sh}`;
     sec.appendChild(hdr);
 
-    // const table =document.createElement('table');
+    const table = document.createElement('table');
     table.classList.add(`t${idx}`); // A/B/C → 對應底色
     table.innerHTML = `
       <thead>
