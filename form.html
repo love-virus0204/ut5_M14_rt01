@@ -237,6 +237,10 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
+function ymdToSerial(ymd){
+  const [y,m,d] = ymd.split('/').map(Number);
+  return Math.floor((Date.UTC(y, m-1, d) - Date.UTC(1899,11,30)) / 86400000);
+}
 
 /* ===== API（POST urlencoded） ===== */
 function submitData(p){
