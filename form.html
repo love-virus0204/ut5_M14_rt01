@@ -246,7 +246,7 @@ function submitData(p){
 
   var params = new URLSearchParams();
   params.append('action','submit');
-  params.append('date', p.date);
+  params.append('date', ymdToSerial(p.date));
   params.append('shift', p.shift);
   params.append('part_no', p.part_no);
   params.append('lot', p.lot);
