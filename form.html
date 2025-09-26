@@ -1,4 +1,4 @@
-。<!doctype html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"/>
@@ -17,10 +17,10 @@
 
   .ds-line{font-weight:700;margin:8px 0 10px 0; padding-left:20px;}
 
-  .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;column-gap:0px;margin:6px 0}
+  .row{display:grid;grid-template-columns:var(--labelw) 1fr;align-items:center;column-gap:10px;margin:6px 0}
   .label{font-family:"標楷體",serif;text-align:center}
   .ctrl{width:100%}
-  .ctrl input,.ctrl select{width:85%;box-sizing:border-box;padding:7px;border:1px solid #ccc;border-radius:6px;font-family:"Comic Sans MS",sans-serif}
+  .ctrl input,.ctrl select{width:100%;box-sizing:border-box;padding:7px;border:1px solid #ccc;border-radius:6px;font-family:"Comic Sans MS",sans-serif}
   .row.lot-type .ctrl{display:grid;grid-template-columns:25% 1fr;column-gap:8px}
   .row.lot-type select{min-width:80px}
 
@@ -31,22 +31,19 @@
   box-sizing:border-box;
   padding-right:24px;}
   .submit-center{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px}
-  .btn{background:#0a66ff;color:#fff;border:0;border-radius:18px;padding:10px 18px;cursor:pointer}
+  .btn{background:#0a66ff;color:#fff;border:0;border-radius:8px;padding:10px 18px;cursor:pointer}
 
   .ok-msg{display:none;color:#1a7f37;font-weight:700;font-size:13px}
   .ok-msg.show{display:block;opacity:1;transition:opacity .4s}
   .ok-msg.fade{opacity:0}
 
   hr{margin:10px 0}
-  .bottom-info{display:grid;grid-template-columns:1fr 1fr;align-items:center;margin:6px 20px}
+  .bottom-info{display:grid;grid-template-columns:1fr 1fr;align-items:center;margin:6px 0}
   .ver-left{justify-self:start;font-size:12px;color:#666}
   .time-right{justify-self:end;font-size:12px;color:#333;text-align:right}
   .post{width:95%;margin:0 auto}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
-
-/* ===== 輸入框字體大小 避免被放大頁面 ===== */
-input, select, textarea { font-size:16px; }
 </style>
 </head>
 <body>
@@ -222,7 +219,7 @@ function ensureCenterBox(){
   if(!box){
     box=document.createElement("div");
     box.id="center-status";
-    box.style.cssText="position:fixed;left:50%;top:38%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.7);color:#fff;padding:10px 16px;border-radius:10px;font-size:16px;display:none;";
+    box.style.cssText="position:fixed;left:50%;top:37%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.7);color:#fff;padding:10px 16px;border-radius:10px;font-size:16px;display:none;";
     document.body.appendChild(box);
   }
   return box;
@@ -237,39 +234,43 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
-function ymdToSerial(ymd){
-  const [y,m,d] = ymd.split('/').map(Number);
-  return Math.floor((Date.UTC(y, m-1, d) - Date.UTC(1899,11,30)) / 86400000);
-}
 
 /* ===== API（POST urlencoded） ===== */
-// 用 URLSearchParams 組 form-urlencoded
 function submitData(p){
-  const keyLot = String(lotDisp).replace(/^FA-/i, '');
-
-  const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
-  const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
-
+  // 補預設值與規則（僅送必要欄位；不送 submitted_at）
+  var qn = Number(p.qty) || 0;
   var sample_cnt = qn > 20 ? 20 : qn;
+
+  // z7..z13 預設 0；remark 預設空字串
+  var z7  = (p.z7  == null || p.z7  === '') ? 0 : p.z7;
+  var z8  = (p.z8  == null || p.z8  === '') ? 0 : p.z8;
+  var z9  = (p.z9  == null || p.z9  === '') ? 0 : p.z9;
+  var z10 = (p.z10 == null || p.z10 === '') ? 0 : p.z10;
+  var z11 = (p.z11 == null || p.z11 === '') ? 0 : p.z11;
+  var z12 = (p.z12 == null || p.z12 === '') ? 0 : p.z12;
+  var z13 = (p.z13 == null || p.z13 === '') ? 0 : p.z13;
+  var remark = (p.remark == null) ? '' : p.remark;
+
+  // 用 URLSearchParams 組 form-urlencoded
   var params = new URLSearchParams();
   params.append('action','submit');
-  params.append('date', ymdToSerial(currentDS.ymdSlash));
-  params.append('shift', shift);
-  params.append('part_no', part);
-  params.append('lot', lotDisp);
-  params.append('qty', qty;
-  params.append('sample_cnt', sample_cnt);
-  params.append('z7', 0);
-  params.append('z8', 0);
-  params.append('z9', 0);
-  params.append('z10', 0);
-  params.append('z11', 0);
-  params.append('z12', 0);
-  params.append('z13', 0);
-  params.append('inspector', inspectorVal);
-  params.append('remark', "");
-  params.append('key2', `${currentDS.mmdd}|${currentDS.shift}|${part}|${keyLot}|TRUE`);
-  params.append('key', submitKey);
+  params.append('date',       p.date);
+  params.append('shift',      p.shift);
+  params.append('part_no',    p.part_no);
+  params.append('lot',        p.lot);
+  params.append('qty',        String(p.qty));
+  params.append('sample_cnt', String(sample_cnt));
+  params.append('z7',  String(z7));
+  params.append('z8',  String(z8));
+  params.append('z9',  String(z9));
+  params.append('z10', String(z10));
+  params.append('z11', String(z11));
+  params.append('z12', String(z12));
+  params.append('z13', String(z13));
+  params.append('inspector',  p.inspector);
+  params.append('remark',     remark);
+  params.append('key2',       p.key2);
+  params.append('key',        p.key);
 
   return fetch(API_BASE, { method:'POST', body: params, cache:'no-store' })
     .then(function(r){ return r.text(); })
@@ -350,6 +351,28 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   setFieldError(lotInput,lotError,'');
   const motherChild=r.mother+(r.hasChild?('-'+r.child):'');
   lotInput.value=motherChild;
+
+  const q=Number(qty.value);
+  if(!(q>0)){ setFieldError(qty,qty,'數量需 > 0'); return; }
+
+  const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
+
+  
+  // 組鍵用批號，剔除前綴 FA-
+  const keyLot = String(lotDisp).replace(/^FA-/i, '');
+const now=nowCorrected();
+  const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
+  const payload={
+    date: currentDS.ymdSlash,
+    shift: currentDS.shift,
+    part_no: part,
+    lot: lotDisp,
+    qty: String(q),
+    inspector: inspectorVal,
+    submitted_at: fmtTW(now),
+    key: submitKey,
+    key2: `${currentDS.mmdd}|${currentDS.shift}|${part}|${keyLot}|TRUE`
+  };
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
   try{
