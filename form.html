@@ -396,6 +396,11 @@ const now=nowCorrected();
   }
 });
 
+function ymdToSerial(ymd){
+  const [y,m,d] = ymd.split('/').map(Number);
+  return Math.floor((Date.UTC(y, m-1, d) - Date.UTC(1899,11,30)) / 86400000);
+}
+
 /* 初始化 + 保溫 */
 document.getElementById('versionTag').textContent=`版本：${FORM_VERSION}`;
 
