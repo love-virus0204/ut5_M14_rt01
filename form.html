@@ -252,15 +252,15 @@ function submitData(p){
   params.append('lot', p.lot);
   params.append('qty', p.qty);
   params.append('sample_cnt', sample_cnt);
-  params.append('z07', 0);
-  params.append('z08', 0);
-  params.append('z09', 0);
-  params.append('z10', 0);
-  params.append('z11', 0);
-  params.append('z12', 0);
-  params.append('z13', 0);
+  params.append('z07', p.z07);
+  params.append('z08', p.z08);
+  params.append('z09', p.z09);
+  params.append('z10', p.z10);
+  params.append('z11', p.z11);
+  params.append('z12', p.z12);
+  params.append('z13', p.z13);
   params.append('inspector', p.inspector);
-  params.append('remark', '');
+  params.append('remark', p.remark);
   params.append('key2', p.key2);
   params.append('key', p.key);
 
