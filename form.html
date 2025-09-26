@@ -243,41 +243,32 @@ function ymdToSerial(ymd){
 }
 
 /* ===== API（POST urlencoded） ===== */
+// 用 URLSearchParams 組 form-urlencoded
 function submitData(p){
-  // 補預設值與規則（僅送必要欄位；不送 submitted_at）
-  var qn = Number(p.qty) || 0;
+  const keyLot = String(lotDisp).replace(/^FA-/i, '');
+
+  const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
+
   var sample_cnt = qn > 20 ? 20 : qn;
-
-  // z7..z13 預設 0；remark 預設空字串
-  var z7  = (p.z7  == null || p.z7  === '') ? 0 : p.z7;
-  var z8  = (p.z8  == null || p.z8  === '') ? 0 : p.z8;
-  var z9  = (p.z9  == null || p.z9  === '') ? 0 : p.z9;
-  var z10 = (p.z10 == null || p.z10 === '') ? 0 : p.z10;
-  var z11 = (p.z11 == null || p.z11 === '') ? 0 : p.z11;
-  var z12 = (p.z12 == null || p.z12 === '') ? 0 : p.z12;
-  var z13 = (p.z13 == null || p.z13 === '') ? 0 : p.z13;
-  var remark = (p.remark == null) ? '' : p.remark;
-
-  // 用 URLSearchParams 組 form-urlencoded
   var params = new URLSearchParams();
   params.append('action','submit');
-  params.append('date',       p.date);
-  params.append('shift',      p.shift);
-  params.append('part_no',    p.part_no);
-  params.append('lot',        p.lot);
-  params.append('qty',        String(p.qty));
-  params.append('sample_cnt', String(sample_cnt));
-  params.append('z7',  String(z7));
-  params.append('z8',  String(z8));
-  params.append('z9',  String(z9));
-  params.append('z10', String(z10));
-  params.append('z11', String(z11));
-  params.append('z12', String(z12));
-  params.append('z13', String(z13));
-  params.append('inspector',  p.inspector);
-  params.append('remark',     remark);
-  params.append('key2',       p.key2);
-  params.append('key',        p.key);
+  params.append('date', ymdToSerial(currentDS.ymdSlash));
+  params.append('shift', shift);
+  params.append('part_no', part);
+  params.append('lot', lotDisp);
+  params.append('qty', q;
+  params.append('sample_cnt', sample_cnt;
+  params.append('z7', 0);
+  params.append('z8', 0);
+  params.append('z9', 0);
+  params.append('z10', 0);
+  params.append('z11', 0);
+  params.append('z12', 0);
+  params.append('z13', 0);
+  params.append('inspector', inspectorVal);
+  params.append('remark', "");
+  params.append('key2', `${currentDS.mmdd}|${currentDS.shift}|${part}|${keyLot}|TRUE`);
+  params.append('key', submitKey);
 
   return fetch(API_BASE, { method:'POST', body: params, cache:'no-store' })
     .then(function(r){ return r.text(); })
@@ -363,23 +354,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   if(!(q>0)){ setFieldError(qty,qty,'數量需 > 0'); return; }
 
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
-
-  
-  // 組鍵用批號，剔除前綴 FA-
-  const keyLot = String(lotDisp).replace(/^FA-/i, '');
-const now=nowCorrected();
-  const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
-  const payload={
-    date: currentDS.ymdSlash,
-    shift: currentDS.shift,
-    part_no: part,
-    lot: lotDisp,
-    qty: String(q),
-    inspector: inspectorVal,
-    submitted_at: fmtTW(now),
-    key: submitKey,
-    key2: `${currentDS.mmdd}|${currentDS.shift}|${part}|${keyLot}|TRUE`
-  };
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
   try{
