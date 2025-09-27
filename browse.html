@@ -150,10 +150,10 @@ function groupForRender(rows){
   return Array.from(map.values()).slice(0,3);
 }
 
+  const baseUTC = Date.UTC(1899,11,30);
 /* 日期序號 → mm/dd */
 function serialToMMDD(n){
   const days = Math.floor(Number(n));
-  const baseUTC = Date.UTC(1899,11,30);
   const dt = new Date(baseUTC + days*86400000);
   const mm = String(dt.getUTCMonth()+1).padStart(2,"0");
   const dd = String(dt.getUTCDate()).padStart(2,"0");
