@@ -13,8 +13,8 @@
   .ttl{font-weight:700;color:#0f766e}
   .back{font-size:12px;color:#64748b;text-decoration:none;border:1px solid #e5e7eb;padding:6px 10px;border-radius:8px}
   .content{padding:14px 16px}
+  #status{color:#475569;margin:18px 0;min-height:1.6em;text-align:center;font-weight:600}
   #dbg{display:none;white-space:pre-wrap;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;margin-top:8px;color:#334155}
-  #loading{display:none;color:#475569;margin:8px 0}
   .grp{margin:12px 0 6px;font-weight:700}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
@@ -40,8 +40,7 @@
     <a href="index.html" class="back">返回入口</a>
   </div>
   <div class="content">
-    <div id="status" class="muted">載入中…</div>
-    <div id="loading">載入中…</div>
+    <div id="status">努力加載中... 60s</div>
     <div id="root" style="display:none"></div>
     <div id="dbg"></div>
   </div>
@@ -53,8 +52,8 @@
 
 <script>
 const CFG = {
-  version: "browse v2.1.1",
-  api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"   // ← 沿用你底稿中的 URL，未改動
+  version: "browse v3.0.0",
+  api: "https://script.google.com/macros/s/REPLACE/exec"
 };
 document.getElementById('ver').textContent = CFG.version;
 
@@ -62,78 +61,75 @@ function setNetLight(ok, msg){
   const dot = document.getElementById('net-dot');
   const txt = document.getElementById('net-msg');
   dot.classList.remove('ok','err');
-  dot.classList.add(ok ? 'ok' : 'err');
-  txt.textContent = msg || (ok ? "OK" : "ERROR");
+  if (ok === true) dot.classList.add('ok');
+  else if (ok === false) dot.classList.add('err');
+  txt.textContent = msg || (ok===true ? "OK" : ok===false ? "ERROR" : "回傳");
 }
 
-// 僅保留 deleted === "TRUE"
 function isAlive(v){ return String(v).toUpperCase() === "TRUE"; }
 
-// 讀取：只支援 {status:'ok', fields:[...], values:[[]...] }
-async function fetchRecent(){
-  const dbg = document.getElementById('dbg');
-  dbg.style.display = "none";
-
-  const res = await fetch(CFG.api, { method:"POST", body:new URLSearchParams({action:"list_recent"}) });
-  if (!res.ok){
-    setNetLight(false, "HTTP錯誤");
-    dbg.style.display="block";
-    dbg.textContent = `HTTP ${res.status} ${res.statusText}`;
-    return { ok:false, rows:[] };
-  }
-
-  let data;
-  try { data = await res.json(); }
-  catch(e){
-    setNetLight(false, "非JSON");
-    dbg.style.display="block";
-    dbg.textContent = "回應非 JSON";
-    return { ok:false, rows:[] };
-  }
-
-  if (data?.status !== "ok" || !Array.isArray(data.fields) || !Array.isArray(data.values)){
-    setNetLight(false, "格式錯誤");
-    dbg.style.display="block";
-    dbg.textContent = "需 {status:'ok', fields[], values[]}";
-    return { ok:false, rows:[] };
-  }
-
-  // 成功 → 亮綠燈
-  setNetLight(true, "OK");
-
-  // 依 fields 對應 values → 列物件（鍵名維持原用法）
-  const F = Object.fromEntries(data.fields.map((k,i)=>[k,i]));
-  const rows = data.values.map(a => ({
-    date:         a[F.date],
-    shift:        a[F.shift],
-    part_no:      a[F.part_no],
-    lot:          a[F.lot],
-    qty:          a[F.qty],
-    sample_cnt:   a[F.sample_cnt],
-    z07:          a[F.z07],
-    z08:          a[F.z08],
-    z09:          a[F.z09],
-    z10:          a[F.z10],
-    z11:          a[F.z11],
-    z12:          a[F.z12],
-    z13:          a[F.z13],
-    inspector:    a[F.inspector],
-    remark:       a[F.remark],
-    submitted_at: a[F.submitted_at],
-    key2:         a[F.key2],
-    key:          a[F.key],
-    deleted:      a[F.deleted]
-  }));
-
-  return { ok:true, rows };
+function fetchWithTimeout(url, options, timeout){
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, rej)=>setTimeout(()=>rej(new Error("Timeout "+timeout+"ms")), timeout))
+  ]);
 }
 
-// 分組：依 date 序號與 shift
+// 倒數控制
+function startCountdown(sec){
+  const status = document.getElementById('status');
+  let left = sec;
+  status.textContent = "努力加載中... " + left + "s";
+  const t = setInterval(()=>{
+    left--;
+    status.textContent = "努力加載中... " + left + "s";
+    if (left <= 0){
+      clearInterval(t);
+      if (!window.__renderDone__){
+        status.textContent = "載入失敗..請通知開發人員";
+      }
+    }
+  }, 1000);
+  return { stop(){ clearInterval(t); } };
+}
+
+// 先送 GET。成功→亮綠燈；失敗→立即停止並顯示錯誤
+async function pingGET(){
+  try{
+    const res = await fetchWithTimeout(CFG.api + "?action=list_recent", {method:"GET"}, 5000);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    setNetLight(true, "OK");
+    return true;
+  }catch(e){
+    setNetLight(false, "失敗");
+    document.getElementById('status').textContent = "載入失敗..請通知開發人員";
+    return false;
+  }
+}
+
+// POST 取資料
+async function fetchRecentPOST(){
+  const res = await fetch(CFG.api, { method:"POST", body:new URLSearchParams({action:"list_recent"}) });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const data = await res.json();
+  if (data?.status !== "ok" || !Array.isArray(data.fields) || !Array.isArray(data.values)){
+    throw new Error("需 {status:'ok', fields[], values[]}");
+  }
+  const F = Object.fromEntries(data.fields.map((k,i)=>[k,i]));
+  return data.values.map(a => ({
+    date: a[F.date], shift: a[F.shift], part_no: a[F.part_no], lot: a[F.lot], qty: a[F.qty],
+    sample_cnt:a[F.sample_cnt], z07:a[F.z07], z08:a[F.z08], z09:a[F.z09], z10:a[F.z10],
+    z11:a[F.z11], z12:a[F.z12], z13:a[F.z13], inspector:a[F.inspector], remark:a[F.remark],
+    submitted_at:a[F.submitted_at], key2:a[F.key2], key:a[F.key], deleted:a[F.deleted]
+  }));
+}
+
+// 分組：依 date 序號 + shift，不排序
 function groupForRender(rows){
   const alive = rows.filter(r => isAlive(r.deleted));
   const map = new Map();
   for (const r of alive){
-    const serial = r.date; // 序號
+    const serial = Number(r.date);
     const sh = r.shift;
     const key = serial + '|' + sh;
     if (!map.has(key)) map.set(key, { serial, sh, rows: [] });
@@ -143,12 +139,9 @@ function groupForRender(rows){
       qty: r.qty ?? ""
     });
   }
-  const groups = Array.from(map.values());
-  groups.sort((a,b) => b.serial - a.serial || (a.sh > b.sh ? 1 : -1));
-  return groups;
+  return Array.from(map.values());
 }
 
-// 序號 → MM/DD 顯示
 function serialToMMDD(n){
   const days = Math.floor(Number(n));
   const baseUTC = Date.UTC(1899,11,30);
@@ -158,7 +151,6 @@ function serialToMMDD(n){
   return mm + "/" + dd;
 }
 
-// 渲染（維持你的表格樣式與 t1/t2/t3 條紋）
 function render(groups){
   const root = document.getElementById('root');
   root.innerHTML = "";
@@ -185,29 +177,35 @@ function render(groups){
   });
 }
 
-// 載入流程
 async function loadAndRender(){
+  window.__renderDone__ = false;
   const status = document.getElementById('status');
-  const loading = document.getElementById('loading');
   const root = document.getElementById('root');
+  const dbg = document.getElementById('dbg');
+  root.style.display = "none"; dbg.style.display = "none";
 
-  status.textContent = "載入中…";
-  loading.style.display = "block";
-  root.style.display = "none";
+  // 一進來就開始 60s 倒數
+  const cd = startCountdown(60);
 
-  const r = await fetchRecent();
-  if (!r.ok){
-    status.textContent = "讀取失敗";
-    loading.style.display = "none";
-    return;
+  // 先 GET 檢查
+  const ok = await pingGET();
+  if (!ok){ cd.stop(); return; } // GET 失敗：紅燈並結束
+
+  // GET 成功：綠燈，並在倒數持續中送 POST
+  try{
+    const rows = await fetchRecentPOST();
+    const groups = groupForRender(rows).slice(0, 3);
+    render(groups);
+    status.textContent = "";
+    root.style.display = "";
+    window.__renderDone__ = true;
+    cd.stop(); // 完成就停止倒數
+  }catch(e){
+    // POST 失敗：狀態顯示錯誤，但保持綠燈（區分 GET/POST）
+    status.textContent = "載入失敗..請通知開發人員";
+    dbg.style.display = "block";
+    dbg.textContent = (e && e.message) ? e.message : String(e);
   }
-
-  const groups = groupForRender(r.rows);
-  render(groups);
-
-  status.textContent = "";
-  loading.style.display = "none";
-  root.style.display = "";
 }
 
 document.addEventListener('DOMContentLoaded', loadAndRender);
