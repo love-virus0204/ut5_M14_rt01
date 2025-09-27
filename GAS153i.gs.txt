@@ -145,7 +145,7 @@ function _listRecent(sheet){
 
   const epoch = Date.UTC(1899,11,30);
   values.forEach(function(row, i){
-    row[0] = _toSerialInt(row[0]，epoch);
+    row[0] = _toSerialInt(row[0], epoch);
     row.push(startRow + i);
   });
   //values.reverse(); // 由新到舊
@@ -180,10 +180,10 @@ function _findRowByKey(sheet, key){
 }
 
 /*** 新增：日期序號轉換（Google/Excel 基準：1899-12-30） ***/
-function _toSerialInt(v，epoch){
+function _toSerialInt(v, epoch){
   if (typeof v === "number") return Math.floor(v);
   if (Object.prototype.toString.call(v) === "[object Date]"){
-    return Math.floor((v.getTime() - epoch / 86400000);
+    return Math.floor((v.getTime() - epoch) / 86400000);
   }
   return 0; // 其餘直接 0
 }
