@@ -99,31 +99,43 @@ input, select, textarea { font-size:16px; }
     <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入 批量"></div>
   </div>
 
-  <div class="field">
-    <label for="sample_cnt">抽驗數：</label>
-    <input id="sample_cnt" type="number" min="1" step="1" value="20" readonly placeholder="固定 20，自動計算">
-  </div>
+
+  <div class="row">
+    <div class="label">抽驗數：</div>
+    <div class="ctrl"><input id="sample_cnt" type="number" min="1" step="1" value="20" readonly placeholder="固定 20，自動計算"></div></div>
 
   <!-- 缺陷數量 z07~z13 -->
-  <div class="field"><label for="z07">損　壞：</label>
-    <input id="z07" type="number" min="0" step="1" value="0" placeholder="損壞件數"></div>
-  <div class="field"><label for="z08">粗　糙：</label>
-    <input id="z08" type="number" min="0" step="1" value="0" placeholder="粗糙件數"></div>
-  <div class="field"><label for="z09">凸　點：</label>
-  <input id="z09" type="number" min="0" step="1" value="0" placeholder="凸點件數"></div>
-  <div class="field"><label for="z10">刮　傷：</label>
-    <input id="z10" type="number" min="0" step="1" value="0" placeholder="刮傷件數"></div>
-  <div class="field"><label for="z11">漏　銅：</label>
-    <input id="z11" type="number" min="0" step="1" value="0" placeholder="漏銅件數"></div>
-  <div class="field"><label for="z12">二次孔：</label>
-    <input id="z12" type="number" min="0" step="1" value="0" placeholder="二次孔件數"></div>
-  <div class="field"><label for="z13">折斷邊：</label>
-    <input id="z13" type="number" min="0" step="1" value="0" placeholder="折斷邊件數"></div>
+  <div class="row">
+    <div class="label">損　壞：</div>
+    <div class="ctrl"><input id="z07" type="number" min="0" step="1" value="0" placeholder="損壞件數"></div></div>
 
-  <div class="field">
-    <label for="remark">備　註：</label>
-    <input id="remark" type="text" placeholder="可輸入附註，非必填">
-  </div>
+  <div class="row">
+    <div class="label">粗　糙：</div>
+    <div class="ctrl"><input id="z08" type="number" min="0" step="1" value="0" placeholder="粗糙件數"></div></div>
+
+  <div class="row">
+    <div class="label">凸　點：</div>
+    <div class="ctrl"><input id="z09" type="number" min="0" step="1" value="0" placeholder="凸點件數"></div></div>
+
+  <div class="row">
+    <div class="label">刮　傷：</div>
+    <div class="ctrl"><input id="z10" type="number" min="0" step="1" value="0" placeholder="刮傷件數"></div></div>
+
+  <div class="row">
+    <div class="label">漏　銅：</div>
+    <div class="ctrl"><input id="z11" type="number" min="0" step="1" value="0" placeholder="漏銅件數"></div></div>
+
+  <div class="row">
+    <div class="label">二次孔：</div>
+    <div class="ctrl"><input id="z12" type="number" min="0" step="1" value="0" placeholder="二次孔件數"></div></div>
+
+  <div class="row">
+    <div class="label">折斷邊：</div>
+    <div class="ctrl"><input id="z13" type="number" min="0" step="1" value="0" placeholder="折斷邊件數"></div></div>
+
+<div class="row">
+  <div class="label">備　註：</div>
+  <div class="ctrl"><input id="remark" type="text" placeholder="可輸入附註，非必填"></div></div>
 
   <div class="submit" id="submit-row">
     <div class="submit-center"><div id="okMsg" class="ok-msg"></div></div>
