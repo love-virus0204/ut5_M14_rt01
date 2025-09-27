@@ -135,7 +135,6 @@ function fmtTW(d){return d.getFullYear()+"/"+pad2(d.getMonth()+1)+"/"+pad2(d.get
 
 /* ===== 時間（本機時間轉台北） ===== */
 function nowCorrected(){
-  // 強制以台北時間取值：把 'Asia/Taipei' 的年月日時分秒轉為本地 Date 物件
   const parts = new Intl.DateTimeFormat('zh-TW', {
     timeZone: 'Asia/Taipei', hour12:false,
     year:'numeric', month:'2-digit', day:'2-digit',
@@ -189,22 +188,22 @@ partNo.addEventListener('input',()=> setFieldError(partNo,partError,''));
 partNo.addEventListener('blur',()=>{
   const p=CANON(partNo.value);
   if(!p) return setFieldError(partNo,partError,'料號必填');
-  if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(p)) return setFieldError(partNo,partError,'格式錯誤（如 A58K052）');
+  if(!/^[A-Z][0-9]{2}[A-Z][0-9]{3}$/.test(p)) return setFieldError(partNo,partError,'格式錯誤（如： A58K052）');
   partNo.value = p;
   setFieldError(partNo,partError,'');
 });
 function parseLot(input){
   const s=CANON(input).replace(/\s+/g,'');
-  if(!s) return {ok:false,msg:'母批必填（3碼）'};
+  if(!s) return {ok:false,msg:'母批必填（ 3碼）'};
   if(s.includes('-')){
     const [m,cRaw]=s.split('-',2);
-    if(!m || !/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return {ok:false,msg:'母批需正好 3 碼，且不可含 I / O'};
-    if(!cRaw) return {ok:false,msg:'有連字號時必須輸入子批（1~2 碼）'};
+    if(!m || !/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return {ok:false,msg:'母批需剛好 3 碼，且不可含 B / I / O'};
+    if(!cRaw) return {ok:false,msg:'有連字號時必須輸入子批（ 1~2 碼)'};
     if(!/^[0-9]{1,2}$/.test(cRaw)) return {ok:false,msg:'子批需 1~2 位數字'};
     return {ok:true,mother:m,child:cRaw.padStart(2,'0'),hasChild:true};
   }else{
     const m=s;
-    if(!/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return {ok:false,msg:'母批需正好 3 碼，且不可含 I / O'};
+    if(!/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return {ok:false,msg:'母批需剛好 3 碼，且不可含 B / I / O'};
     return {ok:true,mother:m,child:'',hasChild:false};
   }
 }
