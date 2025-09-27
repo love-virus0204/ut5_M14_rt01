@@ -6,8 +6,9 @@
 <title>外觀記錄表｜瀏覽</title>
 <style>
   :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; --ok:#10b981; --err:#ef4444; }
-  html,body{height:100%} body{margin:0;background:#f8fafc;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  .wrap{width:96%;max-width:980px;margin:18px auto}
+  html,body{height:100%}
+  body{margin:0;background:#f8fafc;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{width:96%;max-width:980px;margin:0 auto} /* 頂部不留大空白 */
   .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
   .hdr{padding:14px 16px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between}
   .ttl{font-weight:700;color:#0f766e}
@@ -34,29 +35,32 @@
 </style>
 </head>
 <body>
-<div class="wrap card">
-  <div class="hdr">
-    <div class="ttl">僅瀏覽｜最近三班有效紀錄</div>
-    <a href="index.html" class="back">返回入口</a>
-  </div>
-  <div class="content">
-    <div id="status">努力加載中... 60s</div>
-    <div id="root" style="display:none"></div>
-    <div id="dbg"></div>
-  </div>
-  <div class="foot">
-    <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
-    <div>版本 <span id="ver"></span></div>
+<div class="wrap">
+  <div class="card">
+    <div class="hdr">
+      <div class="ttl">僅瀏覽｜最近三班有效紀錄</div>
+      <a href="index.html" class="back">返回入口</a>
+    </div>
+    <div class="content">
+      <div id="status">努力加載中... 60s</div>
+      <div id="root" style="display:none"></div>
+      <div id="dbg"></div>
+    </div>
+    <div class="foot">
+      <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
+      <div>版本 <span id="ver"></span></div>
+    </div>
   </div>
 </div>
 
 <script>
-const CFG = {
-  version: "browse v3.0.0",
-  api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
-};
-document.getElementById('ver').textContent = CFG.version;
+/* API URL */
+const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
+const PAGE_VERSION = "browse v3.1.1";
+document.getElementById('ver').textContent = PAGE_VERSION;
+
+/* 指示燈 */
 function setNetLight(ok, msg){
   const dot = document.getElementById('net-dot');
   const txt = document.getElementById('net-msg');
@@ -66,8 +70,10 @@ function setNetLight(ok, msg){
   txt.textContent = msg || (ok===true ? "OK" : ok===false ? "ERROR" : "回傳");
 }
 
+/* TRUE 判定 */
 function isAlive(v){ return String(v).toUpperCase() === "TRUE"; }
 
+/* timeout fetch */
 function fetchWithTimeout(url, options, timeout){
   return Promise.race([
     fetch(url, options),
@@ -75,7 +81,7 @@ function fetchWithTimeout(url, options, timeout){
   ]);
 }
 
-// 倒數控制
+/* 倒數 */
 function startCountdown(sec){
   const status = document.getElementById('status');
   let left = sec;
@@ -93,38 +99,39 @@ function startCountdown(sec){
   return { stop(){ clearInterval(t); } };
 }
 
-// 先送 GET。成功→亮綠燈；失敗→立即停止並顯示錯誤
+/* 先 GET 檢查 */
 async function pingGET(){
   try{
-    const res = await fetchWithTimeout(CFG.api + "?action=list_recent", {method:"GET"}, 5000);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    setNetLight(true, "OK");
+    const res = await fetchWithTimeout(API_BASE + "?action=list_recent", {method:"GET"}, 5000);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    setNetLight(true, "OK"); // GET 成功 → 綠燈
     return true;
   }catch(e){
-    setNetLight(false, "失敗");
+    setNetLight(false, "失敗"); // GET 失敗 → 紅燈
     document.getElementById('status').textContent = "載入失敗..請通知開發人員";
     return false;
   }
 }
 
-// POST 取資料
+/* POST 取資料 */
 async function fetchRecentPOST(){
-  const res = await fetch(CFG.api, { method:"POST", body:new URLSearchParams({action:"list_recent"}) });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const res = await fetch(API_BASE, { method:"POST", body:new URLSearchParams({action:"list_recent"}) });
+  if (!res.ok) throw new Error("HTTP " + res.status + " " + res.statusText);
   const data = await res.json();
   if (data?.status !== "ok" || !Array.isArray(data.fields) || !Array.isArray(data.values)){
     throw new Error("需 {status:'ok', fields[], values[]}");
   }
   const F = Object.fromEntries(data.fields.map((k,i)=>[k,i]));
   return data.values.map(a => ({
-    date: a[F.date], shift: a[F.shift], part_no: a[F.part_no], lot: a[F.lot], qty: a[F.qty],
+    date:a[F.date], shift:a[F.shift], part_no:a[F.part_no], lot:a[F.lot], qty:a[F.qty],
     sample_cnt:a[F.sample_cnt], z07:a[F.z07], z08:a[F.z08], z09:a[F.z09], z10:a[F.z10],
     z11:a[F.z11], z12:a[F.z12], z13:a[F.z13], inspector:a[F.inspector], remark:a[F.remark],
-    submitted_at:a[F.submitted_at], key2:a[F.key2], key:a[F.key], deleted:a[F.deleted]
+    submitted_at:a[F.submitted_at], key2:a[F.key2], key:a[F.key], deleted:a[F.deleted],
+    row:a[F.row] /* 只解析，不渲染 */
   }));
 }
 
-// 分組：依 date 序號 + shift，不排序
+/* 分組：依 date + shift，不排序，只取前三組 */
 function groupForRender(rows){
   const alive = rows.filter(r => isAlive(r.deleted));
   const map = new Map();
@@ -137,11 +144,13 @@ function groupForRender(rows){
       part_no: r.part_no ?? "",
       lot: r.lot ?? "",
       qty: r.qty ?? ""
+      // 不顯示 row
     });
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).slice(0,3);
 }
 
+/* 日期序號 → mm/dd */
 function serialToMMDD(n){
   const days = Math.floor(Number(n));
   const baseUTC = Date.UTC(1899,11,30);
@@ -151,6 +160,7 @@ function serialToMMDD(n){
   return mm + "/" + dd;
 }
 
+/* 渲染 欄位 */
 function render(groups){
   const root = document.getElementById('root');
   root.innerHTML = "";
@@ -177,6 +187,7 @@ function render(groups){
   });
 }
 
+/* 主流程：倒數→GET→POST→渲染 */
 async function loadAndRender(){
   window.__renderDone__ = false;
   const status = document.getElementById('status');
@@ -184,27 +195,24 @@ async function loadAndRender(){
   const dbg = document.getElementById('dbg');
   root.style.display = "none"; dbg.style.display = "none";
 
-  // 一進來就開始 60s 倒數
   const cd = startCountdown(60);
 
-  // 先 GET 檢查
   const ok = await pingGET();
-  if (!ok){ cd.stop(); return; } // GET 失敗：紅燈並結束
+  if (!ok){ cd.stop(); return; }
 
-  // GET 成功：綠燈，並在倒數持續中送 POST
   try{
     const rows = await fetchRecentPOST();
-    const groups = groupForRender(rows).slice(0, 3);
+    const groups = groupForRender(rows);
     render(groups);
     status.textContent = "";
     root.style.display = "";
     window.__renderDone__ = true;
-    cd.stop(); // 完成就停止倒數
+    cd.stop();
   }catch(e){
-    // POST 失敗：狀態顯示錯誤，但保持綠燈（區分 GET/POST）
     status.textContent = "載入失敗..請通知開發人員";
     dbg.style.display = "block";
     dbg.textContent = (e && e.message) ? e.message : String(e);
+    // 維持綠燈，表 GET 成功但 POST/解析失敗
   }
 }
 
