@@ -80,8 +80,7 @@ function doPost(e){
 */
 function _submit(sheet, p){
   var submittedAt = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy/MM/dd HH:mm:ss');
-  // 一維列資料（1..19）
-  const d = new Date(Math.round((p.date - 25569) * 86400 * 1000))
+
   var row = [
     p.date,               //1
     p.shift,              //2
@@ -144,8 +143,9 @@ function _listRecent(sheet){
 
   var values = sheet.getRange(startRow, 1, rows, lastCol).getValues();
 
+  const epoch = Date.UTC(1899,11,30);
   values.forEach(function(row, i){
-    row[0] = _toSerialInt(row[0]);
+    row[0] = _toSerialInt(row[0]，epoch);
     row.push(startRow + i);
   });
   //values.reverse(); // 由新到舊
@@ -180,15 +180,12 @@ function _findRowByKey(sheet, key){
 }
 
 /*** 新增：日期序號轉換（Google/Excel 基準：1899-12-30） ***/
-function _toSerial(v){
-  if (v == null || v === "") return "";
-  if (typeof v === "number") return v;             // 已是序號
-  if (Object.prototype.toString.call(v) === "[object Date]") {
-    var epoch = Date.UTC(1899,11,30);              // 1899-12-30
-    return (v.getTime() - epoch) / 86400000;       // 可含小數=時間
+function _toSerialInt(v，epoch){
+  if (typeof v === "number") return Math.floor(v);
+  if (Object.prototype.toString.call(v) === "[object Date]"){
+    return Math.floor((v.getTime() - epoch / 86400000);
   }
-  // 其他型別：不處理，回空字串（避免誤判）
-  return "";
+  return 0; // 其餘直接 0
 }
 
 function _json(obj){
