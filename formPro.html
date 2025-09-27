@@ -163,6 +163,8 @@ document.getElementById("versionTag").textContent = "版本：" + FORM_VERSION;
 
 const API_BASE="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
+const gv = id => document.getElementById(id).value;
+
 /* ===== 小工具 ===== */
 const $=s=>document.querySelector(s);
 function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g," ")}
@@ -403,13 +405,13 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 const now=nowCorrected();
   const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
   const payload={
-    z07: 0,
-    z08: 0,
-    z09: 0,
-    z10: 0,
-    z11: 0,
-    z12: 0,
-    z13: 0,
+    z07: gv("z07"),
+    z08: gv("z08"),
+    z09: gv("z09"),
+    z10: gv("z10"),
+    z11: gv("z11"),
+    z12: gv("z12"),
+    z13: gv("z13"),
     remark: '',
     date: currentDS.ymdSlash,
     shift: currentDS.shift,
