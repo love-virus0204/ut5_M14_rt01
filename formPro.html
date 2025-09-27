@@ -246,7 +246,7 @@ function parseLot(input){
     return {ok:true,mother:m,child:cRaw.padStart(2,'0'),hasChild:true};
   }else{
     const m=s;
-    if(!/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return {ok:false,msg:'母批需正好 3 碼，且不可含 I / O'};
+    if(!/^[A-HJ-NP-Z0-9]{3}$/.test(m)) return {ok:false,msg:'母批只能 3 碼，且不可含 I / O'};
     return {ok:true,mother:m,child:'',hasChild:false};
   }
 }
@@ -268,6 +268,13 @@ lotInput.addEventListener('blur',()=>{
   });
 });
 
+//const sc = document.getElementById("sample_cnt");
+//sc.addEventListener("input", ()=>{
+//  let v = parseInt(sc.value, 10);
+//  if (isNaN(v) || v <= 0) {
+//    sc.value = "0";
+//  }
+//});
 
 /* 中央提示 */
 function ensureCenterBox(){
