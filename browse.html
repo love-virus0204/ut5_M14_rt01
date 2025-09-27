@@ -60,6 +60,8 @@ const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0Ekd
 const PAGE_VERSION = "browse v3.1.1";
 document.getElementById('ver').textContent = PAGE_VERSION;
 
+const baseUTC = Date.UTC(1899,11,30);
+
 /* 指示燈 */
 function setNetLight(ok, msg){
   const dot = document.getElementById('net-dot');
@@ -127,7 +129,7 @@ async function fetchRecentPOST(){
     sample_cnt:a[F.sample_cnt], z07:a[F.z07], z08:a[F.z08], z09:a[F.z09], z10:a[F.z10],
     z11:a[F.z11], z12:a[F.z12], z13:a[F.z13], inspector:a[F.inspector], remark:a[F.remark],
     submitted_at:a[F.submitted_at], key2:a[F.key2], key:a[F.key], deleted:a[F.deleted],
-    row:a[F.row] /* 只解析，不渲染 */
+    row:a[F.row]
   }));
 }
 
@@ -144,13 +146,11 @@ function groupForRender(rows){
       part_no: r.part_no ?? "",
       lot: r.lot ?? "",
       qty: r.qty ?? ""
-      // 不顯示 row
     });
   }
   return Array.from(map.values()).slice(0,3);
 }
 
-  const baseUTC = Date.UTC(1899,11,30);
 /* 日期序號 → mm/dd */
 function serialToMMDD(n){
   const days = Math.floor(Number(n));
