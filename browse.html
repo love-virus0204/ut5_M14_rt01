@@ -3,55 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>僅瀏覽（最近三班）</title>
+<title>外觀記錄表｜瀏覽</title>
 <style>
-  :root{
-    --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e;
-    --ok:#10b981; --err:#ef4444;
-    --a:#fffbea; /* 淡黃 */
-    --b:#eefcff; /* 淡藍 */
-    --c:#f7f2ff; /* 淡紫 */
-  }
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; --ok:#10b981; --err:#ef4444; }
+  html,body{height:100%} body{margin:0;background:#f8fafc;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{width:96%;max-width:980px;margin:18px auto}
-  .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
-  .hdr{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
-  .ttl{font-weight:700;color:var(--brand)}
-  .back{font-size:12px;color:var(--muted);text-decoration:none;border:1px solid var(--line);padding:6px 10px;border-radius:8px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
+  .hdr{padding:14px 16px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between}
+  .ttl{font-weight:700;color:#0f766e}
+  .back{font-size:12px;color:#64748b;text-decoration:none;border:1px solid #e5e7eb;padding:6px 10px;border-radius:8px}
   .content{padding:14px 16px}
-  .muted{color:var(--muted)}
+  #dbg{display:none;white-space:pre-wrap;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;margin-top:8px;color:#334155}
+  #loading{display:none;color:#475569;margin:8px 0}
   .grp{margin:12px 0 6px;font-weight:700}
-  .range{margin:8px 0 8px;color:#334155;font-size:13px}
-
-  /* ===== 表格樣式：對齊 form 下方數值區 ===== */
-  table{width:100%;border-collapse:collapse;font-size:14px;font-family:"Comic Sans MS",sans-serif}
+  table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
-  th{background:#f9fafb;color:#334155}
-
-  /* 依班別渲染表格 tbody 更淡底色（僅數據區） */
-  table.shift-A tbody{ background:var(--a); }
-  table.shift-B tbody{ background:var(--b); }
-  table.shift-C tbody{ background:var(--c); }
-
-  .foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
+  thead th{background:#f3f4f6;color:#334155}
+  table.t1 tbody tr:nth-child(odd){background:#f5f3ff}
+  table.t1 tbody tr:nth-child(even){background:#ede9fe}
+  table.t2 tbody tr:nth-child(odd){background:#f9fafb}
+  table.t2 tbody tr:nth-child(even){background:#e5e7eb}
+  table.t3 tbody tr:nth-child(odd){background:#fff7ed}
+  table.t3 tbody tr:nth-child(even){background:#ffedd5}
+  #root table tbody tr:hover{background:#e0f2fe}
+  .foot{padding:10px 16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;color:#64748b;font-size:12px}
   .net{display:flex;align-items:center;gap:8px}
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
-  .ok{background:var(--ok)!important;border-color:var(--ok)!important}
-  .err{background:var(--err)!important;border-color:var(--err)!important}
-  .dbg{margin-top:10px;font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;display:none}
-
-/* === per-table stripes by index === */
-table.t1 tbody tr:nth-child(odd){background:linear-gradient(180deg,#f5f3ff 0%,#faf5ff 100%)}
-table.t1 tbody tr:nth-child(even){background:linear-gradient(180deg,#ede9fe 0%,#f5f3ff 100%)}
-
-table.t2 tbody tr:nth-child(odd){background:linear-gradient(180deg,#f9fafb 0%,#f3f4f6 100%)}
-table.t2 tbody tr:nth-child(even){background:linear-gradient(180deg,#e5e7eb 0%,#f9fafb 100%)}
-
-table.t3 tbody tr:nth-child(odd){background:linear-gradient(180deg,#fff7ed 0%,#fffbeb 100%)}
-table.t3 tbody tr:nth-child(even){background:linear-gradient(180deg,#ffedd5 0%,#fff7ed 100%)}
-
-#root table tbody tr:hover{background:linear-gradient(180deg,#e0f2fe 0%,#bae6fd 100%)}
+  .ok{background:#10b981!important;border-color:#10b981!important}
+  .err{background:#ef4444!important;border-color:#ef4444!important}
 </style>
 </head>
 <body>
@@ -62,170 +41,176 @@ table.t3 tbody tr:nth-child(even){background:linear-gradient(180deg,#ffedd5 0%,#
   </div>
   <div class="content">
     <div id="status" class="muted">載入中…</div>
-    <div id="range" class="range" style="display:none"></div>
+    <div id="loading">載入中…</div>
     <div id="root" style="display:none"></div>
-    <div id="dbg" class="dbg"></div>
+    <div id="dbg"></div>
   </div>
   <div class="foot">
     <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
-    <div>版本 <span id="ver"></span>　|　<span id="now"></span></div>
+    <div>版本 <span id="ver"></span></div>
   </div>
 </div>
 
 <script>
 const CFG = {
-  version: "browse v1.7.8",
-  api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"
+  version: "browse v2.1.1",
+  api: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec"   // ← 沿用你底稿中的 URL，未改動
 };
 document.getElementById('ver').textContent = CFG.version;
 
-// 時鐘
-(function tick(){
-  const el = document.getElementById('now');
-  const tz = "Asia/Taipei";
-  const opt = { timeZone:tz, year:'numeric', month:'2-digit', day:'2-digit',
-                hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false };
-  el.textContent = new Intl.DateTimeFormat('zh-TW', opt).format(new Date());
-  setTimeout(tick, 1000);
-})();
-
-// 燈號
 function setNetLight(ok, msg){
   const dot = document.getElementById('net-dot');
   const txt = document.getElementById('net-msg');
   dot.classList.remove('ok','err');
   dot.classList.add(ok ? 'ok' : 'err');
-  txt.textContent = msg || "回傳";
+  txt.textContent = msg || (ok ? "OK" : "ERROR");
 }
 
-// 取資料
+// 僅保留 deleted === "TRUE"
+function isAlive(v){ return String(v).toUpperCase() === "TRUE"; }
+
+// 讀取：只支援 {status:'ok', fields:[...], values:[[]...] }
 async function fetchRecent(){
-  const form = new URLSearchParams({ action:"list_recent" });
   const dbg = document.getElementById('dbg');
-  try{
-    const res = await fetch(CFG.api, { method:"POST", body: form });
-    if (!res.ok){
-      setNetLight(false, "HTTP錯誤");
-      dbg.style.display="block";
-      dbg.textContent=`HTTP ${res.status} ${res.statusText}`;
-      return { ok:false, rows:[] };
-    }
-    const text = await res.text();
-    let data;
-    try{ data = JSON.parse(text); }
-    catch(_){
-      setNetLight(false, "非JSON");
-      dbg.style.display="block";
-      dbg.textContent=`回應非 JSON：\n`+text.slice(0,2000);
-      return { ok:false, rows:[] };
-    }
-    const okFlag = Array.isArray(data) || (data && data.status === "ok");
-    setNetLight(okFlag, okFlag ? "回傳OK" : "旗標錯誤");
-    const rows = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
-    return { ok: okFlag, rows };
-  }catch(err){
-    setNetLight(false, "網路錯誤");
-    const dbg = document.getElementById('dbg');
+  dbg.style.display = "none";
+
+  const res = await fetch(CFG.api, { method:"POST", body:new URLSearchParams({action:"list_recent"}) });
+  if (!res.ok){
+    setNetLight(false, "HTTP錯誤");
     dbg.style.display="block";
-    dbg.textContent=`fetch 例外：\n`+String(err);
+    dbg.textContent = `HTTP ${res.status} ${res.statusText}`;
     return { ok:false, rows:[] };
   }
+
+  let data;
+  try { data = await res.json(); }
+  catch(e){
+    setNetLight(false, "非JSON");
+    dbg.style.display="block";
+    dbg.textContent = "回應非 JSON";
+    return { ok:false, rows:[] };
+  }
+
+  if (data?.status !== "ok" || !Array.isArray(data.fields) || !Array.isArray(data.values)){
+    setNetLight(false, "格式錯誤");
+    dbg.style.display="block";
+    dbg.textContent = "需 {status:'ok', fields[], values[]}";
+    return { ok:false, rows:[] };
+  }
+
+  // 成功 → 亮綠燈
+  setNetLight(true, "OK");
+
+  // 依 fields 對應 values → 列物件（鍵名維持原用法）
+  const F = Object.fromEntries(data.fields.map((k,i)=>[k,i]));
+  const rows = data.values.map(a => ({
+    date:         a[F.date],
+    shift:        a[F.shift],
+    part_no:      a[F.part_no],
+    lot:          a[F.lot],
+    qty:          a[F.qty],
+    sample_cnt:   a[F.sample_cnt],
+    z07:          a[F.z07],
+    z08:          a[F.z08],
+    z09:          a[F.z09],
+    z10:          a[F.z10],
+    z11:          a[F.z11],
+    z12:          a[F.z12],
+    z13:          a[F.z13],
+    inspector:    a[F.inspector],
+    remark:       a[F.remark],
+    submitted_at: a[F.submitted_at],
+    key2:         a[F.key2],
+    key:          a[F.key],
+    deleted:      a[F.deleted]
+  }));
+
+  return { ok:true, rows };
 }
 
-// 有效
-function isValid(r){ return r && String(r.deleted).toUpperCase() === "TRUE"; }
+// 分組：依 date 序號與 shift
+function groupForRender(rows){
+  const alive = rows.filter(r => isAlive(r.deleted));
+  const map = new Map();
+  for (const r of alive){
+    const serial = r.date; // 序號
+    const sh = r.shift;
+    const key = serial + '|' + sh;
+    if (!map.has(key)) map.set(key, { serial, sh, rows: [] });
+    map.get(key).rows.push({
+      part_no: r.part_no ?? "",
+      lot: r.lot ?? "",
+      qty: r.qty ?? ""
+    });
+  }
+  const groups = Array.from(map.values());
+  groups.sort((a,b) => b.serial - a.serial || (a.sh > b.sh ? 1 : -1));
+  return groups;
+}
 
-// 日期序號 → mm/dd（UTC）
+// 序號 → MM/DD 顯示
 function serialToMMDD(n){
   const days = Math.floor(Number(n));
   const baseUTC = Date.UTC(1899,11,30);
   const dt = new Date(baseUTC + days*86400000);
   const mm = String(dt.getUTCMonth()+1).padStart(2,"0");
   const dd = String(dt.getUTCDate()).padStart(2,"0");
-  return `${mm}/${dd}`;
+  return mm + "/" + dd;
 }
 
-// 最近三個 (date序號 + shift)
-function pickRecentThree(rows){
-  const pairs=[], seen=new Set();
-  for(const r of rows){
-    const serial = Math.floor(Number(r.date));
-    const sh = String(r.shift);
-    const k = serial+"|"+sh;
-    if(seen.has(k)) continue;
-    seen.add(k); pairs.push({serial, sh});
-    if(pairs.length>=3) break;
-  }
-  return pairs;
-}
-
-// 有效資料數
-function renderCount(total){
-  const box = document.getElementById('range');
-  box.textContent = `有效資料：${total} 筆`;
-  box.style.display = "";
-}
-
-// 渲染
+// 渲染（維持你的表格樣式與 t1/t2/t3 條紋）
 function render(groups){
-  const root = document.getElementById('root'); root.innerHTML="";
-  let idx = 0;
-  for(const g of groups){
-    idx++;
+  const root = document.getElementById('root');
+  root.innerHTML = "";
+  groups.forEach((g, idx) => {
     const sec = document.createElement('section');
 
     const hdr = document.createElement('div');
     hdr.className = "grp";
-    hdr.textContent = `班別/日期：${serialToMMDD(g.serial)} - ${g.sh}`;
+    hdr.textContent = "日期：" + serialToMMDD(g.serial) + " 班別：" + g.sh;
     sec.appendChild(hdr);
 
     const table = document.createElement('table');
-    table.classList.add(`t${idx}`); 
-    // table.classList.add(shift-${g.sh});
-    // A/B/C → 對應底色
-    table.innerHTML = `
-      <thead>
-        <tr><th>料　　號</th><th>批　號</th><th>數　量</th></tr>
-      </thead>
-      <tbody></tbody>`;
+    table.classList.add("t" + ((idx % 3) + 1));
+    table.innerHTML = '<thead><tr><th>料號</th><th>批號</th><th>數量</th></tr></thead><tbody></tbody>';
     const tb = table.querySelector('tbody');
 
-    for(const r of g.rows){
+    for (const r of g.rows){
       const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${r.part_no ?? ""}</td>
-        <td>${r.lot ?? ""}</td>
-        <td>${r.qty ?? ""}</td>`;  /* 置中，無前置空白 */
+      tr.innerHTML = "<td>"+r.part_no+"</td><td>"+r.lot+"</td><td>"+r.qty+"</td>";
       tb.appendChild(tr);
     }
     sec.appendChild(table);
     root.appendChild(sec);
-  }
-  root.style.display="";
+  });
 }
 
-// 主流程
-(async function main(){
-  const elStat = document.getElementById('status');
-  const { ok, rows } = await fetchRecent();
-  if(!ok){ elStat.textContent = "讀取失敗或旗標錯誤"; return; }
+// 載入流程
+async function loadAndRender(){
+  const status = document.getElementById('status');
+  const loading = document.getElementById('loading');
+  const root = document.getElementById('root');
 
-  const valid = rows.filter(isValid);
-  if(valid.length===0){ elStat.textContent="無有效資料"; renderCount(0); return; }
+  status.textContent = "載入中…";
+  loading.style.display = "block";
+  root.style.display = "none";
 
-  const last3 = pickRecentThree(valid);
-  const groups = last3.map(({serial,sh})=>{
-    const rs = valid.filter(r=>Math.floor(Number(r.date))===serial && String(r.shift)===sh);
-    return { serial, sh, rows: rs };
-  }).filter(g=>g.rows.length>0);
+  const r = await fetchRecent();
+  if (!r.ok){
+    status.textContent = "讀取失敗";
+    loading.style.display = "none";
+    return;
+  }
 
-  const total = groups.reduce((sum,g)=>sum+g.rows.length,0);
-  renderCount(total);
-
-  if(groups.length===0){ elStat.textContent="無符合條件資料"; return; }
-  elStat.textContent = "";
+  const groups = groupForRender(r.rows);
   render(groups);
-})();
+
+  status.textContent = "";
+  loading.style.display = "none";
+  root.style.display = "";
+}
+
+document.addEventListener('DOMContentLoaded', loadAndRender);
 </script>
 </body>
 </html>
