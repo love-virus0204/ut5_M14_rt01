@@ -167,7 +167,8 @@ function render(groups){
 
     const hdr = document.createElement('div');
     hdr.className = "grp";
-    hdr.textContent = "日期：" + serialToMMDD(g.serial) + " 班別：" + g.sh;
+    // hdr.textContent = "日期：" + serialToMMDD(g.serial) + " 班別：" + g.sh;
+    hdr.textContent = "　" + serialToMMDD(g.serial) + " - " + g.sh;
     sec.appendChild(hdr);
 
     const table = document.createElement('table');
