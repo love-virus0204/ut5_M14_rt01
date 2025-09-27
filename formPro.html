@@ -145,7 +145,7 @@ input, select, textarea { font-size:16px; }
   </div>
   <hr>
   <div class="bottom-info">
-    <div id="versionTag" class="ver-left">版本：v18.0.9-floating</div>
+    <div id="versionTag" class="ver-left"></div>
     <div id="tsView" class="time-right"></div>
   </div>
 
@@ -159,7 +159,9 @@ input, select, textarea { font-size:16px; }
 
 <script>
 /* ===== 版本與 API ===== */
-const FORM_VERSION="v18.1.1-floating";
+const FORM_VERSION = "v18.1.1-floating";
+document.getElementById("versionTag").textContent = "版本：" + FORM_VERSION;
+
 const API_BASE="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
 /* ===== 小工具 ===== */
