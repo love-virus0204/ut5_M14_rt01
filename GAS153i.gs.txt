@@ -137,7 +137,7 @@ function _listRecent(sheet){
     return _json({status:"error", msg:"no_data"});
   }
 
-  var lastCol  = sheet.getLastColumn();
+  var lastCol  = sheet.getLastColumn() - 2;
   var startRow = Math.max(2, lastRow - 150 + 1);
   var rows     = lastRow - startRow + 1;
 
@@ -150,12 +150,16 @@ function _listRecent(sheet){
   });
   //values.reverse(); // 由新到舊
   // 依第16欄 submitted_at (index=15) 降冪排序
-  values.sort(function(a,b){ return b[15] - a[15]; });
+  // values.sort(function(a,b){ return b[15] - a[15]; });
+
+  values.sort(function(a,b){
+      return String(b[15]).localeCompare(String(a[15]));
+  });
 
   var fields = [
 "date","shift","part_no","lot","qty","sample_cnt",
 "z07","z08","z09","z10","z11","z12","z13",
-"inspector","remark","submitted_at","key2","key","deleted"];
+"inspector","remark","submitted_at","key2","key","deleted","row"];
 
   return _json({
     status: "ok", fields: fields, values: values
