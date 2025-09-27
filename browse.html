@@ -204,8 +204,9 @@ async function loadAndRender(){
     const rows = await fetchRecentPOST();
     const groups = groupForRender(rows);
     render(groups);
+    status.style.minHeight = "0";
     status.textContent = "";
-    status.style.margin = "2px 0";
+    status.style.margin = "6px 0";
     root.style.display = "";
     window.__renderDone__ = true;
     cd.stop();
