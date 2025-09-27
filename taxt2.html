@@ -1,78 +1,48 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<title>GAS POST 測試工具</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAW 檢視（不排序不篩選不分組）</title>
 <style>
-  body { font-family: sans-serif; margin: 20px; }
-  button { margin: 6px; padding: 8px 12px; font-size: 16px; }
-  pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; }
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;margin:8px}
+  #status{margin:8px 0}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{border:1px solid #ddd;padding:4px;text-align:center;white-space:nowrap}
+  thead th{background:#f3f4f6}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
 </head>
 <body>
-<h2>GAS POST 測試工具</h2>
-<p>測試三種 POST 發送方式，直接看哪個能通過。</p>
+<div id="status" class="mono">fetching…</div>
+<div id="root"></div>
 
-<!-- 直接把你的 GAS URL 寫死在這裡 -->
 <script>
 const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-async function testJSON() {
-  const payload = { action: "ping" };
-  try {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    document.getElementById("result").textContent =
-      "JSON 方式：" + (await res.text());
-  } catch (e) {
-    document.getElementById("result").textContent =
-      "JSON 方式失敗：" + e;
-  }
-}
-
-async function testForm() {
-  const formData = new URLSearchParams();
-  formData.append("action", "ping");
-  try {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData
-    });
-    document.getElementById("result").textContent =
-      "Form 方式：" + (await res.text());
-  } catch (e) {
-    document.getElementById("result").textContent =
-      "Form 方式失敗：" + e;
-  }
-}
-
-async function testPlain() {
-  const payload = { action: "ping" };
-  try {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify(payload)
-    });
-    document.getElementById("result").textContent =
-      "Plain 方式：" + (await res.text());
-  } catch (e) {
-    document.getElementById("result").textContent =
-      "Plain 方式失敗：" + e;
-  }
-}
-</script>
-
-<button onclick="testJSON()">測試 JSON (application/json)</button>
-<button onclick="testForm()">測試 Form (x-www-form-urlencoded)</button>
-<button onclick="testPlain()">測試 Plain (text/plain)</button>
-
-<h3>回應結果</h3>
-<pre id="result">請先點上方按鈕</pre>
-
-</body>
-</html>
+async function loadRaw(){
+  const status = document.getElementById('status');
+  const root = document.getElementById('root');
+  try{
+    const res = await fetch(API_BASE, { method:"POST", body:new URLSearchParams({action:"list_recent"}) });
+    if (!res.ok) throw new Error("HTTP " + res.status + " " + res.statusText);
+    const data = await res.json();
+    if (data?.status !== "ok" || !Array.isArray(data.fields) || !Array.isArray(data.values)){
+      throw new Error("bad payload");
+    }
+    status.textContent = "OK (" + data.values.length + " rows)";
+    const F = data.fields;
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+    trh.innerHTML = "<th>#</th>" + F.map(h => "<th>"+h+"</th>").join("");
+    thead.appendChild(trh);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    data.values.forEach((row, i) => {
+      const tr = document.createElement('tr');
+      let tds = "<td class='mono'>"+(i+1)+"</td>";
+      for (let c=0; c<F.length; c++){
+        let v = row[c];
+        if (v === undefined || v === null) v = "";
+        tds += "<td class='mono'>" +
