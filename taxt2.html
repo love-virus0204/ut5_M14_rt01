@@ -45,4 +45,20 @@ async function loadRaw(){
       for (let c=0; c<F.length; c++){
         let v = row[c];
         if (v === undefined || v === null) v = "";
-        tds += "<td class='mono'>" +
+        tds += "<td class='mono'>" + String(v) + "</td>";
+      }
+      tr.innerHTML = tds;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    root.innerHTML = "";
+    root.appendChild(table);
+  }catch(e){
+    status.textContent = "ERROR: " + (e && e.message ? e.message : String(e));
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadRaw);
+</script>
+</body>
+</html>
