@@ -63,13 +63,11 @@ document.getElementById('ver').textContent = PAGE_VERSION;
 const baseUTC = Date.UTC(1899,11,30);
 
 /* 指示燈 */
-function setNetLight(ok, msg){
+function setNetLight(msg){
   const dot = document.getElementById('net-dot');
   const txt = document.getElementById('net-msg');
   dot.classList.remove('ok','err');
-  if (ok === true) dot.classList.add('ok');
-  else if (ok === false) dot.classList.add('err');
-  //txt.textContent = msg || (ok===true ? "ok" : ok===false ? "ERROR" : "回傳");
+  dot.classList.add(msg ? 'ok' : 'err');
   txt.textContent = msg ? "GAS" : "回傳";
 }
 
