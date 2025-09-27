@@ -102,14 +102,13 @@ function startCountdown(sec){
 
 /* 先 GET 檢查 */
 async function pingGET(){
-  try{
+  try {
     const res = await fetchWithTimeout(API_BASE + "?action=list_recent", {method:"GET"}, 5000);
     if (!res.ok) throw new Error("HTTP " + res.status);
-    setNetLight(true, "OK"); // GET 成功 → 綠燈
+    setNetLight("OK");
     return true;
-  }catch(e){
-    setNetLight(false, "失敗"); // GET 失敗 → 紅燈
-    document.getElementById('status').textContent = "載入失敗..請通知開發人員";
+  } catch(e) {
+    setNetLight(); document.getElementById('status').textContent = "載入失敗..請通知開發人員";
     return false;
   }
 }
