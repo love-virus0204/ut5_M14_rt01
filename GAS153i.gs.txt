@@ -144,6 +144,10 @@ function _listRecent(sheet){
 
   var values = sheet.getRange(startRow, 1, rows, lastCol).getValues();
 
+  values.forEach(function(row, i){
+    row[0] = _toSerialInt(row[0]);
+    row.push(startRow + i);
+  });
   //values.reverse(); // 由新到舊
   // 依第16欄 submitted_at (index=15) 降冪排序
   values.sort(function(a,b){ return b[15] - a[15]; });
