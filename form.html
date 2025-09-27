@@ -89,14 +89,14 @@ input, select, textarea { font-size:16px; }
   <div class="row">
     <div class="label">批　號：</div>
     <div class="ctrl">
-      <input id="lotInput" placeholder="母批(3碼) or 母批-子批(3-2)；禁 I / O">
+      <input id="lotInput" placeholder="母批 or 母批-子批 ；禁 B / I / O">
       <div id="lotError" class="field-error"></div>
     </div>
   </div>
 
   <div class="row">
     <div class="label">數　量：</div>
-    <div class="ctrl"><input id="qty" type="number" min="1" placeholder="輸入 批量"></div>
+    <div class="ctrl"><input id="qty" type="number" min="1" step="1" placeholder="輸入 批量"></div>
   </div>
 
   <div class="submit" id="submit-row">
