@@ -69,7 +69,7 @@ function setNetLight(ok, msg){
   dot.classList.remove('ok','err');
   if (ok === true) dot.classList.add('ok');
   else if (ok === false) dot.classList.add('err');
-  txt.textContent = msg || (ok===true ? "OK" : ok===false ? "ERROR" : "回傳");
+  txt.textContent = msg || (ok===true ? "GAS" : ok===false ? "ERROR" : "回傳");
 }
 
 /* TRUE 判定 */
