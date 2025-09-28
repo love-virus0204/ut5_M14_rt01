@@ -7,13 +7,14 @@
 <style>
   body{font-family:system-ui,Arial;margin:0;background:#0b1220;color:#e6edf3}
   .wrap{max-width:720px;margin:0 auto;padding:16px}
-  /* 紅框提示 */
+  /* 掃描框：預設紅框閃爍 */
   #view-wrap{
+    width:100%;
     position:relative;
     aspect-ratio:3/4;
     border:3px solid red;
     border-radius:12px;
-    animation: scanblink 1s infinite;
+    animation:scanblink 1s infinite;
   }
   #view-wrap.stopped{
     border-color:green;
@@ -46,15 +47,16 @@
 </div>
 
 <script>
-/* 專案固定的 QR key (128 位) */
-const FIXED_KEY = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
-/* 專案固定的 tokey (64 位) */
+/* 固定 128 位 QR key 與 64 位 tokey */
+const FIXED_KEY   = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
 const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
-const ADMIN_URL = "admin.html";
+const ADMIN_URL   = "admin.html";
 
 const statusEl = document.getElementById('status');
-const video = document.getElementById('cam');
-let stream=null, scanning=false, detector=null;
+const wrap     = document.getElementById('view-wrap');
+const video    = document.getElementById('cam');
+
+let stream=null, detector=null, scanning=false;
 
 function setMsg(s){ statusEl.textContent = s; }
 
@@ -68,19 +70,23 @@ async function startCam(){
   try{
     stopCam();
     stream = await navigator.mediaDevices.getUserMedia({ video:{facingMode:"environment"}, audio:false });
-    video.srcObject = stream; await video.play();
-    scanning = true; setMsg("相機已啟動，對準 QR 以掃描。");
+    video.srcObject = stream;
+    await video.play();
+    scanning = true;
+    setMsg("相機已啟動，對準 QR 以掃描。");
     if ('BarcodeDetector' in window){
       detector = new BarcodeDetector({ formats:['qr_code'] });
       loopScan();
     } else {
       setMsg("裝置不支援 QR API，請改用『手動輸入代碼』。");
     }
-  }catch(e){ setMsg("無法啟動相機。"); }
+  }catch(e){
+    setMsg("無法啟動相機。");
+  }
 }
 
 function stopCam(){
-  scanning=false;
+  scanning = false;
   if (video) video.pause();
   if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
 }
@@ -93,8 +99,7 @@ async function loopScan(){
       const val = String(codes[0].rawValue||"").trim();
       if (val === FIXED_KEY){
         stopCam();
-        setMsg("QR 驗證成功。");
-        document.getElementById("view-wrap").classList.add("stopped");
+        wrap.classList.add("stopped");   // 成功 → 綠框（不延遲，立即跳轉亦可）
         gotoAdmin();
         return;
       }
@@ -103,11 +108,12 @@ async function loopScan(){
   requestAnimationFrame(loopScan);
 }
 
+/* 手動輸入備援 */
 document.getElementById('manualBtn').addEventListener('click', ()=>{
   const code = prompt("輸入 128 位 QR 代碼：") || "";
   const val = code.trim();
   if (val === FIXED_KEY){
-    document.getElementById("view-wrap").classList.add("stopped");
+    wrap.classList.add("stopped");
     gotoAdmin();
   }else{
     alert("代碼無效。");
