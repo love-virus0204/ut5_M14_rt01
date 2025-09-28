@@ -28,7 +28,7 @@
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
   .danger{background:#ef4444}
 
-  /* ↓ 與 browse 相同的指示燈樣式 */
+  /* 與 browse 相同的指示燈樣式 */
   .net{display:flex;align-items:center;gap:8px}
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
   .ok{background:#10b981!important;border-color:#10b981!important}
@@ -47,10 +47,9 @@
       <div id="root"></div>
     </div>
     <div class="foot">
-      <!-- 左下角 GMS 指示燈（照 browse 樣式） -->
       <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
       <div class="right">
-        <span>僅顯示「當日當班」且 key2===TRUE</span>
+        <span>僅顯示「當日當班」且有效</span>
         <button id="submitBtn" class="btn danger" disabled>送出刪除</button>
       </div>
     </div>
@@ -63,7 +62,7 @@ const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0Ekd
 
 /* ===== gate：2 分鐘有效 ===== */
 const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
-const EXPIRE_MS = 200*60*1000;
+const EXPIRE_MS = 200*60*1000; // 你底稿目前寫 200 分鐘，保留
 (function gate(){
   const ts = parseInt(sessionStorage.getItem("ts")||"0",10);
   const tk = sessionStorage.getItem("tokey")||"";
@@ -162,13 +161,13 @@ function pickTodayShift(rows){
 function render(g){
   root.innerHTML = "";
   if (!g.rows.length){
-    setStatus(`沒有 ${toMMDDFromSerial(g.serial)} - ${g.shift} 且 key2=TRUE 的資料`);
+    setStatus(`沒有 ${toMMDDFromSerial(g.serial)} - ${g.shift} 的有效資料`);
     document.getElementById('submitBtn').disabled=true;
     return;
   }
   const hdr = document.createElement('div');
   hdr.className = 'grp';
-  hdr.textContent = `${toMMDDFromSerial(g.serial)} - ${g.shift}（僅 TRUE）`;
+  hdr.textContent = `${toMMDDFromSerial(g.serial)} - ${g.shift}（僅有效）`;
 
   const tbl = document.createElement('table');
   tbl.innerHTML = `
@@ -190,25 +189,30 @@ function render(g){
   document.getElementById('submitBtn').disabled=false;
 }
 
-/* 軟刪除 */
-async function softDelete(rows){
-  const res = await fetch(API_BASE, { method:"POST", body:new URLSearchParams({action:"soft_delete", rows: rows.join(',')}) });
+/* 軟刪除：action=soft_delete + flag=admin + row1,row2,... */
+async function softDeleteWithFlag(rows){
+  const body = new URLSearchParams();
+  body.append("action", "soft_delete");
+  body.append("flag", "admin");
+  rows.forEach((r,i)=> body.append(`row${i+1}`, String(r)));
+  const res = await fetch(API_BASE, { method:"POST", body });
   if (!res.ok) throw new Error("HTTP " + res.status);
   const data = await res.json().catch(()=> ({}));
   if (data?.status!=="ok") throw new Error(data?.msg || "後端回應非 ok");
   return data;
 }
 
-/* 提交：需輸入 admin 確認 */
+/* 提交：無勾選不觸發；有勾選需輸入 admin 確認 */
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
-  const picks = [...document.querySelectorAll('.pick:checked')].map(el=>el.value);
-  if (!picks.length){ alert("請先勾選要刪除的列。"); return; }
+  const picks = [...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
+  if (!picks.length) return; // 無勾選 → 不觸發
   const code = prompt('此動作將軟刪除勾選資料。\n若確定，請輸入 "admin" 以確認：');
-  if (code!=="admin"){ alert("已取消。"); return; }
+  if (code!=="admin") return;
+
   try{
     setStatus("送出中…");
     document.getElementById('submitBtn').disabled=true;
-    await softDelete(picks);
+    await softDeleteWithFlag(picks);
     setStatus("完成。重新載入…");
     await loadAndRender();
   }catch(e){
@@ -222,11 +226,11 @@ async function loadAndRender(){
   try{
     setStatus("載入中…");
     const rows = await fetchRecentPOST();
-    setNetLight("OK");               // ← 有回傳就綠燈（不看篩選結果）
+    setNetLight("OK");               // 有回傳就綠燈
     const g = pickTodayShift(rows);
     render(g);
   }catch(e){
-    setNetLight();                   // ← 失敗紅燈
+    setNetLight();                   // 失敗紅燈
     setStatus("載入失敗：" + (e?.message||e));
   }
 }
