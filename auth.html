@@ -27,8 +27,10 @@
 </div>
 
 <script>
-/* 固定 128 位 QR key */
+/* 專案固定的 QR key (128 位) */
 const FIXED_KEY = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+/* 專案固定的 tokey (64 位) */
+const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 const ADMIN_URL = "admin.html";
 
 const statusEl = document.getElementById('status');
@@ -37,9 +39,10 @@ let stream=null, scanning=false, detector=null;
 
 function setMsg(s){ statusEl.textContent = s; }
 
-function gotoAdmin(qr){
-  const q = new URLSearchParams({ qr });
-  location.replace(`${ADMIN_URL}?${q.toString()}`);
+function gotoAdmin(){
+  sessionStorage.setItem("ts", String(Date.now()));
+  sessionStorage.setItem("tokey", FIXED_TOKEY);
+  location.replace(ADMIN_URL);
 }
 
 async function startCam(){
@@ -72,7 +75,7 @@ async function loopScan(){
       if (val === FIXED_KEY){
         stopCam();
         setMsg("QR 驗證成功。");
-        gotoAdmin(val);
+        gotoAdmin();
         return;
       }
     }
@@ -84,7 +87,7 @@ document.getElementById('manualBtn').addEventListener('click', ()=>{
   const code = prompt("輸入 128 位 QR 代碼：") || "";
   const val = code.trim();
   if (val === FIXED_KEY){
-    gotoAdmin(val);
+    gotoAdmin();
   }else{
     alert("代碼無效。");
   }
