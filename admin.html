@@ -147,15 +147,14 @@ async function fetchRecentPOST(){
   }));
 }
 
-/* 先過濾 deleted + TRUE + ABC，再比對當日當班 */
+/* 以 deleted===TRUE ,再比對當日當班 */
 function pickTodayShift(rows){
   const {serial, shift} = currentKey();
-  const okDel = r => (r.deleted===""||r.deleted===0||r.deleted==="0"||r.deleted===false);
-  const okTrue= r => String(r.key2).toUpperCase()==="TRUE";
-  const okABC = r => r.shift==="A"||r.shift==="B"||r.shift==="C";
-  const sameDay = r => Number(r.date)===serial;
+  const okValid = r => String(r.deleted).toUpperCase()==="TRUE";
+  const okABC   = r => r.shift==="A"||r.shift==="B"||r.shift==="C";
+  const sameDay   = r => Number(r.date)===serial;
   const sameShift = r => r.shift===shift;
-  const list = rows.filter(r => okDel(r)&&okTrue(r)&&okABC(r)&&sameDay(r)&&sameShift(r));
+  const list = rows.filter(r => okValid(r) && okABC(r) && sameDay(r) && sameShift(r));
   return {serial, shift, rows:list};
 }
 
