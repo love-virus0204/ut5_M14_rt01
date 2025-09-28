@@ -23,7 +23,7 @@
   tbody tr:nth-child(odd){background:#f9fafb}
   tbody tr:nth-child(even){background:#eef2f7}
 
-  /* 底部三區塊：左燈、中訊息、右按鈕 */
+  /* 底部三區塊：左燈 / 中訊息 / 右按鈕 */
   .foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;color:#64748b;font-size:12px}
   .foot .left{flex:0 0 auto}
   .foot .center{flex:1 1 auto;text-align:center;white-space:nowrap}
@@ -38,7 +38,7 @@
   .err{background:#ef4444!important;border-color:#ef4444!important}
 
   /* 確認視窗 */
-  dialog{border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:420px;width:calc(100% - 32px)}
+  dialog{margin:0;border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:420px;width:calc(100% - 32px)}
   .dlg-body{padding:16px}
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
@@ -231,10 +231,31 @@ async function softDeleteWithFlag(rows){
   return data;
 }
 
-/* 對話框 */
+/* —— 對話框固定於可視區上方 15%（不受鍵盤影響） —— */
+function placeDialogTop(dlg){
+  const vv = window.visualViewport;
+  if (!vv || !dlg.open) return;
+  const rect = dlg.getBoundingClientRect();
+  const top  = Math.max(12, vv.offsetTop + vv.height * 0.15);
+  const left = Math.max(12, vv.offsetLeft + (vv.width - rect.width)/2);
+  dlg.style.position = 'fixed';
+  dlg.style.top  = `${top}px`;
+  dlg.style.left = `${left}px`;
+}
+function resetDialogPos(dlg){
+  dlg.style.position = '';
+  dlg.style.top = '';
+  dlg.style.left = '';
+}
 const confirmDlg = document.getElementById('confirmDlg');
 const confirmInput = document.getElementById('confirmInput');
 const confirmErr = document.getElementById('confirmErr');
+confirmDlg.addEventListener('close', ()=> resetDialogPos(confirmDlg));
+confirmDlg.addEventListener('cancel', e=>{ e.preventDefault(); confirmDlg.close(); });
+if (window.visualViewport){
+  visualViewport.addEventListener('resize', ()=> placeDialogTop(confirmDlg));
+  visualViewport.addEventListener('scroll', ()=> placeDialogTop(confirmDlg));
+}
 
 /* 送出：開自訂視窗；不改變卷軸 */
 let cachedPicks = [];
@@ -246,6 +267,7 @@ document.getElementById('submitBtn').addEventListener('click',(ev)=>{
   confirmInput.value="";
   confirmErr.textContent="";
   confirmDlg.showModal();
+  placeDialogTop(confirmDlg);
   confirmInput.focus({preventScroll:true});
 });
 
