@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>外觀記錄表｜管理</title>
+<style>
+  :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; --ok:#10b981; --err:#ef4444; }
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{width:96%;max-width:980px;margin:12px auto}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
+  .hdr{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .ttl{font-weight:700;color:var(--brand)}
+  .back{font-size:12px;color:#64748b;text-decoration:none;border:1px solid var(--line);padding:6px 10px;border-radius:8px}
+  .content{padding:0 16px 14px}
+  #status{color:#475569;margin:18px 0;min-height:1.6em;text-align:center;font-weight:600}
+  .grp{margin:12px 0 6px;font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
+  thead th{background:#f3f4f6;color:#334155}
+  tbody tr:nth-child(odd){background:#f9fafb}
+  tbody tr:nth-child(even){background:#eef2f7}
+  .foot{padding:10px 30px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:#64748b;font-size:12px}
+  .right{display:flex;gap:8px;align-items:center}
+  .btn{background:#2563eb;color:#fff;border:0;padding:8px 14px;border-radius:10px;cursor:pointer}
+  .btn:disabled{background:#94a3b8;cursor:not-allowed}
+  .danger{background:#ef4444}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="hdr">
+      <div class="ttl">管理｜當班記錄（勾選後軟刪除）</div>
+      <a href="auth.html" class="back">返回驗證</a>
+    </div>
+    <div class="content">
+      <div id="status">載入中…</div>
+      <div id="root"></div>
+    </div>
+    <div class="foot">
+      <div>僅顯示「當日當班」且 key2===TRUE</div>
+      <div class="right">
+        <button id="submitBtn" class="btn danger" disabled>送出刪除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== API（各頁獨立定義）===== */
+const API_BASE = "https://script.google.com/macros/s/REPLACE/exec";
+
+/* ===== gate：2 分鐘有效 ===== */
+const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
+const EXPIRE_MS = 2*60*1000;
+(function gate(){
+  const ts = parseInt(sessionStorage.getItem("ts")||"0",10);
+  const tk = sessionStorage.getItem("tokey")||"";
+  if (!ts || !tk || tk!==FIXED_TOKEY || (Date.now()-ts)>EXPIRE_MS){
+    sessionStorage.clear();
+    location.replace("auth.html");
+  }
+})();
+
+/* ===== 小工具 ===== */
+const statusEl = document.getElementById('status');
+const root = document.getElementById('root');
+const setStatus = t=> statusEl.textContent=t;
+
+/* 台北時區時間 → form 同步做法（強制 Asia/Taipei） */
+function nowCorrected(){
+  const parts = new Intl.DateTimeFormat('zh-TW',{
+    timeZone:'Asia/Taipei', hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }).formatToParts(new Date());
+  const get=t=>Number(parts.find(p=>p.type===t).value);
+  return new Date(get('year'), get('month')-1, get('day'), get('hour'), get('minute'), get('second'));
+}
+
+/* 班別切點 0040/0840/1640 = form 的 computeShiftByClockFrom */
+function computeShiftByClockFrom(d){
+  const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
+  if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'C'}; }
+  if(mins>=520 && mins<1000){ return {baseDate:d, shift:'A'}; }
+  if(mins>=1000){ return {baseDate:d, shift:'B'}; }
+  const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'B'};
+}
+
+/* 日期序號（以 1899-12-30 為 epoch） */
+function ymdToSerial(y,m,d){
+  const epoch = Date.UTC(1899,11,30);
+  return Math.floor((Date.UTC(y,m-1,d)-epoch)/86400000);
+}
+function toMMDDFromSerial(serial){
+  const n=Number(serial)||0, epoch=Date.UTC(1899,11,30);
+  const dt=new Date(epoch + Math.round(n)*86400000);
+  const mm=String(dt.getUTCMonth()+1).padStart(2,'0');
+  const dd=String(dt.getUTCDate()).padStart(2,'0');
+  return `${mm}/${dd}`;
+}
+
+/* 取「當日當班」鍵 */
+function currentKey(){
+  const now = nowCorrected();                                   /* 台北時間 */  /* 2 */
+  const {baseDate, shift} = computeShiftByClockFrom(now);       /* 0040/0840/1640 */ /* 3 */
+  const y=baseDate.getFullYear(), m=baseDate.getMonth()+1, d=baseDate.getDate();
+  const serial = ymdToSerial(y,m,d);
+  return {serial, shift};
+}
+
+/* 讀資料 POST：{status, fields[], values[]} → 物件陣列 */
+async function fetchRecentPOST(){
+  const res = await fetch(API_BASE, { method:"POST", body:new URLSearchParams({action:"list_recent"}) });
+  if (!res.ok) throw new Error("HTTP " + res.status + " " + res.statusText);
+  const data = await res.json();
+  if (data?.status!=="ok" || !Array.isArray(data.fields) || !Array.isArray(data.values)){
+    throw new Error("需 {status:'ok', fields[], values[]}");
+  }
+  const F = Object.fromEntries(data.fields.map((k,i)=>[k,i]));
+  return data.values.map(a => ({
+    date:a[F.date], shift:a[F.shift], part_no:a[F.part_no], lot:a[F.lot], qty:a[F.qty],
+    sample_cnt:a[F.sample_cnt], z07:a[F.z07], z08:a[F.z08], z09:a[F.z09], z10:a[F.z10],
+    z11:a[F.z11], z12:a[F.z12], z13:a[F.z13], inspector:a[F.inspector], remark:a[F.remark],
+    submitted_at:a[F.submitted_at], key2:a[F.key2], key:a[F.key], deleted:a[F.deleted],
+    row:a[F.row]
+  }));
+}
+
+/* 先過濾：deleted 空/0/false + key2===TRUE + shift ∈ {A,B,C}，再比對當日當班的 date+shift */
+function pickTodayShift(rows){
+  const {serial, shift} = currentKey();
+  const okDel = r => (r.deleted===""||r.deleted===0||r.deleted==="0"||r.deleted===false);
+  const okTrue= r => String(r.key2).toUpperCase()==="TRUE";
+  const okABC = r => r.shift==="A"||r.shift==="B"||r.shift==="C";
+  const sameDay = r => Number(r.date)===serial;
+  const sameShift = r => r.shift===shift;
+  const list = rows.filter(r => okDel(r)&&okTrue(r)&&okABC(r)&&sameDay(r)&&sameShift(r));
+  return {serial, shift, rows:list};
+}
+
+/* 渲染表格（含 checkbox） */
+function render(g){
+  const title = `mm/dd - ${g.shift}`;
+  root.innerHTML = "";
+  if (!g.rows.length){ setStatus(`沒有 ${title} 且 key2=TRUE 的資料`); document.getElementById('submitBtn').disabled=true; return; }
+
+  const hdr = document.createElement('div');
+  hdr.className = 'grp';
+  hdr.textContent = `${toMMDDFromSerial(g.serial)} - ${g.shift}（僅 TRUE）`;
+
+  const tbl = document.createElement('table');
+  tbl.innerHTML = `
+    <thead><tr><th style="width:44px">選</th><th>料號</th><th>批號</th><th>數量</th></tr></thead>
+    <tbody></tbody>`;
+  const tb = tbl.querySelector('tbody');
+
+  for(const r of g.rows){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="checkbox" class="pick" value="${r.row}"></td>
+      <td>${r.part_no??""}</td>
+      <td>${r.lot??""}</td>
+      <td>${r.qty??""}</td>`;
+    tb.appendChild(tr);
+  }
+  root.append(hdr, tbl);
+  setStatus("");
+  document.getElementById('submitBtn').disabled=false;
+}
+
+/* 軟刪除 */
+async function softDelete(rows){
+  const res = await fetch(API_BASE, { method:"POST", body:new URLSearchParams({action:"soft_delete", rows: rows.join(',')}) });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json().catch(()=> ({}));
+  if (data?.status!=="ok") throw new Error(data?.msg || "後端回應非 ok");
+  return data;
+}
+
+/* 提交：需輸入 admin 確認 */
+document.getElementById('submitBtn').addEventListener('click', async ()=>{
+  const picks = [...document.querySelectorAll('.pick:checked')].map(el=>el.value);
+  if (!picks.length){ alert("請先勾選要刪除的列。"); return; }
+  const code = prompt('此動作將軟刪除勾選資料。\n若確定，請輸入 "admin" 以確認：');
+  if (code!=="admin"){ alert("已取消。"); return; }
+  try{
+    setStatus("送出中…");
+    document.getElementById('submitBtn').disabled=true;
+    await softDelete(picks);
+    setStatus("完成。重新載入…");
+    await loadAndRender();
+  }catch(e){
+    setStatus("失敗：" + (e?.message||e));
+    document.getElementById('submitBtn').disabled=false;
+  }
+});
+
+/* 載入 */
+async function loadAndRender(){
+  try{
+    setStatus("載入中…");
+    const rows = await fetchRecentPOST();
+    const g = pickTodayShift(rows);
+    render(g);
+  }catch(e){
+    setStatus("載入失敗：" + (e?.message||e));
+  }
+}
+document.addEventListener('DOMContentLoaded', loadAndRender);
+</script>
+</body>
+</html>
