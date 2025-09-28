@@ -21,11 +21,18 @@
   thead th{background:#f3f4f6;color:#334155}
   tbody tr:nth-child(odd){background:#f9fafb}
   tbody tr:nth-child(even){background:#eef2f7}
+
   .foot{padding:10px 30px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:#64748b;font-size:12px}
   .right{display:flex;gap:8px;align-items:center}
   .btn{background:#2563eb;color:#fff;border:0;padding:8px 14px;border-radius:10px;cursor:pointer}
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
   .danger{background:#ef4444}
+
+  /* ↓ 與 browse 相同的指示燈樣式 */
+  .net{display:flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
+  .ok{background:#10b981!important;border-color:#10b981!important}
+  .err{background:#ef4444!important;border-color:#ef4444!important}
 </style>
 </head>
 <body>
@@ -40,8 +47,10 @@
       <div id="root"></div>
     </div>
     <div class="foot">
-      <div>僅顯示「當日當班」且 key2===TRUE</div>
+      <!-- 左下角 GMS 指示燈（照 browse 樣式） -->
+      <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
       <div class="right">
+        <span>僅顯示「當日當班」且 key2===TRUE</span>
         <button id="submitBtn" class="btn danger" disabled>送出刪除</button>
       </div>
     </div>
@@ -64,12 +73,21 @@ const EXPIRE_MS = 2*60*1000;
   }
 })();
 
+/* ===== 指示燈（與 browse 相同邏輯） ===== */
+function setNetLight(msg){
+  const dot = document.getElementById('net-dot');
+  const txt = document.getElementById('net-msg');
+  dot.classList.remove('ok','err');
+  dot.classList.add(msg ? 'ok' : 'err');
+  txt.textContent = msg ? "GMS" : "回傳";
+}
+
 /* ===== 小工具 ===== */
 const statusEl = document.getElementById('status');
 const root = document.getElementById('root');
 const setStatus = t=> statusEl.textContent=t;
 
-/* 台北時區時間 → form 同步做法（強制 Asia/Taipei） */
+/* 台北時區時間 → form 同步做法 */
 function nowCorrected(){
   const parts = new Intl.DateTimeFormat('zh-TW',{
     timeZone:'Asia/Taipei', hour12:false,
@@ -80,7 +98,7 @@ function nowCorrected(){
   return new Date(get('year'), get('month')-1, get('day'), get('hour'), get('minute'), get('second'));
 }
 
-/* 班別切點 0040/0840/1640 = form 的 computeShiftByClockFrom */
+/* 班別切點 0040/0840/1640 */
 function computeShiftByClockFrom(d){
   const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
   if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'C'}; }
@@ -89,7 +107,7 @@ function computeShiftByClockFrom(d){
   const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'B'};
 }
 
-/* 日期序號（以 1899-12-30 為 epoch） */
+/* 日期序號工具 */
 function ymdToSerial(y,m,d){
   const epoch = Date.UTC(1899,11,30);
   return Math.floor((Date.UTC(y,m-1,d)-epoch)/86400000);
@@ -104,8 +122,8 @@ function toMMDDFromSerial(serial){
 
 /* 取「當日當班」鍵 */
 function currentKey(){
-  const now = nowCorrected();                                   /* 台北時間 */  /* 2 */
-  const {baseDate, shift} = computeShiftByClockFrom(now);       /* 0040/0840/1640 */ /* 3 */
+  const now = nowCorrected();
+  const {baseDate, shift} = computeShiftByClockFrom(now);
   const y=baseDate.getFullYear(), m=baseDate.getMonth()+1, d=baseDate.getDate();
   const serial = ymdToSerial(y,m,d);
   return {serial, shift};
@@ -129,7 +147,7 @@ async function fetchRecentPOST(){
   }));
 }
 
-/* 先過濾：deleted 空/0/false + key2===TRUE + shift ∈ {A,B,C}，再比對當日當班的 date+shift */
+/* 先過濾 deleted + TRUE + ABC，再比對當日當班 */
 function pickTodayShift(rows){
   const {serial, shift} = currentKey();
   const okDel = r => (r.deleted===""||r.deleted===0||r.deleted==="0"||r.deleted===false);
@@ -143,10 +161,12 @@ function pickTodayShift(rows){
 
 /* 渲染表格（含 checkbox） */
 function render(g){
-  const title = `mm/dd - ${g.shift}`;
   root.innerHTML = "";
-  if (!g.rows.length){ setStatus(`沒有 ${title} 且 key2=TRUE 的資料`); document.getElementById('submitBtn').disabled=true; return; }
-
+  if (!g.rows.length){
+    setStatus(`沒有 ${toMMDDFromSerial(g.serial)} - ${g.shift} 且 key2=TRUE 的資料`);
+    document.getElementById('submitBtn').disabled=true;
+    return;
+  }
   const hdr = document.createElement('div');
   hdr.className = 'grp';
   hdr.textContent = `${toMMDDFromSerial(g.serial)} - ${g.shift}（僅 TRUE）`;
@@ -198,14 +218,16 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
   }
 });
 
-/* 載入 */
+/* 載入：有回傳→立刻亮綠燈；之後再做篩選與渲染 */
 async function loadAndRender(){
   try{
     setStatus("載入中…");
     const rows = await fetchRecentPOST();
+    setNetLight("OK");               // ← 有回傳就綠燈（不看篩選結果）
     const g = pickTodayShift(rows);
     render(g);
   }catch(e){
+    setNetLight();                   // ← 失敗紅燈
     setStatus("載入失敗：" + (e?.message||e));
   }
 }
