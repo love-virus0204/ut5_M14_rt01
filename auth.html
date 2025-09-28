@@ -134,12 +134,18 @@ const manualErr   = document.getElementById('manualErr');
 
 document.getElementById('manualBtn').addEventListener('click', ()=>{
   stopCam(); // 停相機
+  setMsg("已切換為手動輸入模式。"); 
   manualInput.value = "";
   manualErr.textContent = "";
   manualDlg.showModal();
 });
 
-document.getElementById('manualCancel').addEventListener('click', ()=> manualDlg.close());
+
+document.getElementById('manualCancel').addEventListener('click', ()=>{
+  manualDlg.close();
+  setMsg("相機已停止。");
+});
+
 document.getElementById('manualOk').addEventListener('click', ()=>{
   const val = manualInput.value.trim();
   if (val.length !== 128){
