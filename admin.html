@@ -23,14 +23,15 @@
   tbody tr:nth-child(odd){background:#f9fafb}
   tbody tr:nth-child(even){background:#eef2f7}
 
-  .foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:#64748b;font-size:12px}
-  .right{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
-  #footMsg{display:inline-block;max-width:50vw;text-align:center;white-space:nowrap}
-  .btn{background:#2563eb;color:#fff;border:0;border-radius:10px;cursor:pointer;min-width:100px;height:32px;line-height:32px;padding:0 12px;flex-shrink:0}
+  /* 底部三區塊：左燈、中訊息、右按鈕 */
+  .foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;color:#64748b;font-size:12px}
+  .foot .left{flex:0 0 auto}
+  .foot .center{flex:1 1 auto;text-align:center;white-space:nowrap}
+  .foot .right{flex:0 0 auto}
+  .btn{background:#ef4444;color:#fff;border:0;border-radius:10px;cursor:pointer;min-width:100px;height:32px;line-height:32px;padding:0 12px}
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
-  .danger{background:#ef4444}
 
-  /* 指示燈 */
+  /* 狀態燈 */
   .net{display:flex;align-items:center;gap:8px}
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
   .ok{background:#10b981!important;border-color:#10b981!important}
@@ -60,10 +61,12 @@
       <div id="root"></div>
     </div>
     <div class="foot">
-      <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
+      <div class="left">
+        <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
+      </div>
+      <div id="footMsg" class="center">僅顯示「當日當班」且有效</div>
       <div class="right">
-        <span id="footMsg">僅顯示「當日當班」且有效</span>
-        <button id="submitBtn" class="btn danger" disabled>送出刪除</button>
+        <button id="submitBtn" class="btn" type="button" disabled>送出刪除</button>
       </div>
     </div>
   </div>
@@ -80,16 +83,16 @@
     </div>
     <div class="dlg-row">
       <button id="confirmCancel" class="btn btn-sec" type="button">取消</button>
-      <button id="confirmOk" class="btn danger" type="button">確定刪除</button>
+      <button id="confirmOk" class="btn" type="button">確定刪除</button>
     </div>
   </div>
 </dialog>
 
 <script>
-/* ===== API（各頁獨立定義）===== */
+/* API */
 const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-/* ===== gate（沿用底稿） ===== */
+/* gate（沿用底稿） */
 const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 const EXPIRE_MS = 200*60*1000;
 (function gate(){
@@ -101,7 +104,7 @@ const EXPIRE_MS = 200*60*1000;
   }
 })();
 
-/* 指示燈 */
+/* 狀態燈 */
 function setNetLight(msg){
   const dot = document.getElementById('net-dot');
   const txt = document.getElementById('net-msg');
@@ -114,7 +117,7 @@ function setNetLight(msg){
 const statusEl = document.getElementById('status');
 const footMsgEl = document.getElementById('footMsg');
 const root = document.getElementById('root');
-const setStatus = t=> statusEl.textContent=t;
+const setStatus  = t=> statusEl.textContent=t;
 const setFootMsg = t=> footMsgEl.textContent=t;
 
 /* 台北時間 + 班別 */
@@ -228,70 +231,66 @@ async function softDeleteWithFlag(rows){
   return data;
 }
 
-/* 自訂確認視窗 */
+/* 對話框 */
 const confirmDlg = document.getElementById('confirmDlg');
 const confirmInput = document.getElementById('confirmInput');
 const confirmErr = document.getElementById('confirmErr');
-document.getElementById('confirmCancel').addEventListener('click', ()=> confirmDlg.close());
-document.getElementById('confirmOk').addEventListener('click', async ()=>{
-  const v = (confirmInput.value||"").trim();
-  if (v !== "admin"){ confirmErr.textContent = "請輸入 admin。"; confirmInput.value=""; confirmInput.focus(); return; }
-  confirmErr.textContent = "";
-  confirmDlg.close();
 
-  const picks = cachedPicks.slice();      // 使用送出前快照
-  if (!picks.length) return;
+/* 送出：開自訂視窗；不改變卷軸 */
+let cachedPicks = [];
+document.getElementById('submitBtn').addEventListener('click',(ev)=>{
+  ev.preventDefault();
+  const picks=[...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
+  if(!picks.length) return;
+  cachedPicks=picks;
+  confirmInput.value="";
+  confirmErr.textContent="";
+  confirmDlg.showModal();
+  confirmInput.focus({preventScroll:true});
+});
+
+document.getElementById('confirmCancel').addEventListener('click',()=>{
+  confirmDlg.close();
+});
+
+document.getElementById('confirmOk').addEventListener('click',async()=>{
+  const v=(confirmInput.value||"").trim();
+  if(v!=="admin"){
+    confirmErr.textContent="請輸入 admin。";
+    confirmInput.value="";
+    confirmInput.focus({preventScroll:true});
+    return;
+  }
+  confirmErr.textContent="";
+  confirmDlg.close();
 
   try{
     setFootMsg("送出中…");
-    const y = window.scrollY;             // 記錄卷軸
-    await softDeleteWithFlag(picks);
+    await softDeleteWithFlag(cachedPicks);
     setFootMsg("完成");
-    await new Promise(r=>setTimeout(r,500));
-    await loadAndRender({silent:true, preserveScroll:y}); // 靜默重載並還原卷軸
-    window.scrollTo({top:y});
   }catch(e){
     setFootMsg("失敗：" + (e?.message||e));
+  }finally{
     await new Promise(r=>setTimeout(r,500));
-    const y = window.scrollY;
-    await loadAndRender({silent:true, preserveScroll:y});
-    window.scrollTo({top:y});
+    await loadAndRender(); // 不操作 scroll
   }
 });
 
-/* 送出：改為開啟美化對話框，不用 prompt */
-let cachedPicks = [];
-document.getElementById('submitBtn').addEventListener('click', ()=>{
-  const picks = [...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
-  if (!picks.length) return;
-  cachedPicks = picks;                     // 快照
-  confirmInput.value = "";
-  confirmErr.textContent = "";
-  confirmDlg.showModal();
-  confirmInput.focus();
-});
-
-/* 載入：成功→綠燈並隱藏狀態列；失敗→紅燈＋固定錯誤文案 */
-async function loadAndRender(opts={}){
-  const silent = !!opts.silent;
-  const restoreY = Number.isFinite(opts.preserveScroll) ? opts.preserveScroll : null;
-
+/* 載入 */
+async function loadAndRender(){
   try{
-    if (!silent){
-      statusEl.classList.remove('hidden');
-      setStatus("載入中…");
-      setFootMsg("僅顯示「當日當班」且有效");
-    }
+    statusEl.classList.remove('hidden');
+    setStatus("載入中…");
+    setFootMsg("僅顯示「當日當班」且有效");
+
     const rows = await fetchRecentPOST();
     setNetLight("OK");
     const g = pickTodayShift(rows);
     render(g);
-    if (restoreY!=null) window.scrollTo({top:restoreY});
   }catch(e){
     setNetLight();
     setStatus("載入失敗..請通知開發人員");
     statusEl.classList.remove('hidden');
-    if (restoreY!=null) window.scrollTo({top:restoreY});
   }
 }
 document.addEventListener('DOMContentLoaded', loadAndRender);
