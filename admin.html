@@ -24,11 +24,11 @@
 
   .foot{padding:10px 30px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:#64748b;font-size:12px}
   .right{display:flex;gap:8px;align-items:center}
+  .right .msg{min-width:240px;text-align:center} /* 置中顯示訊息 */
   .btn{background:#2563eb;color:#fff;border:0;padding:8px 14px;border-radius:10px;cursor:pointer}
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
   .danger{background:#ef4444}
 
-  /* 與 browse 相同的指示燈樣式 */
   .net{display:flex;align-items:center;gap:8px}
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
   .ok{background:#10b981!important;border-color:#10b981!important}
@@ -49,7 +49,7 @@
     <div class="foot">
       <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
       <div class="right">
-        <span>僅顯示「當日當班」且有效</span>
+        <span id="footMsg" class="msg">僅顯示「當日當班」且有效</span>
         <button id="submitBtn" class="btn danger" disabled>送出刪除</button>
       </div>
     </div>
@@ -60,9 +60,9 @@
 /* ===== API（各頁獨立定義）===== */
 const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-/* ===== gate：2 分鐘有效 ===== */
+/* ===== gate ===== */
 const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
-const EXPIRE_MS = 200*60*1000; // 你底稿目前寫 200 分鐘，保留
+const EXPIRE_MS = 200*60*1000;
 (function gate(){
   const ts = parseInt(sessionStorage.getItem("ts")||"0",10);
   const tk = sessionStorage.getItem("tokey")||"";
@@ -72,7 +72,7 @@ const EXPIRE_MS = 200*60*1000; // 你底稿目前寫 200 分鐘，保留
   }
 })();
 
-/* ===== 指示燈（與 browse 相同邏輯） ===== */
+/* 指示燈 */
 function setNetLight(msg){
   const dot = document.getElementById('net-dot');
   const txt = document.getElementById('net-msg');
@@ -81,12 +81,14 @@ function setNetLight(msg){
   txt.textContent = msg ? "GMS" : "回傳";
 }
 
-/* ===== 小工具 ===== */
+/* 狀態顯示 */
 const statusEl = document.getElementById('status');
+const footMsgEl = document.getElementById('footMsg');
 const root = document.getElementById('root');
 const setStatus = t=> statusEl.textContent=t;
+const setFootMsg = t=> footMsgEl.textContent=t;
 
-/* 台北時區時間 → form 同步做法 */
+/* 台北時間 + 班別 */
 function nowCorrected(){
   const parts = new Intl.DateTimeFormat('zh-TW',{
     timeZone:'Asia/Taipei', hour12:false,
@@ -96,8 +98,6 @@ function nowCorrected(){
   const get=t=>Number(parts.find(p=>p.type===t).value);
   return new Date(get('year'), get('month')-1, get('day'), get('hour'), get('minute'), get('second'));
 }
-
-/* 班別切點 0040/0840/1640 */
 function computeShiftByClockFrom(d){
   const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
   if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'C'}; }
@@ -105,8 +105,6 @@ function computeShiftByClockFrom(d){
   if(mins>=1000){ return {baseDate:d, shift:'B'}; }
   const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'B'};
 }
-
-/* 日期序號工具 */
 function ymdToSerial(y,m,d){
   const epoch = Date.UTC(1899,11,30);
   return Math.floor((Date.UTC(y,m-1,d)-epoch)/86400000);
@@ -118,8 +116,6 @@ function toMMDDFromSerial(serial){
   const dd=String(dt.getUTCDate()).padStart(2,'0');
   return `${mm}/${dd}`;
 }
-
-/* 取「當日當班」鍵 */
 function currentKey(){
   const now = nowCorrected();
   const {baseDate, shift} = computeShiftByClockFrom(now);
@@ -128,7 +124,7 @@ function currentKey(){
   return {serial, shift};
 }
 
-/* 讀資料 POST：{status, fields[], values[]} → 物件陣列 */
+/* 取資料 */
 async function fetchRecentPOST(){
   const res = await fetch(API_BASE, { method:"POST", body:new URLSearchParams({action:"list_recent"}) });
   if (!res.ok) throw new Error("HTTP " + res.status + " " + res.statusText);
@@ -146,7 +142,7 @@ async function fetchRecentPOST(){
   }));
 }
 
-/* 以 deleted===TRUE ,再比對當日當班 */
+/* 篩「有效 + 當日當班」 */
 function pickTodayShift(rows){
   const {serial, shift} = currentKey();
   const okValid = r => String(r.deleted).toUpperCase()==="TRUE";
@@ -157,7 +153,7 @@ function pickTodayShift(rows){
   return {serial, shift, rows:list};
 }
 
-/* 渲染表格（含 checkbox） */
+/* 渲染 */
 function render(g){
   root.innerHTML = "";
   if (!g.rows.length){
@@ -202,22 +198,26 @@ async function softDeleteWithFlag(rows){
   return data;
 }
 
-/* 提交：無勾選不觸發；有勾選需輸入 admin 確認 */
+/* 送出：訊息顯示在右下文字區，完成後 500ms 再重載 */
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const picks = [...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
-  if (!picks.length) return; // 無勾選 → 不觸發
+  if (!picks.length) return;
   const code = prompt('此動作將軟刪除勾選資料。\n若確定，請輸入 "admin" 以確認：');
   if (code!=="admin") return;
 
   try{
-    setStatus("送出中…");
+    setFootMsg("送出中…");
+    setStatus(""); // 上方不再顯示送出狀態
     document.getElementById('submitBtn').disabled=true;
     await softDeleteWithFlag(picks);
-    setStatus("完成。重新載入…");
+    setFootMsg("完成");
+    await new Promise(r=>setTimeout(r,500));
     await loadAndRender();
   }catch(e){
-    setStatus("失敗：" + (e?.message||e));
+    setFootMsg("失敗：" + (e?.message||e));
+    await new Promise(r=>setTimeout(r,500));
     document.getElementById('submitBtn').disabled=false;
+    await loadAndRender(); // 依需求：失敗也重載
   }
 });
 
@@ -225,13 +225,15 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
 async function loadAndRender(){
   try{
     setStatus("載入中…");
+    setFootMsg("僅顯示「當日當班」且有效");
     const rows = await fetchRecentPOST();
-    setNetLight("OK");               // 有回傳就綠燈
+    setNetLight("OK");
     const g = pickTodayShift(rows);
     render(g);
   }catch(e){
-    setNetLight();                   // 失敗紅燈
+    setNetLight();
     setStatus("載入失敗：" + (e?.message||e));
+    setFootMsg("僅顯示「當日當班」且有效");
   }
 }
 document.addEventListener('DOMContentLoaded', loadAndRender);
