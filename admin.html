@@ -27,7 +27,7 @@
   /* 底部三區塊：左燈 / 中訊息(區塊置中但文字靠左) / 右按鈕 */
   .foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;color:#64748b;font-size:12px}
   .foot .left{flex:0 0 auto}
-  .foot .center{flex:1 1 auto;text-align:left;white-space:nowrap}
+  .foot .center{flex:1 1 auto;text-align:center;white-space:nowrap}
   .foot .right{flex:0 0 auto}
   .btn{background:#ef4444;color:#fff;border:0;border-radius:10px;cursor:pointer;min-width:100px;height:32px;line-height:32px;padding:0 12px}
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
@@ -218,15 +218,15 @@ function render(g){
   }
   root.append(hdr, tbl);
   setStatus("");
-  statusEl.classList.add('hidden');        // 成功→隱藏狀態列
+  statusEl.classList.add('hidden');
   document.getElementById('submitBtn').disabled=false;
 }
 
-/* 軟刪除：action=soft_delete + flag=admin + row1,row2,... */
-async function softDeleteWithFlag(rows){
+/* 軟刪除：action=soft_deldete + row1,... */
+async function softDeleteWithFlag(rows, adminId){
   const body = new URLSearchParams();
   body.append("action", "soft_delete");
-  body.append("flag", "admin");
+  body.append("admin_id", adminId);
   rows.forEach((r,i)=> body.append(`row${i+1}`, String(r)));
   const res = await fetch(API_BASE, { method:"POST", body });
   if (!res.ok) throw new Error("HTTP " + res.status);
@@ -235,13 +235,13 @@ async function softDeleteWithFlag(rows){
   return data;
 }
 
-/* —— 對話框固定於可視區上方 15%（不受鍵盤影響） —— */
+/* —— 對話框固定於可視區上方 15% —— */
 function placeDialogTop(dlg){
   const vv = window.visualViewport;
   if (!vv || !dlg.open) return;
   const rect = dlg.getBoundingClientRect();
-  const top  = Math.max(12, vv.offsetTop + vv.height * 0.15);                 // 偏上 15%
-  const left = Math.max(12, vv.offsetLeft + (vv.width - rect.width)/2);       // 水平置中
+  const top  = Math.max(12, vv.offsetTop + vv.height * 0.15); // 偏上 15%
+  const left = Math.max(12, vv.offsetLeft + (vv.width - rect.width)/2); // 水平置中
   dlg.style.position = 'fixed';
   dlg.style.top  = `${top}px`;
   dlg.style.left = `${left}px`;
@@ -337,23 +337,35 @@ document.getElementById('confirmOk').addEventListener('click', async ()=>{
   const id = (adminIdEl.value || "").toUpperCase();
   const v  = (confirmInput.value || "").trim();
   if (id.length !== 5){
-    confirmErr.textContent = "admin_id 需為 5 碼英數。";
+    confirmErr.textContent = "ID 需為 5 碼英數";
     adminIdEl.focus({preventScroll:true});
     return;
   }
   if (v !== "admin"){
-    confirmErr.textContent = "請輸入 admin。";
+    confirmErr.textContent = "請輸入 Yes/No";
     confirmInput.value = "";
     confirmInput.focus({preventScroll:true});
     return;
   }
+
   // 通過：保留草稿
   saveDraft({ admin_id: id });
-
+    confirmDlg.close();
+    scrollToBottom();
+  try{
+    setFootMsg("送出中…");
+    await softDeleteWithFlag(cachedPicks, id);
+    setFootMsg("完成");
+  } catch(e){
+    setFootMsg("失敗：" + (e?.message||e));
+  }finally{
+    await new Promise(r=>setTimeout(r,500));
+    await loadAndRender();
+  }
+});
   confirmErr.textContent = "";
   confirmDlg.close();
-  scrollToBottom();  // 關窗即帶到底部
-
+  scrollToBottom();
   try{
     setFootMsg("送出中…");
     await softDeleteWithFlag(cachedPicks);
@@ -362,7 +374,7 @@ document.getElementById('confirmOk').addEventListener('click', async ()=>{
     setFootMsg("失敗：" + (e?.message||e));
   }finally{
     await new Promise(r=>setTimeout(r,500));
-    await loadAndRender();  // 不控制 scroll
+    await loadAndRender();
   }
 });
 
@@ -372,7 +384,6 @@ async function loadAndRender(){
     statusEl.classList.remove('hidden');
     setStatus("載入中…");
     setFootMsg("僅顯示「當日當班」且有效");
-
     const rows = await fetchRecentPOST();
     setNetLight("OK");
     const g = pickTodayShift(rows);
