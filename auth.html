@@ -8,25 +8,21 @@
   body{font-family:system-ui,Arial;margin:0;background:#0b1220;color:#e6edf3}
   .wrap{max-width:720px;margin:0 auto;padding:16px}
 
-  /* 框：掃描時紅框閃爍 */ #view-wrap{width:100%;position:relative;aspect-ratio:3/4;border:3px solid transparent;border-radius:12px;animation:none}
-  #view-wrap.scan{border-color:red;animation:scanblink 1s infinite}
+  /* 掃描框：idle 無框 / scan 紅框閃爍 */ #view-wrap{width:100%;position:relative;aspect-ratio:3/4;border:3px solid transparent;border-radius:12px;animation:none} #view-wrap.scan{border-color:red;animation:scanblink 1s infinite}
   @keyframes scanblink{0%{border-color:red}50%{border-color:transparent}100%{border-color:red}}
-
-  #view{aspect-ratio:3/4;background:#111827;border-radius:12px;overflow:hidden}
-  video{width:100%;height:100%;object-fit:cover}
-
+ #view{aspect-ratio:3/4;background:#111827;border-radius:12px;overflow:hidde}  video{width:100%;height:100%;object-fit:cover}
   .hint{margin:12px 0;color:#93a4b7;font-size:14px}
 
-  /* 1) 三鍵置中 */
-  .bar{display:flex;gap:10px;justify-content:center;margin-top:12px}
-  button{background:#2563eb;color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer}
+  /* 三鍵置中 */
+  .bar{display:flex;gap:12px;justify-content:center;margin-top:12px} button{background:#2563eb;color:#fff;border:0;padding:10px 16px;border-radius:10px;cursor:pointer}
   button.secondary{background:#374151}
 
-  /* 2) 手動輸入對話框樣式 */ dialog{border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:560px;width:calc(100% - 32px)}
+  /* 手動輸入對話框 */ dialog{border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:560px;width:calc(100% - 32px)}
   .dlg-body{padding:16px}
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
   .fld input{padding:12px 14px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e6edf3;font-family:monospace}
+  .fld input:focus{border-color:#60a5fa;outline:none}
   .fld small{color:#94a3b8}
   .err{color:#ef4444;margin-top:6px;min-height:1.2em}
   .dlg-row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
@@ -44,13 +40,16 @@
     <button id="manualBtn" class="secondary">輸入金鑰</button>
   </div>
 </div>
-<!-- 2) 手動輸入對話框 -->
+
+<!-- 手動輸入對話框 -->
 <dialog id="manualDlg">
   <div class="dlg-body">
     <div class="dlg-title">輸入 128 位 QR 代碼</div>
     <div class="fld">
-      <input id="manualInput" type="text" maxlength="128" placeholder="輸入完整 128 字元">
-      <small>只接受預先配對的固定 Key，大小寫需完全一致。</small>
+      <input id="manualInput" type="text" maxlength="128"
+             autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+             placeholder="輸入 128 字元金鑰">
+      <small>只接受配對的固定 Key，大小寫需完全一致。</small>
       <div id="manualErr" class="err"></div>
     </div>
     <div class="dlg-row">
@@ -61,25 +60,31 @@
 </dialog>
 
 <script>
+/* 固定參數 */
 const admin_URL = "admin.html";
-/* 固定 Key 與 tokey */
-const fixed_key = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+const fixed_key   = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
 const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
+/* 元件 */
 const statusEl = document.getElementById('status');
 const wrap     = document.getElementById('view-wrap');
 const video    = document.getElementById('cam');
+const manualDlg   = document.getElementById('manualDlg');
+const manualInput = document.getElementById('manualInput');
+const manualErr   = document.getElementById('manualErr');
 
 let stream=null, detector=null, scanning=false;
 
-function setMsg(s){ statusEl.textContent = s; }
-function setIdle(){ wrap.classList.remove('scan'); }
-function setScan(){ wrap.classList.add('scan'); }
+/* 狀態顯示 */
+const setMsg  = s => statusEl.textContent = s;
+const setIdle = () => wrap.classList.remove('scan');
+const setScan = () => wrap.classList.add('scan');
 
+/* 跳轉 */
 function gotoAdmin(){
   sessionStorage.setItem("ts", String(Date.now()));
   sessionStorage.setItem("tokey", fixed_tokey);
-  location.replace(aimin_URL);
+  location.replace(admin_URL);
 }
 
 /* 相機控制 */
@@ -91,26 +96,24 @@ async function startCam(){
     await video.play();
     scanning = true;
     setScan();
-    setMsg("相機已啟動，對準 QR 以掃描。");
+    setMsg("相機已啟動，對準 QR_code 掃描。");
     if ('BarcodeDetector' in window){
       detector = new BarcodeDetector({ formats:['qr_code'] });
       loopScan();
     } else {
-      setMsg("裝置不支援 QR API，請用『手動輸入代碼』。");
+      setMsg("裝置不支援 QR API，請改用『手動輸入代碼』。");
     }
   }catch(e){
     setIdle();
     setMsg("無法啟動相機。");
   }
 }
-
 function stopCam(){
   scanning = false;
   setIdle();
   if (video) video.pause();
   if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
 }
-
 async function loopScan(){
   if (!scanning || !detector) return;
   try{
@@ -127,36 +130,28 @@ async function loopScan(){
   requestAnimationFrame(loopScan);
 }
 
-/* 3) 手動輸入：打開時停止相機 */
-const manualDlg   = document.getElementById('manualDlg');
-const manualInput = document.getElementById('manualInput');
-const manualErr   = document.getElementById('manualErr');
-
+/* 手動輸入 */
 document.getElementById('manualBtn').addEventListener('click', ()=>{
-  stopCam(); // 停相機
-  setMsg("已切換為手動輸入模式。"); 
+  stopCam();
+  setMsg("已切換為手動輸入模式。");
   manualInput.value = "";
   manualErr.textContent = "";
   manualDlg.showModal();
 });
-
-
-document.getElementById('manualCancel').addEventListener('click', ()=>{
-  manualDlg.close();
-  setMsg("相機已停止。");
-});
-
+document.getElementById('manualCancel').addEventListener('click', ()=> manualDlg.close());
 document.getElementById('manualOk').addEventListener('click', ()=>{
-  const val = manualInput.value.trim();
+  const val = (manualInput.value || "").replace(/\s+/g,"").trim();
   if (val.length !== 128){
-    manualErr.textContent = "長度須為 128 字元。";
+    manualErr.textContent = "金鑰長度須為 128 字元。";
+    manualInput.value = "";
     return;
   }
   if (val !== fixed_key){
-    manualErr.textContent = "金 鑰 匹 配 錯 誤";
+    manualErr.textContent = "金 鑰 匹 配 錯誤";
+    manualInput.value = "";
     return;
   }
-  manualDlg.close();
+  // 正確：不關閉對話框，直接跳轉
   gotoAdmin();
 });
 
