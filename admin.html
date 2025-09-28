@@ -8,8 +8,6 @@
   :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; --ok:#10b981; --err:#ef4444; }
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  /* 對話框期間凍結頁面，避免被鍵盤頂動 */
-html.noscroll, body.noscroll{ overflow:hidden; }
 
   .wrap{width:96%;max-width:980px;margin:12px auto}
   .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
@@ -26,7 +24,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   tbody tr:nth-child(odd){background:#f9fafb}
   tbody tr:nth-child(even){background:#eef2f7}
 
-  /* 底部三區塊：左燈 / 中訊息(靠左) / 右按鈕 */
+  /* 底部三區塊：左燈 / 中訊息(區塊置中但文字靠左) / 右按鈕 */
   .foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;color:#64748b;font-size:12px}
   .foot .left{flex:0 0 auto}
   .foot .center{flex:1 1 auto;text-align:left;white-space:nowrap}
@@ -45,6 +43,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   .dlg-body{padding:16px}
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
+  .fld label{font-size:12px;color:#94a3b8}
   .fld input{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e6edf3}
   .fld input:focus{border-color:#60a5fa;outline:none}
   .err{color:#ef4444;margin-top:6px;min-height:1.2em}
@@ -80,8 +79,10 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   <div class="dlg-body">
     <div class="dlg-title">確認刪除</div>
     <div class="fld">
-      <div>將軟刪除勾選資料。請輸入 <b>admin</b> 確認。</div>
-      <input id="confirmInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="輸入 admin">
+      <label for="adminId">管理員代碼（5 碼）</label>
+      <input id="adminId" type="text" inputmode="latin" maxlength="5" placeholder="如：AB123">
+      <label for="confirmInput">確認字串</label>
+      <input id="confirmInput" type="text" placeholder="輸入 admin">
       <div id="confirmErr" class="err"></div>
     </div>
     <div class="dlg-row">
@@ -234,7 +235,7 @@ async function softDeleteWithFlag(rows){
   return data;
 }
 
-/* —— 對話框固定於可視區上方 15%＋鍵盤不推擠 —— */
+/* —— 對話框固定於可視區上方 15%（不受鍵盤影響） —— */
 function placeDialogTop(dlg){
   const vv = window.visualViewport;
   if (!vv || !dlg.open) return;
@@ -250,60 +251,108 @@ function resetDialogPos(dlg){
   dlg.style.top = '';
   dlg.style.left = '';
 }
-
-/* 鎖/解頁面滾動，避免鍵盤改版位 */
-let scrollYForLock = 0;
-function lockBodyScroll(){
-document.documentElement.classList.add('noscroll');
-  document.body.classList.add('noscroll');
-}
-function unlockBodyScroll(){ document.documentElement.classList.remove('noscroll'); document.body.classList.remove('noscroll');
-}
-function unlockBodyScroll(){
-  document.body.classList.remove('noscroll');
-  document.body.style.top = '';
-  window.scrollTo(0, scrollYForLock);
-}
-
-/* 對話框元素與事件 */
-const confirmDlg = document.getElementById('confirmDlg');
-const confirmInput = document.getElementById('confirmInput');
-const confirmErr = document.getElementById('confirmErr');
-
-confirmDlg.addEventListener('close', ()=>{ resetDialogPos(confirmDlg); unlockBodyScroll(); });
-confirmDlg.addEventListener('cancel', e=>{ e.preventDefault(); confirmDlg.close(); });
-
 if (window.visualViewport){
   visualViewport.addEventListener('resize', ()=> placeDialogTop(confirmDlg));
   visualViewport.addEventListener('scroll', ()=> placeDialogTop(confirmDlg));
 }
 
-/* 送出：開自訂視窗；不改變卷軸 */
+/* 共用草稿：讀/寫 admin_id */
+function loadDraft(){
+  const keys = ["draft","FORM_DRAFT","form_draft"];
+  for (const k of keys){
+    const s = localStorage.getItem(k);
+    if (s){ try{ const o=JSON.parse(s); o.__key=k; return o; }catch{} }
+  }
+  return { __key:"draft" };
+}
+function saveDraft(patch){
+  const d = loadDraft();
+  const key = d.__key || "draft";
+  const out = Object.assign({}, d); delete out.__key;
+  Object.assign(out, patch);
+  localStorage.setItem(key, JSON.stringify(out));
+}
+
+/* 對話框元素與 admin_id 規則 */
+const confirmDlg   = document.getElementById('confirmDlg');
+const adminIdEl    = document.getElementById('adminId');
+const confirmInput = document.getElementById('confirmInput');
+const confirmErr   = document.getElementById('confirmErr');
+
+/* 預填 admin_id */
+(function prefillAdminId(){
+  const d = loadDraft();
+  if (d && typeof d.admin_id === "string"){
+    adminIdEl.value = (d.admin_id || "").toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+  }
+})();
+/* 輸入→大寫、英數、<=5，滿 5 碼才存草稿 */
+adminIdEl.addEventListener('input', ()=>{
+  let v = adminIdEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,5);
+  adminIdEl.value = v;
+  saveDraft({ admin_id: v.length===5 ? v : "" });
+});
+/* 離開未滿 5 碼→清空並清草稿 */
+adminIdEl.addEventListener('blur', ()=>{
+  if (adminIdEl.value.length !== 5){
+    adminIdEl.value = "";
+    saveDraft({ admin_id: "" });
+  }
+});
+
+/* 工具：關窗後帶到底部 */
+function scrollToBottom(){
+  requestAnimationFrame(()=>{
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+  });
+}
+
+/* 送出：開自訂視窗；不鎖卷軸；關窗後帶到底部 */
 let cachedPicks = [];
 document.getElementById('submitBtn').addEventListener('click',(ev)=>{
   ev.preventDefault();
+  ev.stopPropagation();
   const picks=[...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
   if(!picks.length) return;
   cachedPicks=picks;
   confirmInput.value=""; confirmErr.textContent="";
-  lockBodyScroll();                    // 凍結頁面
+  document.activeElement && document.activeElement.blur();
   confirmDlg.showModal();
-  placeDialogTop(confirmDlg);          // 偏上定位
-  confirmInput.focus({preventScroll:true});
+  placeDialogTop(confirmDlg);
+  adminIdEl.focus({preventScroll:true});
 });
 
-document.getElementById('confirmCancel').addEventListener('click',()=> confirmDlg.close());
+document.getElementById('confirmCancel').addEventListener('click',()=>{
+  confirmDlg.close();
+  scrollToBottom();
+});
+confirmDlg.addEventListener('cancel', e=>{
+  e.preventDefault();
+  confirmDlg.close();
+  scrollToBottom();
+});
+confirmDlg.addEventListener('close', ()=>{ resetDialogPos(confirmDlg); });
 
-document.getElementById('confirmOk').addEventListener('click',async()=>{
-  const v=(confirmInput.value||"").trim();
-  if(v!=="admin"){
-    confirmErr.textContent="請輸入 admin。";
-    confirmInput.value="";
+document.getElementById('confirmOk').addEventListener('click', async ()=>{
+  const id = (adminIdEl.value || "").toUpperCase();
+  const v  = (confirmInput.value || "").trim();
+  if (id.length !== 5){
+    confirmErr.textContent = "admin_id 需為 5 碼英數。";
+    adminIdEl.focus({preventScroll:true});
+    return;
+  }
+  if (v !== "admin"){
+    confirmErr.textContent = "請輸入 admin。";
+    confirmInput.value = "";
     confirmInput.focus({preventScroll:true});
     return;
   }
-  confirmErr.textContent="";
-  confirmDlg.close();                  // 觸發解鎖
+  // 通過：保留草稿
+  saveDraft({ admin_id: id });
+
+  confirmErr.textContent = "";
+  confirmDlg.close();
+  scrollToBottom();  // 關窗即帶到底部
 
   try{
     setFootMsg("送出中…");
@@ -313,7 +362,7 @@ document.getElementById('confirmOk').addEventListener('click',async()=>{
     setFootMsg("失敗：" + (e?.message||e));
   }finally{
     await new Promise(r=>setTimeout(r,500));
-    await loadAndRender();             // 不主動改 scroll
+    await loadAndRender();  // 不控制 scroll
   }
 });
 
