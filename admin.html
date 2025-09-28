@@ -63,7 +63,7 @@ const API_BASE = "https://script.google.com/macros/s/REPLACE/exec";
 
 /* ===== gate：2 分鐘有效 ===== */
 const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
-const EXPIRE_MS = 2*60*1000;
+const EXPIRE_MS = 200*60*1000;
 (function gate(){
   const ts = parseInt(sessionStorage.getItem("ts")||"0",10);
   const tk = sessionStorage.getItem("tokey")||"";
