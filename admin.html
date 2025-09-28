@@ -8,6 +8,9 @@
   :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; --ok:#10b981; --err:#ef4444; }
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  /* 對話框期間凍結頁面，避免被鍵盤頂動 */
+html.noscroll, body.noscroll{ overflow:hidden; }
+
   .wrap{width:96%;max-width:980px;margin:12px auto}
   .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
   .hdr{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
@@ -23,10 +26,10 @@
   tbody tr:nth-child(odd){background:#f9fafb}
   tbody tr:nth-child(even){background:#eef2f7}
 
-  /* 底部三區塊：左燈 / 中訊息 / 右按鈕 */
+  /* 底部三區塊：左燈 / 中訊息(靠左) / 右按鈕 */
   .foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;color:#64748b;font-size:12px}
   .foot .left{flex:0 0 auto}
-  .foot .center{flex:1 1 auto;text-align:center;white-space:nowrap}
+  .foot .center{flex:1 1 auto;text-align:left;white-space:nowrap}
   .foot .right{flex:0 0 auto}
   .btn{background:#ef4444;color:#fff;border:0;border-radius:10px;cursor:pointer;min-width:100px;height:32px;line-height:32px;padding:0 12px}
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
@@ -37,7 +40,7 @@
   .ok{background:#10b981!important;border-color:#10b981!important}
   .err{background:#ef4444!important;border-color:#ef4444!important}
 
-  /* 確認視窗 */
+  /* 確認視窗：允許程式定位且偏暗主題 */
   dialog{margin:0;border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:420px;width:calc(100% - 32px)}
   .dlg-body{padding:16px}
   .dlg-title{font-weight:700;margin-bottom:8px}
@@ -231,13 +234,13 @@ async function softDeleteWithFlag(rows){
   return data;
 }
 
-/* —— 對話框固定於可視區上方 15%（不受鍵盤影響） —— */
+/* —— 對話框固定於可視區上方 15%＋鍵盤不推擠 —— */
 function placeDialogTop(dlg){
   const vv = window.visualViewport;
   if (!vv || !dlg.open) return;
   const rect = dlg.getBoundingClientRect();
-  const top  = Math.max(12, vv.offsetTop + vv.height * 0.15);
-  const left = Math.max(12, vv.offsetLeft + (vv.width - rect.width)/2);
+  const top  = Math.max(12, vv.offsetTop + vv.height * 0.15);                 // 偏上 15%
+  const left = Math.max(12, vv.offsetLeft + (vv.width - rect.width)/2);       // 水平置中
   dlg.style.position = 'fixed';
   dlg.style.top  = `${top}px`;
   dlg.style.left = `${left}px`;
@@ -247,11 +250,29 @@ function resetDialogPos(dlg){
   dlg.style.top = '';
   dlg.style.left = '';
 }
+
+/* 鎖/解頁面滾動，避免鍵盤改版位 */
+let scrollYForLock = 0;
+function lockBodyScroll(){
+document.documentElement.classList.add('noscroll');
+  document.body.classList.add('noscroll');
+}
+function unlockBodyScroll(){ document.documentElement.classList.remove('noscroll'); document.body.classList.remove('noscroll');
+}
+function unlockBodyScroll(){
+  document.body.classList.remove('noscroll');
+  document.body.style.top = '';
+  window.scrollTo(0, scrollYForLock);
+}
+
+/* 對話框元素與事件 */
 const confirmDlg = document.getElementById('confirmDlg');
 const confirmInput = document.getElementById('confirmInput');
 const confirmErr = document.getElementById('confirmErr');
-confirmDlg.addEventListener('close', ()=> resetDialogPos(confirmDlg));
+
+confirmDlg.addEventListener('close', ()=>{ resetDialogPos(confirmDlg); unlockBodyScroll(); });
 confirmDlg.addEventListener('cancel', e=>{ e.preventDefault(); confirmDlg.close(); });
+
 if (window.visualViewport){
   visualViewport.addEventListener('resize', ()=> placeDialogTop(confirmDlg));
   visualViewport.addEventListener('scroll', ()=> placeDialogTop(confirmDlg));
@@ -264,16 +285,14 @@ document.getElementById('submitBtn').addEventListener('click',(ev)=>{
   const picks=[...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
   if(!picks.length) return;
   cachedPicks=picks;
-  confirmInput.value="";
-  confirmErr.textContent="";
+  confirmInput.value=""; confirmErr.textContent="";
+  lockBodyScroll();                    // 凍結頁面
   confirmDlg.showModal();
-  placeDialogTop(confirmDlg);
+  placeDialogTop(confirmDlg);          // 偏上定位
   confirmInput.focus({preventScroll:true});
 });
 
-document.getElementById('confirmCancel').addEventListener('click',()=>{
-  confirmDlg.close();
-});
+document.getElementById('confirmCancel').addEventListener('click',()=> confirmDlg.close());
 
 document.getElementById('confirmOk').addEventListener('click',async()=>{
   const v=(confirmInput.value||"").trim();
@@ -284,7 +303,7 @@ document.getElementById('confirmOk').addEventListener('click',async()=>{
     return;
   }
   confirmErr.textContent="";
-  confirmDlg.close();
+  confirmDlg.close();                  // 觸發解鎖
 
   try{
     setFootMsg("送出中…");
@@ -294,7 +313,7 @@ document.getElementById('confirmOk').addEventListener('click',async()=>{
     setFootMsg("失敗：" + (e?.message||e));
   }finally{
     await new Promise(r=>setTimeout(r,500));
-    await loadAndRender(); // 不操作 scroll
+    await loadAndRender();             // 不主動改 scroll
   }
 });
 
