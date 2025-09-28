@@ -7,6 +7,23 @@
 <style>
   body{font-family:system-ui,Arial;margin:0;background:#0b1220;color:#e6edf3}
   .wrap{max-width:720px;margin:0 auto;padding:16px}
+  /* 紅框提示 */
+  #view-wrap{
+    position:relative;
+    aspect-ratio:3/4;
+    border:3px solid red;
+    border-radius:12px;
+    animation: scanblink 1s infinite;
+  }
+  #view-wrap.stopped{
+    border-color:green;
+    animation:none;
+  }
+  @keyframes scanblink{
+    0%{border-color:red;}
+    50%{border-color:transparent;}
+    100%{border-color:red;}
+  }
   #view{aspect-ratio:3/4;background:#111827;border-radius:12px;overflow:hidden}
   video{width:100%;height:100%;object-fit:cover}
   .hint{margin:12px 0;color:#93a4b7;font-size:14px}
@@ -18,7 +35,9 @@
 <body>
 <div class="wrap">
   <div id="status" class="hint">請允許相機權限以開始掃描 QR。</div>
-  <div id="view"><video id="cam" autoplay playsinline muted></video></div>
+  <div id="view-wrap">
+    <div id="view"><video id="cam" autoplay playsinline muted></video></div>
+  </div>
   <div class="bar">
     <button id="startBtn">開始掃描</button>
     <button id="stopBtn" class="secondary">停止相機</button>
@@ -75,6 +94,7 @@ async function loopScan(){
       if (val === FIXED_KEY){
         stopCam();
         setMsg("QR 驗證成功。");
+        document.getElementById("view-wrap").classList.add("stopped");
         gotoAdmin();
         return;
       }
@@ -87,6 +107,7 @@ document.getElementById('manualBtn').addEventListener('click', ()=>{
   const code = prompt("輸入 128 位 QR 代碼：") || "";
   const val = code.trim();
   if (val === FIXED_KEY){
+    document.getElementById("view-wrap").classList.add("stopped");
     gotoAdmin();
   }else{
     alert("代碼無效。");
