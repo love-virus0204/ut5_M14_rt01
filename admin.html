@@ -15,6 +15,7 @@
   .back{font-size:12px;color:#64748b;text-decoration:none;border:1px solid var(--line);padding:6px 10px;border-radius:8px}
   .content{padding:0 16px 14px}
   #status{color:#475569;margin:18px 0;min-height:1.6em;text-align:center;font-weight:600}
+  #status.hidden{display:none}
   .grp{margin:12px 0 6px;font-weight:700}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
@@ -24,11 +25,12 @@
 
   .foot{padding:10px 30px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:#64748b;font-size:12px}
   .right{display:flex;gap:8px;align-items:center}
-  .right .msg{min-width:240px;text-align:center} /* 置中顯示訊息 */
+  #footMsg{display:inline-block;min-width:240px;text-align:center;white-space:nowrap}
   .btn{background:#2563eb;color:#fff;border:0;padding:8px 14px;border-radius:10px;cursor:pointer}
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
   .danger{background:#ef4444}
 
+  /* 指示燈 */
   .net{display:flex;align-items:center;gap:8px}
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
   .ok{background:#10b981!important;border-color:#10b981!important}
@@ -49,7 +51,7 @@
     <div class="foot">
       <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
       <div class="right">
-        <span id="footMsg" class="msg">僅顯示「當日當班」且有效</span>
+        <span id="footMsg">僅顯示「當日當班」且有效</span>
         <button id="submitBtn" class="btn danger" disabled>送出刪除</button>
       </div>
     </div>
@@ -60,7 +62,7 @@
 /* ===== API（各頁獨立定義）===== */
 const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-/* ===== gate ===== */
+/* ===== gate（沿用你底稿） ===== */
 const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 const EXPIRE_MS = 200*60*1000;
 (function gate(){
@@ -81,7 +83,7 @@ function setNetLight(msg){
   txt.textContent = msg ? "GMS" : "回傳";
 }
 
-/* 狀態顯示 */
+/* 狀態與容器 */
 const statusEl = document.getElementById('status');
 const footMsgEl = document.getElementById('footMsg');
 const root = document.getElementById('root');
@@ -181,7 +183,8 @@ function render(g){
     tb.appendChild(tr);
   }
   root.append(hdr, tbl);
-  setStatus("");
+  setStatus("");                 // 清字
+  statusEl.classList.add('hidden'); // 成功→隱藏狀態列
   document.getElementById('submitBtn').disabled=false;
 }
 
@@ -198,7 +201,7 @@ async function softDeleteWithFlag(rows){
   return data;
 }
 
-/* 送出：訊息顯示在右下文字區，完成後 500ms 再重載 */
+/* 送出：訊息顯示在右下文字區，完成或失敗皆延遲 500ms 後重載 */
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const picks = [...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
   if (!picks.length) return;
@@ -211,28 +214,30 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
     document.getElementById('submitBtn').disabled=true;
     await softDeleteWithFlag(picks);
     setFootMsg("完成");
-    await new Promise(r=>setTimeout(r,500));
-    await loadAndRender();
   }catch(e){
     setFootMsg("失敗：" + (e?.message||e));
-    await new Promise(r=>setTimeout(r,500));
     document.getElementById('submitBtn').disabled=false;
-    await loadAndRender(); // 依需求：失敗也重載
+  }finally{
+    await new Promise(r=>setTimeout(r,500));
+    await loadAndRender();
   }
 });
 
-/* 載入：有回傳→立刻亮綠燈；之後再做篩選與渲染 */
+/* 載入：成功→綠燈並隱藏狀態列；失敗→紅燈＋錯誤文案並顯示狀態列 */
 async function loadAndRender(){
   try{
+    statusEl.classList.remove('hidden'); // 顯示「載入中…」
     setStatus("載入中…");
     setFootMsg("僅顯示「當日當班」且有效");
+
     const rows = await fetchRecentPOST();
     setNetLight("OK");
     const g = pickTodayShift(rows);
     render(g);
   }catch(e){
     setNetLight();
-    setStatus("載入失敗：" + (e?.message||e));
+    setStatus("載入失敗..請通知開發人員");
+    statusEl.classList.remove('hidden'); // 顯示錯誤
     setFootMsg("僅顯示「當日當班」且有效");
   }
 }
