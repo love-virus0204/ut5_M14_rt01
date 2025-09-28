@@ -10,23 +10,23 @@
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{width:96%;max-width:980px;margin:12px auto}
   .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
-  .hdr{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .hdr{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
   .ttl{font-weight:700;color:var(--brand)}
   .back{font-size:12px;color:#64748b;text-decoration:none;border:1px solid var(--line);padding:6px 10px;border-radius:8px}
-  .content{padding:0 16px 14px}
-  #status{color:#475569;margin:18px 0;min-height:1.6em;text-align:center;font-weight:600}
+  .content{padding:0 14px 12px}
+  #status{color:#475569;margin:12px 0;min-height:1.4em;text-align:center;font-weight:600}
   #status.hidden{display:none}
-  .grp{margin:12px 0 6px;font-weight:700}
+  .grp{margin:10px 0 6px;font-weight:700}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
   thead th{background:#f3f4f6;color:#334155}
   tbody tr:nth-child(odd){background:#f9fafb}
   tbody tr:nth-child(even){background:#eef2f7}
 
-  .foot{padding:10px 30px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:#64748b;font-size:12px}
-  .right{display:flex;gap:8px;align-items:center}
-  #footMsg{display:inline-block;min-width:240px;text-align:center;white-space:nowrap}
-  .btn{background:#2563eb;color:#fff;border:0;padding:8px 14px;border-radius:10px;cursor:pointer}
+  .foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:#64748b;font-size:12px}
+  .right{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
+  #footMsg{display:inline-block;max-width:50vw;text-align:center;white-space:nowrap}
+  .btn{background:#2563eb;color:#fff;border:0;border-radius:10px;cursor:pointer;min-width:100px;height:32px;line-height:32px;padding:0 12px;flex-shrink:0}
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
   .danger{background:#ef4444}
 
@@ -35,6 +35,17 @@
   .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
   .ok{background:#10b981!important;border-color:#10b981!important}
   .err{background:#ef4444!important;border-color:#ef4444!important}
+
+  /* 確認視窗 */
+  dialog{border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:420px;width:calc(100% - 32px)}
+  .dlg-body{padding:16px}
+  .dlg-title{font-weight:700;margin-bottom:8px}
+  .fld{display:flex;flex-direction:column;gap:8px}
+  .fld input{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e6edf3}
+  .fld input:focus{border-color:#60a5fa;outline:none}
+  .err{color:#ef4444;margin-top:6px;min-height:1.2em}
+  .dlg-row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .btn-sec{background:#374151}
 </style>
 </head>
 <body>
@@ -58,11 +69,27 @@
   </div>
 </div>
 
+<!-- 確認視窗 -->
+<dialog id="confirmDlg">
+  <div class="dlg-body">
+    <div class="dlg-title">確認刪除</div>
+    <div class="fld">
+      <div>將軟刪除勾選資料。請輸入 <b>admin</b> 確認。</div>
+      <input id="confirmInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="輸入 admin">
+      <div id="confirmErr" class="err"></div>
+    </div>
+    <div class="dlg-row">
+      <button id="confirmCancel" class="btn btn-sec" type="button">取消</button>
+      <button id="confirmOk" class="btn danger" type="button">確定刪除</button>
+    </div>
+  </div>
+</dialog>
+
 <script>
 /* ===== API（各頁獨立定義）===== */
 const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-/* ===== gate（沿用你底稿） ===== */
+/* ===== gate（沿用底稿） ===== */
 const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 const EXPIRE_MS = 200*60*1000;
 (function gate(){
@@ -183,8 +210,8 @@ function render(g){
     tb.appendChild(tr);
   }
   root.append(hdr, tbl);
-  setStatus("");                 // 清字
-  statusEl.classList.add('hidden'); // 成功→隱藏狀態列
+  setStatus("");
+  statusEl.classList.add('hidden');        // 成功→隱藏狀態列
   document.getElementById('submitBtn').disabled=false;
 }
 
@@ -201,44 +228,70 @@ async function softDeleteWithFlag(rows){
   return data;
 }
 
-/* 送出：訊息顯示在右下文字區，完成或失敗皆延遲 500ms 後重載 */
-document.getElementById('submitBtn').addEventListener('click', async ()=>{
-  const picks = [...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
+/* 自訂確認視窗 */
+const confirmDlg = document.getElementById('confirmDlg');
+const confirmInput = document.getElementById('confirmInput');
+const confirmErr = document.getElementById('confirmErr');
+document.getElementById('confirmCancel').addEventListener('click', ()=> confirmDlg.close());
+document.getElementById('confirmOk').addEventListener('click', async ()=>{
+  const v = (confirmInput.value||"").trim();
+  if (v !== "admin"){ confirmErr.textContent = "請輸入 admin。"; confirmInput.value=""; confirmInput.focus(); return; }
+  confirmErr.textContent = "";
+  confirmDlg.close();
+
+  const picks = cachedPicks.slice();      // 使用送出前快照
   if (!picks.length) return;
-  const code = prompt('此動作將軟刪除勾選資料。\n若確定，請輸入 "admin" 以確認：');
-  if (code!=="admin") return;
 
   try{
     setFootMsg("送出中…");
-    setStatus(""); // 上方不再顯示送出狀態
-    document.getElementById('submitBtn').disabled=true;
+    const y = window.scrollY;             // 記錄卷軸
     await softDeleteWithFlag(picks);
     setFootMsg("完成");
+    await new Promise(r=>setTimeout(r,500));
+    await loadAndRender({silent:true, preserveScroll:y}); // 靜默重載並還原卷軸
+    window.scrollTo({top:y});
   }catch(e){
     setFootMsg("失敗：" + (e?.message||e));
-    document.getElementById('submitBtn').disabled=false;
-  }finally{
     await new Promise(r=>setTimeout(r,500));
-    await loadAndRender();
+    const y = window.scrollY;
+    await loadAndRender({silent:true, preserveScroll:y});
+    window.scrollTo({top:y});
   }
 });
 
-/* 載入：成功→綠燈並隱藏狀態列；失敗→紅燈＋錯誤文案並顯示狀態列 */
-async function loadAndRender(){
-  try{
-    statusEl.classList.remove('hidden'); // 顯示「載入中…」
-    setStatus("載入中…");
-    setFootMsg("僅顯示「當日當班」且有效");
+/* 送出：改為開啟美化對話框，不用 prompt */
+let cachedPicks = [];
+document.getElementById('submitBtn').addEventListener('click', ()=>{
+  const picks = [...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
+  if (!picks.length) return;
+  cachedPicks = picks;                     // 快照
+  confirmInput.value = "";
+  confirmErr.textContent = "";
+  confirmDlg.showModal();
+  confirmInput.focus();
+});
 
+/* 載入：成功→綠燈並隱藏狀態列；失敗→紅燈＋固定錯誤文案 */
+async function loadAndRender(opts={}){
+  const silent = !!opts.silent;
+  const restoreY = Number.isFinite(opts.preserveScroll) ? opts.preserveScroll : null;
+
+  try{
+    if (!silent){
+      statusEl.classList.remove('hidden');
+      setStatus("載入中…");
+      setFootMsg("僅顯示「當日當班」且有效");
+    }
     const rows = await fetchRecentPOST();
     setNetLight("OK");
     const g = pickTodayShift(rows);
     render(g);
+    if (restoreY!=null) window.scrollTo({top:restoreY});
   }catch(e){
     setNetLight();
     setStatus("載入失敗..請通知開發人員");
-    statusEl.classList.remove('hidden'); // 顯示錯誤
-    setFootMsg("僅顯示「當日當班」且有效");
+    statusEl.classList.remove('hidden');
+    if (restoreY!=null) window.scrollTo({top:restoreY});
   }
 }
 document.addEventListener('DOMContentLoaded', loadAndRender);
