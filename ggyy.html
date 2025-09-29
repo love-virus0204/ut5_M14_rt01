@@ -1,16 +1,21 @@
 <!doctype html><meta charset="utf-8">
-<title>Native Camera Test</title>
-<button id="go">啟動相機</button>
-<video id="v" playsinline muted style="width:100%;max-width:480px;display:block;margin-top:8px"></video>
-<pre id="log" style="color:#0ff"></pre>
-<script>
-const log = m=>document.getElementById('log').textContent = m;
-document.getElementById('go').onclick = async ()=>{
-  try{
-    const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    const v = document.getElementById('v');
-    v.srcObject = s; await v.play();
-    log('相機OK：' + (v.videoWidth||'?') + 'x' + (v.videoHeight||'?'));
-  }catch(e){ log('開啟失敗：' + e.name + ' / ' + e.message); }
-};
+<title>QRScanner Test</title>
+<button id="start">開始掃描</button>
+<button id="stop">停止</button>
+<video id="cam" playsinline muted style="width:100%;max-width:480px;display:block;margin-top:8px"></video>
+<pre id="msg" style="color:#0ff"></pre>
+<script type="module">
+import { QRScanner } from './js/QRScanner.js';
+const msg = s=>document.getElementById('msg').textContent = s;
+
+QRScanner.mount({
+  videoEl:"#cam",
+  formats:["qr","code39"],
+  onFrame:i=>{ if(i&&i.w) msg(`偵測中… ${i.w}x${i.h}`); },
+  onOk:txt=>{ msg('掃到：'+txt); QRScanner.stop(); },
+  onError:err=>{ msg('錯誤：'+err); }
+});
+
+document.getElementById('start').onclick = ()=>{ try{ QRScanner.start(); }catch(e){ msg('start失敗：'+e); } };
+document.getElementById('stop').onclick  = ()=>{ try{ QRScanner.stop(); } catch(e){ msg('stop失敗：'+e); } };
 </script>
