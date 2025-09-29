@@ -6,15 +6,23 @@
 <title>Auth</title>
 <style>
   body{font-family:system-ui,Arial;margin:0;background:#0b1220;color:#e6edf3}
+  .wrap{max-width:720px;margin:0 auto;padding:16px}
+
+  /* 框：掃描時紅框閃爍（保留樣式但實作交給模組控制） */
+  #view-wrap{width:100%;position:relative;aspect-ratio:3/4;border:3px solid transparent;border-radius:12px;animation:none}
+  #view-wrap.scan{border-color:red;animation:scanblink 1s infinite}
+  @keyframes scanblink{0%{border-color:red}50%{border-color:transparent}100%{border-color:red}}
+
+  #view{aspect-ratio:3/4;background:#111827;border-radius:12px;overflow:hidden}
+  video{width:100%;height:100%;object-fit:cover}
 
   .hint{margin:12px 0;color:#93a4b7;font-size:14px}
 
   /* 三鍵置中 */
-  .bar{display:flex;gap:12px;justify-content:center;margin-top:12px} button{background:#2563eb;color:#fff;border:0;padding:10px 16px;border-radius:10px;cursor:pointer}
+  .bar{display:flex;gap:10px;justify-content:center;margin-top:12px}
+  button{background:#2563eb;color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer}
   button.secondary{background:#374151}
-
-  /* 手動輸入對話框 */
- dialog{border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:560px;width:calc(100% - 32px)}
+  dialog{border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:560px;width:calc(100% - 32px)}
   .dlg-body{padding:16px}
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
@@ -38,7 +46,6 @@
   </div>
 </div>
 
-<!-- 手動輸入對話框 -->
 <dialog id="manualDlg">
   <div class="dlg-body">
     <div class="dlg-title">輸入 128 位 QR 代碼</div>
@@ -56,113 +63,34 @@
   </div>
 </dialog>
 
+<!-- 相機改為模組：僅新增這兩段，其餘 JS 全移除 -->
+<script src="/js/QRScanner.js"></script>
 <script>
-/* 固定參數 */
-const admin_URL = "admin.html";
-const fixed_key   = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
-const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
+  const admin_URL  = "admin.html";
+  const fixed_key  = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+  const fixed_tokey= "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
-/* 元件 */
-const statusEl = document.getElementById('status');
-const wrap     = document.getElementById('view-wrap');
-const video    = document.getElementById('cam');
-const manualDlg   = document.getElementById('manualDlg');
-const manualInput = document.getElementById('manualInput');
-const manualErr   = document.getElementById('manualErr');
-
-let stream=null, detector=null, scanning=false;
-
-/* 狀態顯示 */
-const setMsg  = s => statusEl.textContent = s;
-const setIdle = () => wrap.classList.remove('scan');
-const setScan = () => wrap.classList.add('scan');
-
-/* 跳轉 */
-function gotoAdmin(){
-  sessionStorage.setItem("ts", String(Date.now()));
-  sessionStorage.setItem("tokey", fixed_tokey);
-  location.replace(admin_URL);
-}
-
-/* 相機控制 */
-async function startCam(){
-  try{
-    stopCam();
-    stream = await navigator.mediaDevices.getUserMedia({ video:{facingMode:"environment"}, audio:false });
-    video.srcObject = stream;
-    await video.play();
-    scanning = true;
-    setScan();
-    setMsg("相機已啟動，對準 QR_code 掃描。");
-    if ('BarcodeDetector' in window){
-      detector = new BarcodeDetector({ formats:['qr_code'] });
-      loopScan();
-    } else {
-      setMsg("裝置不支援 QR API，請改用『手動輸入代碼』。");
+  QRScanner.mount({
+    videoEl:   "#cam",
+    wrapEl:    "#view-wrap",
+    statusEl:  "#status",
+    startBtn:  "#startBtn",
+    stopBtn:   "#stopBtn",
+    manual: {
+      openBtn:   "#manualBtn",
+      dlg:       "#manualDlg",
+      input:     "#manualInput",
+      err:       "#manualErr",
+      okBtn:     "#manualOk",
+      cancelBtn: "#manualCancel",
+      fixedKey:  fixed_key
+    },
+    onOk: () => {
+      sessionStorage.setItem("ts", String(Date.now()));
+      sessionStorage.setItem("tokey", fixed_tokey);
+      location.replace(admin_URL);
     }
-  }catch(e){
-    setIdle();
-    setMsg("無法啟動相機。");
-  }
-}
-function stopCam(){
-  scanning = false;
-  setIdle();
-  if (video) video.pause();
-  if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-}
-async function loopScan(){
-  if (!scanning || !detector) return;
-  try{
-    const codes = await detector.detect(video);
-    if (codes && codes.length){
-      const val = String(codes[0].rawValue||"").trim();
-      if (val === fixed_key){
-        stopCam();
-        gotoAdmin();
-        return;
-      }
-    }
-  }catch(e){ /* 忽略單幀錯誤 */ }
-  requestAnimationFrame(loopScan);
-}
-
-/* 手動輸入 */
-document.getElementById('manualBtn').addEventListener('click', ()=>{
-  stopCam();
-  setMsg("已切換為手動輸入模式。");
-  manualInput.value = "";
-  manualErr.textContent = "";
-  manualDlg.showModal();
-});
-document.getElementById('manualCancel').addEventListener('click', ()=> manualDlg.close());
-document.getElementById('manualOk').addEventListener('click', ()=>{
-  const val = (manualInput.value || "").replace(/\s+/g,"").trim();
-  if (val.length !== 128){
-    manualErr.textContent = "金鑰長度須為 128 字元。";
-    manualInput.value = "";
-    return;
-  }
-  if (val !== fixed_key){
-    manualErr.textContent = "金 鑰 匹 配 錯誤";
-    manualInput.value = "";
-    return;
-  }
-  // 正確：不關閉對話框，直接跳轉
-  gotoAdmin();
-});
-
-/* 控制鍵 */
-document.getElementById('startBtn').addEventListener('click', startCam);
-document.getElementById('stopBtn').addEventListener('click', ()=>{ stopCam(); setMsg("相機已停止。"); });
-
-/* 自動啟動；離頁清理 */
-document.addEventListener('DOMContentLoaded', ()=>{
-  if (navigator.mediaDevices?.getUserMedia) startCam();
-  else setMsg("瀏覽器不支援相機，請用『手動輸入代碼』。");
-});
-window.addEventListener('pagehide', stopCam);
-window.addEventListener('beforeunload', stopCam);
+  });
 </script>
 </body>
 </html>
