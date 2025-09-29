@@ -286,7 +286,16 @@ function render(g){
   root.append(hdr, tbl);
   setStatus("");
   statusEl.classList.add('hidden');
-  document.getElementById('submitBtn').disabled=false;
+  
+  const btn = document.getElementById('submitBtn');
+  const updateBtn = ()=>{
+    const hasPick = document.querySelectorAll('.pick:checked').length > 0;
+    btn.disabled = !hasPick;
+  };
+root.querySelectorAll('.pick').forEach(cb=>{
+  cb.addEventListener('change', updateBtn);
+});
+  updateBtn();
 }
 
 /* 軟刪除：action=soft_delete + admin_id + row1,row2,... */
