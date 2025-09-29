@@ -1,206 +1,35 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QR 相機診斷工具</title>
+<meta charset="UTF-8">
+<title>QR 相機測試</title>
 <style>
-  body{margin:0;font-family:system-ui,Arial;background:#0b1220;color:#e6edf3}
-  .wrap{max-width:840px;margin:0 auto;padding:16px}
-  h1{font-size:18px;margin:0 0 12px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .card{background:#0f172a;border:1px solid #1f2937;border-radius:10px;padding:12px}
-  .row{display:flex;gap:8px;align-items:center;margin:6px 0}
-  .dot{width:10px;height:10px;border-radius:50%;background:#6b7280}
-  .dot.ok{background:#10b981}
-  .dot.err{background:#ef4444}
-  code{background:#111827;border:1px solid #1f2937;border-radius:6px;padding:1px 6px}
-  button{background:#2563eb;color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
-  button.secondary{background:#374151}
-  video{width:100%;border-radius:10px;background:#111827}
-  .mono{font-family:ui-monospace,Consolas,monospace}
-  .small{font-size:12px;color:#93a4b7}
-  .note{margin-top:8px}
+#cam{width:100%;height:100%;object-fit:cover;display:block;}
+#status{margin-top:10px;color:#0f0;font-weight:bold;text-align:center;}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>QR 相機診斷工具</h1>
+<video id="cam" autoplay playsinline muted></video>
+<div id="status">初始化中…</div>
 
-  <div class="grid">
-    <div class="card">
-      <h3>環境檢查</h3>
-      <div class="row"><span class="dot" id="s-https"></span><div>HTTPS / 安全環境</div></div>
-      <div class="row"><span class="dot" id="s-secure"></span><div><code>isSecureContext</code></div></div>
-      <div class="row"><span class="dot" id="s-media"></span><div><code>navigator.mediaDevices.getUserMedia</code></div></div>
-      <div class="row"><span class="dot" id="s-enum"></span><div><code>enumerateDevices()</code> 可用</div></div>
-      <div class="note small mono" id="env-msg"></div>
-    </div>
+<script src="js/QRScanner.js"></script>
+<script>
+  const statusEl = document.getElementById('status');
 
-    <div class="card">
-      <h3>模組載入檢查</h3>
-      <div class="row"><span class="dot" id="s-classic"></span><div>全域版 <code>window.QRScanner</code></div></div>
-      <div class="row"><span class="dot" id="s-module"></span><div>ES 模組 <code>import('./js/QRScanner.js')</code></div></div>
-      <div class="row"><span class="dot" id="s-api"></span><div>偵測 API：<code>mount</code> 或 <code>new QRScanner(...)</code></div></div>
-      <div class="note small mono" id="mod-msg"></div>
-    </div>
-  </div>
-
-  <div class="grid" style="margin-top:12px">
-    <div class="card">
-      <h3>原生相機測試（不經模組）</h3>
-      <div class="row">
-        <button id="btnNativeStart">原生開啟</button>
-        <button id="btnNativeStop" class="secondary">停止</button>
-      </div>
-      <video id="vNative" playsinline muted></video>
-      <div class="note small mono" id="native-msg"></div>
-    </div>
-
-    <div class="card">
-      <h3>QRScanner 模組測試</h3>
-      <div class="row">
-        <button id="btnModStart">模組開啟</button>
-        <button id="btnModStop" class="secondary">停止</button>
-      </div>
-      <video id="vMod" playsinline muted></video>
-      <div class="note small mono" id="mod-run-msg"></div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:12px">
-    <h3>路徑假設</h3>
-    <div class="small mono">
-      頁面：<code>/ut5_M14_rt01/cam_diag.html</code><br>
-      模組：<code>/ut5_M14_rt01/js/QRScanner.js</code><br>
-      因此引用路徑應為：<code>js/QRScanner.js</code> 或 <code>./js/QRScanner.js</code>
-    </div>
-  </div>
-</div>
-
-<!-- 嘗試以傳統方式先載入（若你的 QRScanner.js 是全域版） -->
-<script src="js/QRScanner.js" onload="window.__classicLoaded=true" onerror="window.__classicLoaded=false"></script>
-
-<script type="module">
-  const set = (id, ok, msgId, msg) => {
-    const el = document.getElementById(id);
-    el.classList.remove('ok','err');
-    el.classList.add(ok ? 'ok' : 'err');
-    if (msgId) document.getElementById(msgId).textContent = msg || '';
-  };
-
-  // 環境檢查
-  (async function envCheck(){
-    set('s-https', location.protocol === 'https:' || location.hostname === 'localhost');
-    set('s-secure', window.isSecureContext === true);
-    set('s-media', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
-    try{
-      const list = await navigator.mediaDevices?.enumerateDevices?.();
-      set('s-enum', Array.isArray(list));
-      document.getElementById('env-msg').textContent = (list||[]).map(d=>`${d.kind}: ${d.label||'(no label)'}`).join(' | ');
-    }catch(e){
-      set('s-enum', false, 'env-msg', String(e));
+  QRScanner.mount({
+    videoEl: "#cam",
+    formats: ["qr","code39"],
+    onFrame: info=>{
+      statusEl.textContent = `偵測中… ${info.w}x${info.h}`;
+    },
+    onOk: txt=>{
+      statusEl.textContent = `掃到內容：${txt}`;
+      QRScanner.stop();
+    },
+    onError: err=>{
+      statusEl.textContent = `錯誤：${err}`;
     }
-  })();
-
-  // 模組載入檢查
-  let modQR = null;
-  let hasClassic = false;
-  (async function modCheck(){
-    // 全域方式
-    hasClassic = !!window.QRScanner;
-    set('s-classic', hasClassic);
-
-    // ES 模組方式
-    try{
-      modQR = await import('./js/QRScanner.js'); // 與頁面同層的 js/
-      set('s-module', !!modQR);
-      document.getElementById('mod-msg').textContent = `module keys: ${Object.keys(modQR||{}).join(', ')}`;
-    }catch(e){
-      set('s-module', false, 'mod-msg', 'import 失敗：' + e.message);
-    }
-
-    // API 偵測
-    const hasAPI =
-      (hasClassic && (typeof window.QRScanner?.mount === 'function' || typeof window.QRScanner === 'function')) ||
-      (modQR && (typeof modQR.QRScanner?.mount === 'function' || typeof modQR.QRScanner === 'function'));
-    set('s-api', !!hasAPI);
-  })();
-
-  // 原生相機測試
-  const vNative = document.getElementById('vNative');
-  let nativeStream = null;
-  document.getElementById('btnNativeStart').onclick = async ()=>{
-    try{
-      nativeStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-      vNative.srcObject = nativeStream;
-      await vNative.play();
-      document.getElementById('native-msg').textContent = '原生相機啟動成功';
-    }catch(e){
-      document.getElementById('native-msg').textContent = '原生啟動失敗：' + e.message;
-    }
-  };
-  document.getElementById('btnNativeStop').onclick = ()=>{
-    try{
-      nativeStream?.getTracks()?.forEach(t=>t.stop());
-      vNative.srcObject = null;
-      document.getElementById('native-msg').textContent = '已停止';
-    }catch{}
-  };
-
-  // 模組相機測試
-  const vMod = document.getElementById('vMod');
-  let scanner = null;
-
-  function getQRClass(){
-    // 優先用模組，再退回全域
-    if (modQR?.QRScanner) return modQR.QRScanner;
-    if (window.QRScanner) return window.QRScanner;
-    return null;
-  }
-
-  document.getElementById('btnModStart').onclick = async ()=>{
-    const QR = getQRClass();
-    if(!QR){
-      document.getElementById('mod-run-msg').textContent = '找不到 QRScanner（模組或全域都沒有）';
-      return;
-    }
-    try{
-      // 嘗試 mount API
-      if(typeof QR.mount === 'function'){
-        QR.mount({
-          videoEl:'#vMod',
-          onOk: ()=>{ document.getElementById('mod-run-msg').textContent = '模組 mount 啟動成功（等待偵測）'; },
-          onError: msg=>{ document.getElementById('mod-run-msg').textContent = '模組錯誤：' + msg; }
-        });
-      }else{
-        // 嘗試 new API
-        scanner = new QR({
-          video: vMod,
-          onDecode: txt=>{
-            document.getElementById('mod-run-msg').textContent = '偵測到內容：' + txt;
-          },
-          onError: err=>{
-            document.getElementById('mod-run-msg').textContent = '模組錯誤：' + (err?.message||err);
-          }
-        });
-        await scanner.start?.();
-        document.getElementById('mod-run-msg').textContent = '模組啟動成功（等待偵測）';
-      }
-    }catch(e){
-      document.getElementById('mod-run-msg').textContent = '模組啟動失敗：' + e.message;
-    }
-  };
-
-  document.getElementById('btnModStop').onclick = ()=>{
-    try{
-      scanner?.stop?.();
-      // 若是 mount 形式，嘗試呼叫全域停止
-      if(getQRClass()?.stop) getQRClass().stop();
-      vMod.srcObject = null;
-      document.getElementById('mod-run-msg').textContent = '已停止';
-    }catch{}
-  };
+  });
 </script>
 </body>
 </html>
