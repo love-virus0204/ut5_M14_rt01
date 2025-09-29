@@ -94,29 +94,6 @@
 }
   .btn-sec{background:#374151}
 
-  /* 紅框閃爍效果 */
-  dialog.pulse{
-    box-shadow:
-      0 0 0 2px #ef4444,
-      inset 0 0 0 2px #ef4444,
-      0 0 12px 4px rgba(239,68,68,.45);
-    animation: dlgPulse 1.2s ease-in-out infinite;
-  }
-  @keyframes dlgPulse{
-    0%,100%{
-      box-shadow:
-        0 0 0 2px #ef4444,
-        inset 0 0 0 2px #ef4444,
-        0 0 10px 3px rgba(239,68,68,.35);
-    }
-    50%{
-      box-shadow:
-        0 0 0 3px #ef4444,
-        inset 0 0 0 3px #ef4444,
-        0 0 18px 6px rgba(239,68,68,.60);
-    }
-  }
-
 /* 錯誤提示：輸入框下方青字 */
 .hint-err{ color:#06edf3; font-size:12px; margin:6px 2px 0; }
 </style>
