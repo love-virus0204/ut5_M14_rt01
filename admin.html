@@ -116,6 +116,9 @@
         0 0 18px 6px rgba(239,68,68,.60);
     }
   }
+
+/* 錯誤提示：輸入框下方青字 */
+.hint-err{ color:#06edf3; font-size:12px; margin:6px 2px 0; }
 </style>
 </head>
 <body>
@@ -150,7 +153,7 @@
       <input id="adminId" type="text" inputmode="latin" maxlength="5" placeholder="如：AB123">
       <label for="confirmInput">確認字串</label>
       <input id="confirmInput" type="text" placeholder="輸入 admin">
-      <div id="confirmErr" class="err"></div>
+      
     </div>
     <div class="dlg-row">
       <button id="confirmCancel" class="btn btn-sec" type="button">取消</button>
@@ -286,16 +289,7 @@ function render(g){
   root.append(hdr, tbl);
   setStatus("");
   statusEl.classList.add('hidden');
-  
-  const btn = document.getElementById('submitBtn');
-  const updateBtn = ()=>{
-    const hasPick = document.querySelectorAll('.pick:checked').length > 0;
-    btn.disabled = !hasPick;
-  };
-root.querySelectorAll('.pick').forEach(cb=>{
-  cb.addEventListener('change', updateBtn);
-});
-  updateBtn();
+  document.getElementById('submitBtn').disabled=false;
 }
 
 /* 軟刪除：action=soft_delete + admin_id + row1,row2,... */
@@ -383,7 +377,7 @@ document.getElementById('submitBtn').addEventListener('click',(ev)=>{
   const picks=[...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
   if(!picks.length) return;
   cachedPicks=picks;
-  confirmInput.value=""; confirmErr.textContent="";
+  confirmInput.value=""; clearErr(confirmInput); clearErr(adminIdEl);
   document.activeElement && document.activeElement.blur();
   confirmDlg.showModal();
   confirmDlg.classList.add('pulse');    // 紅框閃爍
@@ -411,18 +405,17 @@ document.getElementById('confirmOk').addEventListener('click', async ()=>{
   const id = (adminIdEl.value || "").toUpperCase();
   const v  = (confirmInput.value || "").trim();
   if (id.length !== 5){
-    confirmErr.textContent = "admin_id 需為 5 碼英數。";
+    showErr(confirmInput, "admin_id 需為 5 碼英數。");
     adminIdEl.focus({preventScroll:true});
     return;
   }
   if (v !== "admin"){
-    confirmErr.textContent = "請輸入 admin。";
-    confirmInput.value = "";
+    showErr(confirmInput, "請輸入 admin。"); confirmInput.value="";
     confirmInput.focus({preventScroll:true});
     return;
   }
   saveDraft({ admin_id: id });
-  confirmErr.textContent = "";
+  clearErr(confirmInput); clearErr(adminIdEl);
   confirmDlg.classList.remove('pulse');
   confirmDlg.close();
   scrollToBottom();
@@ -456,6 +449,19 @@ async function loadAndRender(){
   }
 }
 document.addEventListener('DOMContentLoaded', loadAndRender);
+
+/* ---- 錯誤提示：輸入框下方青字 ---- */
+function clearErr(inputEl){
+  const next = inputEl && inputEl.nextElementSibling;
+  if(next && next.classList && next.classList.contains('hint-err')) next.remove();
+}
+function showErr(inputEl, msg){
+  clearErr(inputEl);
+  const div = document.createElement('div');
+  div.className = 'hint-err';
+  div.textContent = msg;
+  inputEl.insertAdjacentElement('afterend', div);
+}
 </script>
 </body>
 </html>
