@@ -1,73 +1,92 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dialog 浮動視窗測試器</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dialog 排查工具</title>
 <style>
   :root{ --bg:#0b1220; --ink:#e6edf3; }
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{max-width:720px;margin:24px auto;padding:0 16px}
   .card{background:#111827;border:1px solid #374151;border-radius:12px;padding:16px}
-  .row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:12px}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
   .btn{background:#ef4444;color:#fff;border:0;border-radius:10px;cursor:pointer;min-width:120px;height:36px;line-height:36px;padding:0 14px}
+  .btn.sec{background:#374151}
+  .note{font-size:12px;color:#9ca3af;margin-top:8px}
 
-  /* ===== Dialog 置中與尺寸 ===== */
+  /* ========== Dialog 置中與尺寸 ========== */
   dialog{
     position:fixed;
-    top:15vh;                /* JS 僅更新 top，水平靠 transform 置中 */
+    top:15vh;                 /* JS 僅更新 top */
     left:50%;
     transform:translateX(-50%);
     width:min(92vw, 380px);
-    margin:0;
-    padding:0;
-    background:#0f172a;
-    color:#e6edf3;
-
-    /* 取消瀏覽器預設線條與陰影 */
-    border:none; outline:none; box-shadow:none;
+    margin:0; padding:0;
+    background:#0f172a; color:#e6edf3;
+    border:none; outline:none;
+    /* ① 可能來源A：外框（紅） */
+    box-shadow: 0 0 0 2px #ff2b2b;
   }
 
-  /* ===== 測試：把候選線條各自塗色 ===== */
-  /* 1) dialog 外框（紅）→ 如果你仍看到紅線，來源在這 */
-  dialog{ box-shadow: 0 0 0 2px #ff2b2b; }
+  /* ② 可能來源B：內框 inset（橘）→ 若你看到一條貼著內容邊緣的橘線，就是它 */
+  dialog.inset {
+    box-shadow:
+      0 0 0 2px #ff2b2b,
+      inset 0 0 0 2px #ffa500,
+      0 0 10px 4px rgba(255,165,0,.35);
+  }
 
-  /* 2) 標題底線（藍） */
-  .dlg-title{ font-weight:700; margin:0 0 8px 0; padding-bottom:6px; border-bottom:2px solid #2b7bff; }
+  /* ===== 內容區 ===== */
+  .dlg-body{
+    box-sizing:border-box;
+    padding:14px;
+    /* ③ 可能來源C：內容外框（綠） */
+    border:2px solid #2bff7b;
+    border-radius:12px;
+  }
+  /* ④ 可能來源D：標題底線（藍） */
+  .dlg-title{font-weight:700;margin:0 0 8px 0;padding-bottom:6px;border-bottom:2px solid #2b7bff}
 
-  /* 3) 內容外框（綠） */
-  .dlg-body{ box-sizing:border-box; padding:14px; border:2px solid #2bff7b; border-radius:12px; }
-
-  /* 4) 按鈕區頂線（洋紅） */
-  .dlg-row{ display:flex; gap:8px; justify-content:flex-end; margin-top:12px; padding-top:10px; border-top:2px solid #ff2be6; }
-
-  /* 表單外觀 */
   .fld{display:flex;flex-direction:column;gap:8px}
   .fld label{font-size:12px;color:#94a3b8;margin-left:4px}
+  /* ⑤ 可能來源E：輸入框本身邊線（黃） */
   .fld input{
-    padding:10px 16px;border-radius:10px;border:1px solid #334155;
+    padding:10px 16px;border-radius:10px;border:2px solid #ffd54a;
     background:#0b1220;color:#e6edf3;
   }
+  .fld input:focus{outline:none;border-color:#ffe082}
   .fld input::placeholder{color:#9ca3af;opacity:1;font-size:14px}
 
-  .dlg-foot{display:flex;gap:8px;justify-content:flex-end}
-  .btn-sec{background:#374151}
+  /* ⑥ 可能來源F：錯誤訊息容器（青） */
+  #confirmErr{
+    color:#00e5ff; background:#00353d; border:2px solid #00e5ff;
+    padding:6px 8px; border-radius:8px; margin-top:8px; display:none;
+  }
+  #confirmErr.show{ display:block; }
+
+  /* ⑦ 可能來源G：按鈕區頂線（紫） */
+  .dlg-row{
+    display:flex; gap:8px; justify-content:flex-end;
+    margin-top:12px; padding-top:10px; border-top:2px solid #ff2be6;
+  }
+
+  .btn-ghost{background:transparent;border:1px solid #475569;color:#e6edf3}
 </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h2>浮動視窗線條來源測試</h2>
-      <ol>
-        <li>按下「送出刪除」會開啟 <code>&lt;dialog&gt;</code>。</li>
-        <li>我把候選線條各自染色：紅=dialog外框、藍=標題底線、綠=內容外框、洋紅=按鈕區頂線。</li>
-        <li>你看到哪條，就是哪個區塊在畫線。</li>
-      </ol>
+      <h2>浮動視窗線條排查工具</h2>
+      <p>點「開窗」即可。切換各種可能來源來判斷是哪條在畫線。</p>
       <div class="row">
-        <button id="open" class="btn" type="button">送出刪除</button>
-        <button id="close" class="btn btn-sec" type="button">關閉視窗</button>
+        <button id="open"  class="btn"     type="button">開窗</button>
+        <button id="close" class="btn sec" type="button">關窗</button>
+        <button id="toggleInset" class="btn-ghost" type="button">切換內框 inset</button>
+        <button id="toggleErr"   class="btn-ghost" type="button">切換錯誤訊息</button>
+        <button id="toggleOuter" class="btn-ghost" type="button">切換外框紅線</button>
       </div>
+      <div class="note">說明：外框=紅、內框=橘、標題底線=藍、內容外框=綠、按鈕頂線=紫、錯誤容器=青、輸入框邊線=黃。</div>
     </div>
   </div>
 
@@ -80,17 +99,18 @@
         <input id="adminId" type="text" inputmode="latin" maxlength="5" placeholder="如：AB123">
         <label for="confirmInput">確認字串</label>
         <input id="confirmInput" type="text" placeholder="輸入 admin">
+        <div id="confirmErr">這是錯誤訊息容器（青色）。</div>
       </div>
       <div class="dlg-row">
-        <button id="cancel" class="btn btn-sec" type="button">取消</button>
-        <button id="ok" class="btn" type="button">確定刪除</button>
+        <button id="cancel" class="btn sec" type="button">取消</button>
+        <button id="ok"     class="btn"     type="button">確定刪除</button>
       </div>
     </div>
   </dialog>
 
 <script>
 const dlg = document.getElementById('confirmDlg');
-const adminIdEl = document.getElementById('adminId');
+const err = document.getElementById('confirmErr');
 
 /* 只控制垂直位置；左右置中交給 CSS */
 function placeDialogTop(d){
@@ -107,11 +127,30 @@ if (window.visualViewport){
 document.getElementById('open').addEventListener('click', ()=>{
   dlg.showModal();
   placeDialogTop(dlg);
-  adminIdEl.focus({preventScroll:true});
 });
 document.getElementById('close').addEventListener('click', ()=> dlg.close());
 document.getElementById('cancel').addEventListener('click', ()=> dlg.close());
 document.getElementById('ok').addEventListener('click', ()=> dlg.close());
+
+/* 切換：內框 inset 橘線 */
+document.getElementById('toggleInset').addEventListener('click', ()=>{
+  dlg.classList.toggle('inset');
+});
+
+/* 切換：錯誤訊息容器（青） */
+document.getElementById('toggleErr').addEventListener('click', ()=>{
+  err.classList.toggle('show');
+});
+
+/* 切換：外框紅線 */
+document.getElementById('toggleOuter').addEventListener('click', ()=>{
+  const has = getComputedStyle(dlg).boxShadow;
+  if (has && has !== 'none'){
+    dlg.style.boxShadow = 'none';
+  }else{
+    dlg.style.boxShadow = '0 0 0 2px #ff2b2b';
+  }
+});
 </script>
 </body>
 </html>
