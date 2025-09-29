@@ -1,17 +1,19 @@
-<button id="go">啟動相機2</button>
-<video id="v" playsinline muted style="width:100%;max-width:480px;display:block;margin-top:8px"></video>
+<!doctype html><meta charset="utf-8">
+<title>QRScanner Test</title>
+<button id="start">開始掃描3</button>
+<button id="stop">停止2</button>
+<video id="cam" playsinline muted style="width:100%;max-width:480px;display:block;margin-top:8px"></video>
+<pre id="msg" style="color:#0ff;white-space:pre-wrap"></pre>
+<script type="module">
+import { QRScanner } from './js/QRScanner.js';
+const msg = s=>document.getElementById('msg').textContent=s;
 
-<script>
-document.getElementById('go').onclick = async ()=>{
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } }
-    });
-    document.getElementById('v').srcObject = stream;
-    await document.getElementById('v').play();
-    alert("相機成功啟動！");
-  } catch(e) {
-    alert("相機開啟失敗：" + e.name + " / " + e.message);
-  }
-};
+QRScanner.mount({
+  videoEl:"#cam",
+  onOk: txt=>{ msg('掃到：'+txt); QRScanner.stop(); },
+  onError: err=>{ msg('錯誤：'+err); }
+});
+
+document.getElementById('start').onclick = ()=> QRScanner.start();
+document.getElementById('stop').onclick  = ()=> QRScanner.stop();
 </script>
