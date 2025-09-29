@@ -85,6 +85,12 @@
   document.getElementById('startBtn')?.addEventListener('click', () => QRScanner.start());
   document.getElementById('stopBtn') ?.addEventListener('click', () => QRScanner.stop());
 
+document.getElementById('manualBtn')?.addEventListener('click', () => {
+  try { QRScanner.stop(); } catch (_) {}
+  document.getElementById('manualDlg')?.showModal();
+  document.getElementById('manualInput')?.focus();
+});
+
 // --- Auto start camera once after first render ---
 let _autoStarted = false;
 const autoStartOnce = () => {
