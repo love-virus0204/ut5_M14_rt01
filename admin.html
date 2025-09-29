@@ -376,24 +376,24 @@ document.getElementById('submitBtn').addEventListener('click',(ev)=>{
   confirmInput.value=""; clearErr(confirmInput); clearErr(adminIdEl);
   document.activeElement && document.activeElement.blur();
   confirmDlg.showModal();
-  confirmDlg.classList.add('pulse');    // 紅框閃爍
+  confirmDlg.classList.add('dlg-flash');
   placeDialogTop(confirmDlg);
   adminIdEl.focus({preventScroll:true});
 });
 
 document.getElementById('confirmCancel').addEventListener('click',()=>{
-  confirmDlg.classList.remove('pulse');
+  confirmDlg.classList.remove('');
   confirmDlg.close();
   scrollToBottom();
 });
 confirmDlg.addEventListener('cancel', e=>{
   e.preventDefault();
-  confirmDlg.classList.remove('pulse');
+  confirmDlg.classList.remove('dlg-flash');
   confirmDlg.close();
   scrollToBottom();
 });
 confirmDlg.addEventListener('close', ()=>{
-  confirmDlg.classList.remove('pulse');
+  confirmDlg.classList.remove('dlg-flash');
   resetDialogPos(confirmDlg);
 });
 
@@ -412,7 +412,7 @@ document.getElementById('confirmOk').addEventListener('click', async ()=>{
   }
   saveDraft({ admin_id: id });
   clearErr(confirmInput); clearErr(adminIdEl);
-  confirmDlg.classList.remove('pulse');
+  confirmDlg.classList.remove('dlg-flash');
   confirmDlg.close();
   scrollToBottom();
 
