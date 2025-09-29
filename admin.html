@@ -38,48 +38,67 @@
   .ok{background:#10b981!important;border-color:#10b981!important}
   .err{background:#ef4444!important;border-color:#ef4444!important}
 
-  /* 確認視窗 */
+  /* 對話框：水平置中，寬度等比縮放；內容比例內縮 */
   dialog{
-  /* width:80%; 佔視窗 80% 寬度
-    max-width:420px; 但最多 420px
-    min-width:280px; 最少 280px */
-    top:15vh; /* 只控制垂直 */
+    position:fixed;
+    top:15vh;                 /* 初始垂直位置，JS 僅調整 top */
     left:50%;
-    transform:translateX(-50%); /* 水置中 */
-    width:min(92vw, 380px);
-    margin:0 auto; /* 自動左右置中 */
-    border:none;
-    border-radius:12px;
-    padding:0;
-    background:#0f172a;
-    color:#e6edf3;
-    position:fixed; }
-
+    transform:translateX(-50%);
+    width:min(92vw, 380px);   /* 視窗寬度 */
+    margin:0;border:none;border-radius:12px;padding:0;
+    background:#0f172a;color:#e6edf3;
+  }
   .dlg-body{
     box-sizing:border-box;
-    padding-block:5%; /* 上下比, 左右比 */
-    padding-inline:7%; }
-
+    padding:5% 7%;            /* 上下 5%，左右 7% 比例內縮 */
+  }
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
 
+  /* 輸入與 placeholder 內縮、協調 */
   .fld label{
     font-size:12px;
     color:#94a3b8;
-    margin-left:4px;} /* 輕微往內縮 */
-
+    margin-left:4px;          /* label 輕微內縮 */
+  }
   .fld input{
-    padding:10px 16px; /* 文字更內縮 */
-    border-radius:10px;
-    border:1px solid #334155;
-    background:#0b1220;
-    color:#e6edf3;}
-/* .fld input::placeholder{color:#6b7280;} */
-
+    padding:10px 16px;        /* 文字與 placeholder 左右內縮 */
+    border-radius:10px;border:1px solid #334155;
+    background:#0b1220;color:#e6edf3;
+  }
   .fld input:focus{border-color:#60a5fa;outline:none}
+  .fld input::placeholder{
+    color:#9ca3af;            /* 統一 placeholder 顏色 */
+    opacity:1;
+    font-size:14px;
+  }
+
   .err{color:#ef4444;margin-top:6px;min-height:1.2em}
   .dlg-row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
   .btn-sec{background:#374151}
+
+  /* 紅框閃爍效果 */
+  dialog.pulse{
+    box-shadow:
+      0 0 0 2px #ef4444,
+      inset 0 0 0 2px #ef4444,
+      0 0 12px 4px rgba(239,68,68,.45);
+    animation: dlgPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes dlgPulse{
+    0%,100%{
+      box-shadow:
+        0 0 0 2px #ef4444,
+        inset 0 0 0 2px #ef4444,
+        0 0 10px 3px rgba(239,68,68,.35);
+    }
+    50%{
+      box-shadow:
+        0 0 0 3px #ef4444,
+        inset 0 0 0 3px #ef4444,
+        0 0 18px 6px rgba(239,68,68,.60);
+    }
+  }
 </style>
 </head>
 <body>
@@ -257,7 +276,7 @@ function render(g){
 async function softDeleteWithFlag(rows, adminId){
   const body = new URLSearchParams();
   body.append("action", "soft_delete");
-  body.append("admin_id", adminId);     // 用 admin_id 傳值
+  body.append("admin_id", adminId);
   rows.forEach((r,i)=> body.append(`row${i+1}`, String(r)));
   const res = await fetch(API_BASE, { method:"POST", body });
   if (!res.ok) throw new Error("HTTP " + res.status);
@@ -266,21 +285,15 @@ async function softDeleteWithFlag(rows, adminId){
   return data;
 }
 
-/* 對話框定位於可視區上方 15% */
+/* 只控制垂直；水平交給 CSS */
 function placeDialogTop(dlg){
   const vv = window.visualViewport;
   if (!vv || !dlg.open) return;
-  // 距離頂部至少 12px，其餘依視窗高度取 15%
   const top = Math.max(12, vv.offsetTop + vv.height * 0.15);
   dlg.style.top = `${top}px`;
-  transform:translateX(-50%)
 }
+function resetDialogPos(dlg){ dlg.style.top = ''; }
 
-function resetDialogPos(dlg){
-  dlg.style.position = '';
-  dlg.style.top = '';
-  dlg.style.left = '';
-}
 if (window.visualViewport){
   visualViewport.addEventListener('resize', ()=> placeDialogTop(confirmDlg));
   visualViewport.addEventListener('scroll', ()=> placeDialogTop(confirmDlg));
@@ -303,7 +316,7 @@ function saveDraft(patch){
   localStorage.setItem(key, JSON.stringify(out));
 }
 
-/* 對話框元素與規則 */
+/* 對話框元素 */
 const confirmDlg   = document.getElementById('confirmDlg');
 const adminIdEl    = document.getElementById('adminId');
 const confirmInput = document.getElementById('confirmInput');
@@ -316,7 +329,7 @@ const confirmErr   = document.getElementById('confirmErr');
     adminIdEl.value = (d.admin_id || "").toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
   }
 })();
-/* 輸入→大寫、英數、<=5，滿 5 碼才存草稿；blur 未滿清空 */
+/* 輸入規則 */
 adminIdEl.addEventListener('input', ()=>{
   let v = adminIdEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,5);
   adminIdEl.value = v;
@@ -347,19 +360,26 @@ document.getElementById('submitBtn').addEventListener('click',(ev)=>{
   confirmInput.value=""; confirmErr.textContent="";
   document.activeElement && document.activeElement.blur();
   confirmDlg.showModal();
+  confirmDlg.classList.add('pulse');    // 紅框閃爍
   placeDialogTop(confirmDlg);
   adminIdEl.focus({preventScroll:true});
 });
+
 document.getElementById('confirmCancel').addEventListener('click',()=>{
+  confirmDlg.classList.remove('pulse');
   confirmDlg.close();
   scrollToBottom();
 });
 confirmDlg.addEventListener('cancel', e=>{
   e.preventDefault();
+  confirmDlg.classList.remove('pulse');
   confirmDlg.close();
   scrollToBottom();
 });
-confirmDlg.addEventListener('close', ()=>{ resetDialogPos(confirmDlg); });
+confirmDlg.addEventListener('close', ()=>{
+  confirmDlg.classList.remove('pulse');
+  resetDialogPos(confirmDlg);
+});
 
 document.getElementById('confirmOk').addEventListener('click', async ()=>{
   const id = (adminIdEl.value || "").toUpperCase();
@@ -377,6 +397,7 @@ document.getElementById('confirmOk').addEventListener('click', async ()=>{
   }
   saveDraft({ admin_id: id });
   confirmErr.textContent = "";
+  confirmDlg.classList.remove('pulse');
   confirmDlg.close();
   scrollToBottom();
 
