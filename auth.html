@@ -83,9 +83,9 @@
       location.replace(admin_URL);
     },
     onError: (err) => console.log("QR err:", err)
+    }).then(() => {
+      QRScanner.start(); // 完成後自動開相機
   });
-
-  // 若頁面有開始/停止按鈕就綁定，沒有可忽略
   document.getElementById('startBtn')?.addEventListener('click', () => QRScanner.start());
   document.getElementById('stopBtn') ?.addEventListener('click', () => QRScanner.stop());
 </script>
