@@ -39,12 +39,36 @@
   .err{background:#ef4444!important;border-color:#ef4444!important}
 
   /* 確認視窗 */
-  dialog{margin:0;border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:420px;width:calc(100% - 32px)}
-  .dlg-body{padding:16px}
+ dialog{
+  margin:0 auto; /* 自動左右置中 */
+  border:none;
+  border-radius:12px;
+  padding:0;
+  background:#0f172a;
+  color:#e6edf3;
+  width:80%; /* 佔視窗 80% 寬度 */
+  max-width:420px; /* 但最多 420px */
+  min-width:280px; /* 最少 280px */
+}
+  /* 內縮，上下5%，左右7% */
+  .dlg-body{padding:5% 7%;}
+  /* .dlg-body{padding:16px} */
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
-  .fld label{font-size:12px;color:#94a3b8}
-  .fld input{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e6edf3}
+
+  .fld label{
+    font-size:12px;
+    color:#94a3b8;
+    margin-left:4px;} /* 輕微往內縮 */
+
+  .fld input{
+    padding:10px 16px; /* 文字更內縮 */
+    border-radius:10px;
+    border:1px solid #334155;
+    background:#0b1220;
+    color:#e6edf3;}
+/* .fld input::placeholder{color:#6b7280;} */
+
   .fld input:focus{border-color:#60a5fa;outline:none}
   .err{color:#ef4444;margin-top:6px;min-height:1.2em}
   .dlg-row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
