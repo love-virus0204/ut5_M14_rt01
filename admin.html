@@ -206,9 +206,9 @@ function nowCorrected(){
 }
 function computeShiftByClockFrom(d){
   const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
-  if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'C'}; }
-  if(mins>=520 && mins<1000){ return {baseDate:d, shift:'A'}; }
-  if(mins>=1000){ return {baseDate:d, shift:'B'}; }
+  if(mins>=120 && mins<600){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'C'}; }
+  if(mins>=600 && mins<1080){ return {baseDate:d, shift:'A'}; }
+  if(mins>=1080){ return {baseDate:d, shift:'B'}; }
   const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'B'};
 }
 function ymdToSerial(y,m,d){
@@ -289,7 +289,16 @@ function render(g){
   root.append(hdr, tbl);
   setStatus("");
   statusEl.classList.add('hidden');
-  document.getElementById('submitBtn').disabled=false;
+
+  const btn = document.getElementById('submitBtn');
+  const updateBtn = ()=>{
+  const hasPick = document.querySelectorAll('.pick:checked').length > 0;
+  btn.disabled = !hasPick;
+};
+root.querySelectorAll('.pick').forEach(cb=>{
+  cb.addEventListener('change', updateBtn);
+});
+  updateBtn();
 }
 
 /* 軟刪除：action=soft_delete + admin_id + row1,row2,... */
