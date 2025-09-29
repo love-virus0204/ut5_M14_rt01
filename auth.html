@@ -83,6 +83,26 @@ const ok = QRScanner.mount({
   onError: err => console.log("QR err:", err)
 });
   requestAnimationFrame(()=>{ if (ok) QRScanner.start(); }); // 自動開相機
+
+// 綁定停止相機
+document.getElementById("stopBtn").addEventListener("click", ()=>{
+  QRScanner.stop();
+});
+
+// 綁定手動輸入框事件
+const dlg = document.getElementById("manualDlg");
+document.getElementById("manualBtn").addEventListener("click", ()=> dlg.showModal());
+document.getElementById("manualCancel").addEventListener("click", ()=> dlg.close());
+document.getElementById("manualOk").addEventListener("click", ()=>{
+  const val = document.getElementById("manualInput").value.trim();
+  if(val === fixed_key){
+    sessionStorage.setItem("ts", String(Date.now()));
+    sessionStorage.setItem("tokey", fixed_tokey);
+    location.replace(admin_URL);
+  }else{
+    document.getElementById("manualErr").textContent = "代碼錯誤";
+  }
+});
 </script>
 </body>
 </html>
