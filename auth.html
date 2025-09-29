@@ -102,6 +102,47 @@ const autoStartOnce = () => {
 };
 window.addEventListener('DOMContentLoaded', autoStartOnce, { once: true });
 // --- end auto start block ---
+
+const dlg = document.getElementById('manualDlg');
+const input = document.getElementById('manualInput');
+const errEl = document.getElementById('manualErr');
+
+document.getElementById('manualBtn')?.addEventListener('click', () => {
+  try { QRScanner.stop(); } catch(_) {}
+  errEl.textContent = '';
+  input.value = '';
+  dlg.showModal();
+  input.focus();
+});
+
+document.getElementById('manualOk')?.addEventListener('click', () => {
+  const v = input.value.trim();
+  if (v !== fixed_key) {
+    errEl.textContent = '金鑰不正確';
+    input.value = '';
+    input.focus();
+    return;
+  }
+  try { QRScanner.stop(); } catch(_) {}
+  dlg.close();
+  location.href = admin_URL;
+});
+
+document.getElementById('manualCancel')?.addEventListener('click', () => {
+  dlg.close();
+  errEl.textContent = '';
+  input.value = '';
+  try { QRScanner.start(); } catch(_) {}
+});
+
+input?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('manualOk')?.click(); }
+});
+
+// 讓 Enter 等同按下 OK（可選）
+manualInput?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); manualOk?.click(); }
+});
 </script>
 </body>
 </html>
