@@ -1,108 +1,96 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Auth</title>
-<style>
-  body{font-family:system-ui,Arial;margin:0;background:#0b1220;color:#e6edf3}
-  .wrap{max-width:720px;margin:0 auto;padding:16px}
-
-  /* 框：掃描時紅框閃爍（保留樣式但實作交給模組控制） */
-  #view-wrap{width:100%;position:relative;aspect-ratio:3/4;border:3px solid transparent;border-radius:12px;animation:none}
-  #view-wrap.scan{border-color:red;animation:scanblink 1s infinite}
-  @keyframes scanblink{0%{border-color:red}50%{border-color:transparent}100%{border-color:red}}
-
-  #view{aspect-ratio:3/4;background:#111827;border-radius:12px;overflow:hidden}
-  video{width:100%;height:100%;object-fit:cover}
-
-  .hint{margin:12px 0;color:#93a4b7;font-size:14px}
-
-  /* 三鍵置中 */
-  .bar{display:flex;gap:10px;justify-content:center;margin-top:12px}
-  button{background:#2563eb;color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer}
-  button.secondary{background:#374151}
-  dialog{border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:560px;width:calc(100% - 32px)}
-  .dlg-body{padding:16px}
-  .dlg-title{font-weight:700;margin-bottom:8px}
-  .fld{display:flex;flex-direction:column;gap:8px}
-  .fld input{padding:12px 14px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e6edf3;font-family:monospace}
-  .fld input:focus{border-color:#60a5fa;outline:none}
-  .fld small{color:#94a3b8}
-  .err{color:#ef4444;margin-top:6px;min-height:1.2em}
-  .dlg-row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="wrap">
-  <div id="status" class="hint">請允許相機權限以開始掃描 QR。</div>
   <div id="view-wrap">
-    <div id="view"><video id="cam" autoplay playsinline muted></video></div>
+    <video id="cam" autoplay muted playsinline></video>
+    <div id="status">初始化中...</div>
   </div>
-  <div class="bar">
-    <button id="startBtn">開始掃描</button>
-    <button id="stopBtn"  class="secondary">停止相機</button>
-    <button id="manualBtn" class="secondary">輸入金鑰</button>
-  </div>
-</div>
 
-<dialog id="manualDlg">
-  <div class="dlg-body">
-    <div class="dlg-title">輸入 128 位 QR 代碼</div>
-    <div class="fld">
-      <input id="manualInput" type="text" maxlength="128"
-             autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
-             placeholder="輸入 128 字元金鑰">
-      <small>只接受配對的固定 Key，大小寫需完全一致。</small>
-      <div id="manualErr" class="err"></div>
+  <div class="btn-row">
+    <button id="startBtn">啟動相機</button>
+    <button id="stopBtn">停止相機</button>
+    <button id="manualBtn">手動輸入</button>
+  </div>
+
+  <dialog id="manualDlg">
+    <div class="dlg-body">
+      <label for="manualInput">輸入代碼：</label>
+      <input id="manualInput" type="text" placeholder="請輸入 128 位代碼">
+      <div id="manualErr" class="err-msg"></div>
+      <div class="dlg-row">
+        <button id="manualOk">確定</button>
+        <button id="manualCancel">取消</button>
+      </div>
     </div>
-    <div class="dlg-row">
-      <button id="manualCancel" class="secondary">取消</button>
-      <button id="manualOk">確定</button>
-    </div>
-  </div>
-</dialog>
+  </dialog>
 
-<script type="module">
-import { QRScanner } from './js/QRScanner.js';
+  <script type="module">
+    import { QRScanner } from './js/QRScanner.js';
 
-const admin_URL   = "admin.html";
-const fixed_key   = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
-const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
+    const admin_URL   = "admin.html";
+    const fixed_key   = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+    const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
-const ok = QRScanner.mount({
-  videoEl: "#cam",
-  formats: ["qr"],
-  mode: "stop-on-valid",
-  isValid: txt => txt === fixed_key,
-  onOk: () => {
-    sessionStorage.setItem("ts", String(Date.now()));
-    sessionStorage.setItem("tokey", fixed_tokey);
-    location.replace(admin_URL);
-  },
-  onError: err => console.log("QR err:", err)
-});
-  requestAnimationFrame(()=>{ if (ok) QRScanner.start(); }); // 自動開相機
+    // 掛載 QRScanner
+    const ok = QRScanner.mount({
+      videoEl: "#cam",
+      wrapEl: "#view-wrap",
+      statusEl: "#status",
+      startBtn: "#startBtn",
+      stopBtn: "#stopBtn",
+      manual: {
+        openBtn: "#manualBtn",
+        dlg: "#manualDlg",
+        input: "#manualInput",
+        err: "#manualErr",
+        okBtn: "#manualOk",
+        cancelBtn: "#manualCancel",
+        fixedKey: fixed_key
+      },
+      formats: ["qr"],
+      mode: "stop-on-valid",
+      isValid: txt => txt === fixed_key,
+      onOk: () => {
+        sessionStorage.setItem("ts", String(Date.now()));
+        sessionStorage.setItem("tokey", fixed_tokey);
+        location.replace(admin_URL);
+      },
+      onError: err => console.log("QR err:", err)
+    });
 
-// 綁定停止相機
-document.getElementById("stopBtn").addEventListener("click", ()=>{
-  QRScanner.stop();
-});
+    // 進入頁面自動開相機一次
+    requestAnimationFrame(()=>{
+      if(ok) QRScanner.start();
+    });
 
-// 綁定手動輸入框事件
-const dlg = document.getElementById("manualDlg");
-document.getElementById("manualBtn").addEventListener("click", ()=> dlg.showModal());
-document.getElementById("manualCancel").addEventListener("click", ()=> dlg.close());
-document.getElementById("manualOk").addEventListener("click", ()=>{
-  const val = document.getElementById("manualInput").value.trim();
-  if(val === fixed_key){
-    sessionStorage.setItem("ts", String(Date.now()));
-    sessionStorage.setItem("tokey", fixed_tokey);
-    location.replace(admin_URL);
-  }else{
-    document.getElementById("manualErr").textContent = "代碼錯誤";
-  }
-});
-</script>
+    // 綁定開始/停止相機按鈕（可反覆控制）
+    document.getElementById("startBtn").addEventListener("click", ()=>{
+      QRScanner.start();
+    });
+    document.getElementById("stopBtn").addEventListener("click", ()=>{
+      QRScanner.stop();
+    });
+
+    // 手動輸入框對話框事件
+    const dlg = document.getElementById("manualDlg");
+    document.getElementById("manualBtn").addEventListener("click", ()=> dlg.showModal());
+    document.getElementById("manualCancel").addEventListener("click", ()=> dlg.close());
+    document.getElementById("manualOk").addEventListener("click", ()=>{
+      const val = document.getElementById("manualInput").value.trim();
+      if(val === fixed_key){
+        sessionStorage.setItem("ts", String(Date.now()));
+        sessionStorage.setItem("tokey", fixed_tokey);
+        location.replace(admin_URL);
+      }else{
+        document.getElementById("manualErr").textContent = "代碼錯誤";
+      }
+    });
+  </script>
 </body>
 </html>
