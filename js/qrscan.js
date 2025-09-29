@@ -19,8 +19,8 @@ export class QRScanner {
     this.paths = {
       quaggaCDN:   "https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.2.6/dist/quagga.min.js",
       quaggaLocal: "./quagga.min.js",
-      jsqrLocal:   "./jsQR.js",
-      jsqrCDN:     "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js",
+      jsqrLocal:   "./jsQR.min.js",
+      jsqrCDN:     "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
     };
 
     // 回呼
