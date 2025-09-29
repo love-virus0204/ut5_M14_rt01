@@ -66,24 +66,28 @@
 <script type="module">
   import { QRScanner } from './js/QRScanner.js';
 
-  const admin_URL = "admin.html";
-  const genTokey = () =>
-    Array.from(crypto.getRandomValues(new Uint8Array(32)))
-      .map(b=>b.toString(16).padStart(2,"0")).join("");
+  // 固定值（用你專案的）
+  const admin_URL   = "admin.html";
+  const fixed_key   = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+  const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
+  // 掃到正確才停止 → 預設只掃 QR
   QRScanner.mount({
-    videoEl:"#cam",
+    videoEl: "#cam",
+    formats: ["qr"],
+    mode: "stop-on-valid",
+    isValid: (txt) => txt === fixed_key,
     onOk: () => {
       sessionStorage.setItem("ts", String(Date.now()));
-      sessionStorage.setItem("tokey", genTokey());
+      sessionStorage.setItem("tokey", fixed_tokey);
       location.replace(admin_URL);
     },
-    onError: err => console.log("ERR:", err)
+    onError: (err) => console.log("QR err:", err)
   });
 
-  // 需用手勢啟動
-  document.getElementById('startBtn')?.addEventListener('click', ()=>QRScanner.start());
-  document.getElementById('stopBtn')?.addEventListener('click',  ()=>QRScanner.stop());
+  // 若頁面有開始/停止按鈕就綁定，沒有可忽略
+  document.getElementById('startBtn')?.addEventListener('click', () => QRScanner.start());
+  document.getElementById('stopBtn') ?.addEventListener('click', () => QRScanner.stop());
 </script>
 </body>
 </html>
