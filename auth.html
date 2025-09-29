@@ -32,10 +32,12 @@
   .err{color:#ef4444;margin-top:6px;min-height:1.2em}
   .dlg-row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
 
+
+  #btns {margin-top: 20px;}
   #videoEl {
     width: 240px;     /* 固定寬 */
     height: 320px;    /* 固定高 */
-    object-fit: cover; /* 填滿裁切，保持 */
+    /* object-fit: cover;  填滿裁切，保持 */
   }
   dialog#manualDlg {
     position: fixed;
@@ -43,7 +45,7 @@
     top: 15%;
     left: 50%;
     transform: translateX(-50%);
-}
+  }
 /* ===== 強制輸入字體大小避免縮放 ===== */
 input, select, textarea { font-size:16px; }
 </style>
