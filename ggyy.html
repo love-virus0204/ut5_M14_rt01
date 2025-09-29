@@ -1,30 +1,17 @@
 <button id="go">啟動相機</button>
 <video id="v" playsinline muted style="width:100%;max-width:480px;display:block;margin-top:8px"></video>
-<pre id="log" style="color:#0ff;white-space:pre-wrap"></pre>
+
 <script>
-const v=document.getElementById('v'), log=m=>document.getElementById('log').textContent=m;
 document.getElementById('go').onclick = async ()=>{
-  try{
-    const cands = [
-      {video:{facingMode:{ideal:"environment"}}},
-      {video:{facingMode:"environment"}},
-      {video:true}
-    ];
-    let stream=null, lastErr=null;
-    for(const c of cands){
-      try{ stream=await navigator.mediaDevices.getUserMedia(c); break; }
-      catch(e){ lastErr=e; }
-    }
-    if(!stream) throw lastErr||new Error("unknown");
-    v.srcObject=stream; await v.play();
-    log(`相機OK：${v.videoWidth}x${v.videoHeight}`);
-  }catch(e){
-    log(`開啟失敗：${e.name} / ${e.message}
-建議：
-- NotAllowedError：瀏覽器權限被拒，至網站權限改為允許相機。
-- NotFoundError：裝置無相機或全被佔用。
-- NotReadableError：相機正被其他App/分頁佔用，全部關掉再試。
-- OverconstrainedError：鏡頭條件太嚴，放寬 constraints（已自動退階）。`);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } }
+    });
+    document.getElementById('v').srcObject = stream;
+    await document.getElementById('v').play();
+    alert("相機成功啟動！");
+  } catch(e) {
+    alert("相機開啟失敗：" + e.name + " / " + e.message);
   }
 };
 </script>
