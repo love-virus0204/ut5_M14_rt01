@@ -64,25 +64,26 @@
 </dialog>
 
 <script type="module">
-import { QRScanner } from './js/QRScanner.js';
+  import { QRScanner } from './js/QRScanner.js';
 
-const admin_URL   = "admin.html";
-const fixed_key   = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
-const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
+  const admin_URL = "admin.html";
+  const fixed_key = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+  const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
-const ok = QRScanner.mount({
-  videoEl: "#cam",
-  formats: ["qr"],
-  mode: "stop-on-valid",
-  isValid: txt => txt === fixed_key,
-  onOk: () => {
-    sessionStorage.setItem("ts", String(Date.now()));
-    sessionStorage.setItem("tokey", fixed_tokey);
-    location.replace(admin_URL);
-  },
-  onError: err => console.log("QR err:", err)
-});
-  requestAnimationFrame(()=>{ if (ok) QRScanner.start(); }); // 自動開相機
+  QRScanner.mount({
+    videoEl: "#cam",
+    formats: ["qr"],
+    mode: "stop-on-valid",
+    isValid: (txt) => txt === fixed_key,
+    onOk: () => {
+      sessionStorage.setItem("ts", String(Date.now()));
+      sessionStorage.setItem("tokey", fixed_tokey);
+      location.replace(admin_URL);
+    },
+    onError: (err) => console.log("QR err:", err)
+  });
+  document.getElementById('startBtn')?.addEventListener('click', () => QRScanner.start());
+  document.getElementById('stopBtn') ?.addEventListener('click', () => QRScanner.stop());
 </script>
 </body>
 </html>
