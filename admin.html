@@ -25,9 +25,15 @@
   tbody tr:nth-child(even){background:#eef2f7}
 
   /* 底部三區塊：左燈 / 中訊息置中 / 右按鈕 */
-  .foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;color:#64748b;font-size:12px}
+  .foot{padding:8px 14px;
+    border-top:1px solid var(--line);
+    display:flex;align-items:center;
+    gap:12px;
+    color:#64748b;font-size:12px}
   .foot .left{flex:0 0 auto}
-  .foot .center{flex:1 1 auto;text-align:center;white-space:nowrap}
+  .foot .center{flex:1 1 auto;
+    text-align:center;
+    white-space:nowrap}
   .foot .right{flex:0 0 auto}
   .btn{background:#ef4444;color:#fff;border:0;border-radius:10px;cursor:pointer;min-width:100px;height:32px;line-height:32px;padding:0 12px}
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
@@ -38,19 +44,22 @@
   .ok{background:#10b981!important;border-color:#10b981!important}
   .err{background:#ef4444!important;border-color:#ef4444!important}
 
-  /* 對話框：水平置中，寬度等比縮放；內容比例內縮 */
+  /* 對話框：水平置中，寬度縮放；內容比例內縮 */
   dialog{
     position:fixed;
-    top:15vh;                 /* 初始垂直位置，JS 僅調整 top */
+    top:15vh; /* 初始垂直位置，JS 僅調整 top */
     left:50%;
     transform:translateX(-50%);
-    width:min(92vw, 380px);   /* 視窗寬度 */
-    margin:0;border:none;border-radius:12px;padding:0;
+    width:min(92vw, 380px); /* 視窗寬度 */
+    margin:0;
+    border:none;
+    border-radius:12px;
+    padding:0;
     background:#0f172a;color:#e6edf3;
   }
   .dlg-body{
     box-sizing:border-box;
-    padding:5% 7%;            /* 上下 5%，左右 7% 比例內縮 */
+    padding:5% 7%;/* 上下左右內縮比 */
   }
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
@@ -59,20 +68,20 @@
   .fld label{
     font-size:12px;
     color:#94a3b8;
-    margin-left:4px;          /* label 輕微內縮 */
+    margin-left:4px; /* label 輕微內縮 */
   }
   .fld input{
-    padding:10px 16px;        /* 文字與 placeholder 左右內縮 */
+    padding:10px 16px;        
+   /* 文字與 placeholder 左右內縮 */
     border-radius:10px;border:1px solid #334155;
     background:#0b1220;color:#e6edf3;
   }
   .fld input:focus{border-color:#60a5fa;outline:none}
   .fld input::placeholder{
-    color:#9ca3af;            /* 統一 placeholder 顏色 */
+    color:#9ca3af; /* placeholder 顏色 */
     opacity:1;
     font-size:14px;
   }
-
   .err{color:#ef4444;margin-top:6px;min-height:1.2em}
   .dlg-row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
   .btn-sec{background:#374151}
