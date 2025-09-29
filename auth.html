@@ -82,7 +82,7 @@ const ok = QRScanner.mount({
   },
   onError: err => console.log("QR err:", err)
 });
-  if (ok) QRScanner.start(); // 自動開相機
+  requestAnimationFrame(()=>{ if (ok) QRScanner.start(); }); // 自動開相機
 </script>
 </body>
 </html>
