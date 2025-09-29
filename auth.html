@@ -32,7 +32,11 @@
   .err{color:#ef4444;margin-top:6px;min-height:1.2em}
   .dlg-row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
 
-
+  #videoEl {
+    width: 320px;     /* 固定寬 */
+    height: 240px;    /* 固定高 */
+    object-fit: cover; /* 填滿裁切，保持 */
+  }
   dialog#manualDlg {
     position: fixed;
     margin: 0;
