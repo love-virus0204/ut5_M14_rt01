@@ -39,20 +39,27 @@
   .err{background:#ef4444!important;border-color:#ef4444!important}
 
   /* 確認視窗 */
- dialog{
-  margin:0 auto; /* 自動左右置中 */
-  border:none;
-  border-radius:12px;
-  padding:0;
-  background:#0f172a;
-  color:#e6edf3;
-  width:80%; /* 佔視窗 80% 寬度 */
-  max-width:420px; /* 但最多 420px */
-  min-width:280px; /* 最少 280px */
-}
-  /* 內縮，上下5%，左右7% */
-  .dlg-body{padding:5% 7%;}
-  /* .dlg-body{padding:16px} */
+  dialog{
+  /* width:80%; 佔視窗 80% 寬度
+    max-width:420px; 但最多 420px
+    min-width:280px; 最少 280px */
+    top:15vh; /* 只控制垂直 */
+    left:50%;
+    transform:translateX(-50%); /* 水置中 */
+    width:min(92vw, 380px);
+    margin:0 auto; /* 自動左右置中 */
+    border:none;
+    border-radius:12px;
+    padding:0;
+    background:#0f172a;
+    color:#e6edf3;
+    position:fixed; }
+
+  .dlg-body{
+    box-sizing:border-box;
+    padding-block:5%; /* 上下比, 左右比 */
+    padding-inline:7%; }
+
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
 
@@ -263,13 +270,12 @@ async function softDeleteWithFlag(rows, adminId){
 function placeDialogTop(dlg){
   const vv = window.visualViewport;
   if (!vv || !dlg.open) return;
-  const rect = dlg.getBoundingClientRect();
-  const top  = Math.max(12, vv.offsetTop + vv.height * 0.15);
-  const left = Math.max(12, vv.offsetLeft + (vv.width - rect.width)/2);
-  dlg.style.position = 'fixed';
-  dlg.style.top  = `${top}px`;
-  dlg.style.left = `${left}px`;
+  // 距離頂部至少 12px，其餘依視窗高度取 15%
+  const top = Math.max(12, vv.offsetTop + vv.height * 0.15);
+  dlg.style.top = `${top}px`;
+  transform:translateX(-50%)
 }
+
 function resetDialogPos(dlg){
   dlg.style.position = '';
   dlg.style.top = '';
