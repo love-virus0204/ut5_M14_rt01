@@ -10,12 +10,10 @@ const msg = s=>document.getElementById('msg').textContent = s;
 
 QRScanner.mount({
   videoEl:"#cam",
-  formats:["qr","code39"],
-  onFrame:i=>{ if(i&&i.w) msg(`偵測中… ${i.w}x${i.h}`); },
   onOk:txt=>{ msg('掃到：'+txt); QRScanner.stop(); },
   onError:err=>{ msg('錯誤：'+err); }
 });
 
-document.getElementById('start').onclick = ()=>{ try{ QRScanner.start(); }catch(e){ msg('start失敗：'+e); } };
-document.getElementById('stop').onclick  = ()=>{ try{ QRScanner.stop(); } catch(e){ msg('stop失敗：'+e); } };
+document.getElementById('start').onclick = ()=> QRScanner.start();
+document.getElementById('stop').onclick  = ()=> QRScanner.stop();
 </script>
