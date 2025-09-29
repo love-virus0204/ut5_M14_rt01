@@ -1,90 +1,75 @@
-// /js/QRScanner.js  — ES Module 最小可用版（只掃 QR）
+// /js/QRScanner.js
 export const QRScanner = (() => {
-  let video, stream = null, rafId = 0, onOkCb = null, onErrCb = null;
-  let canvas, ctx, mounted = false;
+  let video, stream=null, raf=0, onOk=null, onErr=null, canvas, ctx;
 
-  // 依序嘗試載入 jsQR：CDN → 本地
   async function ensureJsQR(){
     if (window.jsQR) return true;
-    const load = (src) => new Promise((res, rej)=>{
+    const load = src => new Promise((res,rej)=>{
       const s=document.createElement('script');
       s.src=src; s.async=true; s.onload=()=>res(true); s.onerror=()=>rej(src);
       document.head.appendChild(s);
     });
-    const cdn = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
-    try { await load(cdn); return true; }
-    catch{
-      try { await load("./jsQR.min.js"); return true; } // 放在 /js/jsQR.min.js 同層也可寫成 "./js/jsQR.min.js"
-      catch{ return false; }
-    }
+    try { await load("https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"); return true; }
+    catch {}
+    try { await load("./jsQR.min.js"); return true; } // 請把 jsQR.min.js 放在與本檔同層
+    catch { return false; }
   }
 
-  function decodeFrame(){
-    if (!video || video.readyState < 2) { rafId = requestAnimationFrame(decodeFrame); return; }
-    const w = video.videoWidth|0, h = video.videoHeight|0;
-    if (w===0 || h===0){ rafId = requestAnimationFrame(decodeFrame); return; }
-
-    if (!canvas){ canvas = document.createElement('canvas'); ctx = canvas.getContext('2d'); }
-    canvas.width = w; canvas.height = h;
-    ctx.drawImage(video, 0, 0, w, h);
-    const img = ctx.getImageData(0, 0, w, h);
+  function tick(){
+    if (!video || video.readyState<2){ raf=requestAnimationFrame(tick); return; }
+    const w=video.videoWidth|0, h=video.videoHeight|0;
+    if (!w || !h){ raf=requestAnimationFrame(tick); return; }
+    if (!canvas){ canvas=document.createElement('canvas'); ctx=canvas.getContext('2d'); }
+    canvas.width=w; canvas.height=h;
+    ctx.drawImage(video,0,0,w,h);
+    const img = ctx.getImageData(0,0,w,h);
     try{
-      const res = window.jsQR && window.jsQR(img.data, w, h, { inversionAttempts: "dontInvert" });
-      if (res && res.data){
-        const txt = String(res.data);
+      const r = window.jsQR && window.jsQR(img.data,w,h,{inversionAttempts:"dontInvert"});
+      if (r && r.data){
         stop();
-        onOkCb && onOkCb(txt);
+        onOk && onOk(String(r.data));
         return;
       }
-    }catch(e){
-      onErrCb && onErrCb(e.message || String(e));
-    }
-    rafId = requestAnimationFrame(decodeFrame);
+    }catch(e){ onErr && onErr(e.message||String(e)); }
+    raf=requestAnimationFrame(tick);
   }
 
   async function start(){
     try{
-      if (!mounted) throw new Error("call mount() first");
-      if (stream) return; // already running
+      if (!video) throw new Error("call mount() first");
+      if (stream) return;
       const ok = await ensureJsQR();
-      if (!ok) throw new Error("jsQR 載入失敗（CDN 與本地皆不可用）");
-
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      if (!ok) throw new Error("jsQR 載入失敗");
+      stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}, audio:false});
       video.srcObject = stream;
       await video.play();
-      rafId = requestAnimationFrame(decodeFrame);
-    }catch(e){
-      onErrCb && onErrCb(e.message || String(e));
-    }
+      raf=requestAnimationFrame(tick);
+    }catch(e){ onErr && onErr(e.message||String(e)); }
   }
 
   function stop(){
-    if (rafId){ cancelAnimationFrame(rafId); rafId = 0; }
-    if (video){ try{ video.pause(); }catch{} }
-    if (stream){ try{ stream.getTracks().forEach(t=>t.stop()); }catch{} stream=null; }
+    if (raf){ cancelAnimationFrame(raf); raf=0; }
+    try{ video && video.pause(); }catch{}
+    try{ stream && stream.getTracks().forEach(t=>t.stop()); }catch{}
+    stream=null;
   }
 
   function mount(opts){
-    // 只需 videoEl 與回呼；其他忽略
-    const vSel = opts.videoEl || "#cam";
-    video = (typeof vSel==="string") ? document.querySelector(vSel) : vSel;
-    if (!video) throw new Error("videoEl 不存在");
-    video.setAttribute("playsinline",""); video.muted = true; video.autoplay = true;
+    const sel = opts.videoEl || "#cam";
+    video = typeof sel==="string" ? document.querySelector(sel) : sel;
+    if(!video) throw new Error("videoEl 不存在");
+    video.setAttribute("playsinline",""); video.muted=true; video.autoplay=true;
+    onOk  = opts.onOk   || null;
+    onErr = opts.onError|| null;
 
-    onOkCb = opts.onOk || null;
-    onErrCb = opts.onError || null;
-
-    // 若有開始/停止按鈕就綁定
     if (opts.startBtn){
-      const sb = document.querySelector(opts.startBtn);
-      sb && sb.addEventListener("click", ()=>start());
+      const b=document.querySelector(opts.startBtn);
+      b && b.addEventListener("click", ()=>start());
     }
     if (opts.stopBtn){
-      const tb = document.querySelector(opts.stopBtn);
-      tb && tb.addEventListener("click", ()=>stop());
+      const b=document.querySelector(opts.stopBtn);
+      b && b.addEventListener("click", ()=>stop());
     }
-
-    mounted = true;
     return true;
   }
 
