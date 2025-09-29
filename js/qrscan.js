@@ -101,18 +101,18 @@ export class QRScanner {
     });
   }
 
-  async _ensureDeps() {
-    // jsQR：本地 → CDN（僅在需要掃 QR 時載入）
-    if (this.formats.includes("qr") && !window.jsQR) {
-      try { await this._loadScript(this.paths.jsqrLocal); }
-      catch { await this._loadScript(this.paths.jsqrCDN); }
-    }
-    // Quagga2：CDN → 本地（僅在需要掃 Code39 時載入）
-    if (this.formats.includes("code39") && !window.Quagga) {
-      try { await this._loadScript(this.paths.quaggaCDN); }
-      catch { await this._loadScript(this.paths.quaggaLocal); }
-    }
+async _ensureDeps() {
+  // jsQR：CDN → 本地
+  if (this.formats.includes("qr") && !window.jsQR) {
+    try { await this._loadScript(this.paths.jsqrCDN); }
+    catch { await this._loadScript(this.paths.jsqrLocal); }
   }
+  // Quagga2：CDN → 本地
+  if (this.formats.includes("code39") && !window.Quagga) {
+    try { await this._loadScript(this.paths.quaggaCDN); }
+    catch { await this._loadScript(this.paths.quaggaLocal); }
+  }
+}
 
   async _openCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({
