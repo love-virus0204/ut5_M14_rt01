@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>外觀記錄表｜管理</title>
+<style>
+  :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; --ok:#10b981; --err:#ef4444; }
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+
+  .wrap{width:96%;max-width:980px;margin:12px auto}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
+  .hdr{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .ttl{font-weight:700;color:var(--brand)}
+  .back{font-size:12px;color:#64748b;text-decoration:none;border:1px solid var(--line);padding:6px 10px;border-radius:8px}
+  .content{padding:0 14px 12px}
+  #status{color:#475569;margin:12px 0;min-height:1.4em;text-align:center;font-weight:600}
+  #status.hidden{display:none}
+  .grp{margin:10px 0 6px;font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{border-top:1px solid #ddd;text-align:center;padding:6px 4px}
+  thead th{background:#f3f4f6;color:#334155}
+  tbody tr:nth-child(odd){background:#f9fafb}
+  tbody tr:nth-child(even){background:#eef2f7}
+
+  /* 底部三區塊：左燈 / 中訊息置中 / 右按鈕 */
+  .foot{padding:8px 14px;
+    border-top:1px solid var(--line);
+    display:flex;align-items:center;
+    gap:12px;
+    color:#64748b;font-size:12px}
+  .foot .left{flex:0 0 auto}
+  .foot .center{flex:1 1 auto;
+    text-align:center;
+    white-space:nowrap}
+  .foot .right{flex:0 0 auto}
+  .btn{background:#ef4444;color:#fff;border:0;border-radius:10px;cursor:pointer;min-width:100px;height:32px;line-height:32px;padding:0 12px}
+  .btn:disabled{background:#94a3b8;cursor:not-allowed}
+
+  /* 狀態燈 */
+  .net{display:flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
+  .ok{background:#10b981!important;border-color:#10b981!important}
+  .err{background:#ef4444!important;border-color:#ef4444!important}
+
+  /* 對話框：水平置中，寬度縮放；內容比例內縮 */
+  dialog{
+    position:fixed;
+    top:15vh; /* 初始垂直位置，JS 僅調整 top */
+    left:50%;
+    transform:translateX(-50%);
+    width:min(92vw, 380px); /* 視窗寬度 */
+    margin:0;
+    border:none;
+    border-radius:12px;
+    padding:0;
+    background:#0f172a;color:#06edf3;
+  }
+  .dlg-body{
+    box-sizing:border-box;
+    padding:5% 7%;/* 上下左右內縮比 */
+  }
+  .dlg-title{font-weight:700;margin-bottom:8px}
+  .fld{display:flex;flex-direction:column;gap:8px}
+
+  /* 輸入與 placeholder 內縮、協調 */
+  .fld label{
+    font-size:12px;
+    color:#94a3b8;
+    margin-left:4px; /* label 輕微內縮 */
+  }
+  .fld input{
+    padding:10px 16px;        
+   /* 文字與 placeholder 左右內縮 */
+    border-radius:10px;border:1px solid #334155;
+    background:#0b1220;color:#e6edf3;
+  }
+  .fld input:focus{border-color:#60a5fa;outline:none}
+  .fld input::placeholder{
+    color:#9ca3af; /* placeholder 顏色 */
+    opacity:1;
+    font-size:14px;
+  }
+  .err{color:#ef4444;margin-top:6px;min-height:1.2em}
+
+.dlg-row {
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+  margin-top:12px;
+  padding-top:10px;
+  border-top:2px solid #ff2be6; /* 紫色 */
+}
+  .btn-sec{background:#374151}
+
+  /* 紅框閃爍效果 */
+  dialog.pulse{
+    box-shadow:
+      0 0 0 2px #ef4444,
+      inset 0 0 0 2px #ef4444,
+      0 0 12px 4px rgba(239,68,68,.45);
+    animation: dlgPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes dlgPulse{
+    0%,100%{
+      box-shadow:
+        0 0 0 2px #ef4444,
+        inset 0 0 0 2px #ef4444,
+        0 0 10px 3px rgba(239,68,68,.35);
+    }
+    50%{
+      box-shadow:
+        0 0 0 3px #ef4444,
+        inset 0 0 0 3px #ef4444,
+        0 0 18px 6px rgba(239,68,68,.60);
+    }
+  }
+
+/* 錯誤提示：輸入框下方青字 */
+.hint-err{ color:#06edf3; font-size:12px; margin:6px 2px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="hdr">
+      <div class="ttl">管理｜當班記錄（勾選後刪除）</div>
+      <a href="index.html" class="back">返回首頁</a>
+    </div>
+    <div class="content">
+      <div id="status">載入中…</div>
+      <div id="root"></div>
+    </div>
+    <div class="foot">
+      <div class="left">
+        <div class="net"><span id="net-dot" class="dot"></span><span id="net-msg">回傳</span></div>
+      </div>
+      <div id="footMsg" class="center">僅顯示「當日當班」且有效</div>
+      <div class="right">
+        <button id="submitBtn" class="btn" type="button" disabled>送出刪除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 確認視窗 -->
+<dialog id="confirmDlg">
+  <div class="dlg-body">
+    <div class="dlg-title">確認刪除</div>
+    <div class="fld">
+      <label for="adminId">管理員代碼（5 碼）</label>
+      <input id="adminId" type="text" inputmode="latin" maxlength="5" placeholder="如：AB123">
+      <label for="confirmInput">確認字串</label>
+      <input id="confirmInput" type="text" placeholder="輸入 admin">
+      
+    </div>
+    <div class="dlg-row">
+      <button id="confirmCancel" class="btn btn-sec" type="button">取消</button>
+      <button id="confirmOk" class="btn" type="button">確定刪除</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+/* API */
+const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+
+/* gate（沿用） */
+const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
+const EXPIRE_MS = 200*60*1000;
+(function gate(){
+  const ts = parseInt(sessionStorage.getItem("ts")||"0",10);
+  const tk = sessionStorage.getItem("tokey")||"";
+  if (!ts || !tk || tk!==FIXED_TOKEY || (Date.now()-ts)>EXPIRE_MS){
+    sessionStorage.clear();
+    location.replace("auth.html");
+  }
+})();
+
+/* 狀態燈 */
+function setNetLight(msg){
+  const dot = document.getElementById('net-dot');
+  const txt = document.getElementById('net-msg');
+  dot.classList.remove('ok','err');
+  dot.classList.add(msg ? 'ok' : 'err');
+  txt.textContent = msg ? "GMS" : "回傳";
+}
+
+/* 狀態與容器 */
+const statusEl = document.getElementById('status');
+const footMsgEl = document.getElementById('footMsg');
+const root = document.getElementById('root');
+const setStatus  = t=> statusEl.textContent=t;
+const setFootMsg = t=> footMsgEl.textContent=t;
+
+/* 台北時間 + 班別 */
+function nowCorrected(){
+  const parts = new Intl.DateTimeFormat('zh-TW',{
+    timeZone:'Asia/Taipei', hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }).formatToParts(new Date());
+  const get=t=>Number(parts.find(p=>p.type===t).value);
+  return new Date(get('year'), get('month')-1, get('day'), get('hour'), get('minute'), get('second'));
+}
+function computeShiftByClockFrom(d){
+  const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
+  if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'C'}; }
+  if(mins>=520 && mins<1000){ return {baseDate:d, shift:'A'}; }
+  if(mins>=1000){ return {baseDate:d, shift:'B'}; }
+  const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y, shift:'B'};
+}
+function ymdToSerial(y,m,d){
+  const epoch = Date.UTC(1899,11,30);
+  return Math.floor((Date.UTC(y,m-1,d)-epoch)/86400000);
+}
+function toMMDDFromSerial(serial){
+  const n=Number(serial)||0, epoch=Date.UTC(1899,11,30);
+  const dt=new Date(epoch + Math.round(n)*86400000);
+  const mm=String(dt.getUTCMonth()+1).padStart(2,'0');
+  const dd=String(dt.getUTCDate()).padStart(2,'0');
+  return `${mm}/${dd}`;
+}
+function currentKey(){
+  const now = nowCorrected();
+  const {baseDate, shift} = computeShiftByClockFrom(now);
+  const y=baseDate.getFullYear(), m=baseDate.getMonth()+1, d=baseDate.getDate();
+  const serial = ymdToSerial(y,m,d);
+  return {serial, shift};
+}
+
+/* 取資料 → 物件陣列 */
+async function fetchRecentPOST(){
+  const res = await fetch(API_BASE, { method:"POST", body:new URLSearchParams({action:"list_recent"}) });
+  if (!res.ok) throw new Error("HTTP " + res.status + " " + res.statusText);
+  const data = await res.json();
+  if (data?.status!=="ok" || !Array.isArray(data.fields) || !Array.isArray(data.values)){
+    throw new Error("需 {status:'ok', fields[], values[]}");
+  }
+  const F = Object.fromEntries(data.fields.map((k,i)=>[k,i]));
+  return data.values.map(a => ({
+    date:a[F.date], shift:a[F.shift], part_no:a[F.part_no], lot:a[F.lot], qty:a[F.qty],
+    sample_cnt:a[F.sample_cnt], z07:a[F.z07], z08:a[F.z08], z09:a[F.z09], z10:a[F.z10],
+    z11:a[F.z11], z12:a[F.z12], z13:a[F.z13], inspector:a[F.inspector], remark:a[F.remark],
+    submitted_at:a[F.submitted_at], key2:a[F.key2], key:a[F.key], deleted:a[F.deleted],
+    row:a[F.row]
+  }));
+}
+
+/* 篩：有效 + 當日當班 */
+function pickTodayShift(rows){
+  const {serial, shift} = currentKey();
+  const okValid = r => String(r.deleted).toUpperCase()==="TRUE";
+  const okABC   = r => r.shift==="A"||r.shift==="B"||r.shift==="C";
+  const sameDay   = r => Number(r.date)===serial;
+  const sameShift = r => r.shift===shift;
+  const list = rows.filter(r => okValid(r) && okABC(r) && sameDay(r) && sameShift(r));
+  return {serial, shift, rows:list};
+}
+
+/* 渲染：單表 + 勾選 */
+function render(g){
+  root.innerHTML = "";
+  if (!g.rows.length){
+    setStatus(`沒有 ${toMMDDFromSerial(g.serial)} - ${g.shift} 的有效資料`);
+    document.getElementById('submitBtn').disabled=true;
+    return;
+  }
+  const hdr = document.createElement('div');
+  hdr.className = 'grp';
+  hdr.textContent = `${toMMDDFromSerial(g.serial)} - ${g.shift}（僅有效）`;
+
+  const tbl = document.createElement('table');
+  tbl.innerHTML = `
+    <thead><tr><th style="width:44px">選</th><th>料號</th><th>批號</th><th>數量</th></tr></thead>
+    <tbody></tbody>`;
+  const tb = tbl.querySelector('tbody');
+
+  for(const r of g.rows){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="checkbox" class="pick" value="${r.row}"></td>
+      <td>${r.part_no??""}</td>
+      <td>${r.lot??""}</td>
+      <td>${r.qty??""}</td>`;
+    tb.appendChild(tr);
+  }
+  root.append(hdr, tbl);
+  setStatus("");
+  statusEl.classList.add('hidden');
+  document.getElementById('submitBtn').disabled=false;
+}
+
+/* 軟刪除：action=soft_delete + admin_id + row1,row2,... */
+async function softDeleteWithFlag(rows, adminId){
+  const body = new URLSearchParams();
+  body.append("action", "soft_delete");
+  body.append("admin_id", adminId);
+  rows.forEach((r,i)=> body.append(`row${i+1}`, String(r)));
+  const res = await fetch(API_BASE, { method:"POST", body });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json().catch(()=> ({}));
+  if (data?.status!=="ok") throw new Error(data?.msg || "後端回應非 ok");
+  return data;
+}
+
+/* 只控制垂直；水平交給 CSS */
+function placeDialogTop(dlg){
+  const vv = window.visualViewport;
+  if (!vv || !dlg.open) return;
+  const top = Math.max(12, vv.offsetTop + vv.height * 0.15);
+  dlg.style.top = `${top}px`;
+}
+function resetDialogPos(dlg){ dlg.style.top = ''; }
+
+if (window.visualViewport){
+  visualViewport.addEventListener('resize', ()=> placeDialogTop(confirmDlg));
+  visualViewport.addEventListener('scroll', ()=> placeDialogTop(confirmDlg));
+}
+
+/* 草稿：admin_id */
+function loadDraft(){
+  const keys = ["draft","FORM_DRAFT","form_draft"];
+  for (const k of keys){
+    const s = localStorage.getItem(k);
+    if (s){ try{ const o=JSON.parse(s); o.__key=k; return o; }catch{} }
+  }
+  return { __key:"draft" };
+}
+function saveDraft(patch){
+  const d = loadDraft();
+  const key = d.__key || "draft";
+  const out = Object.assign({}, d); delete out.__key;
+  Object.assign(out, patch);
+  localStorage.setItem(key, JSON.stringify(out));
+}
+
+/* 對話框元素 */
+const confirmDlg   = document.getElementById('confirmDlg');
+const adminIdEl    = document.getElementById('adminId');
+const confirmInput = document.getElementById('confirmInput');
+const confirmErr   = document.getElementById('confirmErr');
+
+/* 預填 admin_id */
+(function prefillAdminId(){
+  const d = loadDraft();
+  if (d && typeof d.admin_id === "string"){
+    adminIdEl.value = (d.admin_id || "").toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+  }
+})();
+/* 輸入規則 */
+adminIdEl.addEventListener('input', ()=>{
+  let v = adminIdEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,5);
+  adminIdEl.value = v;
+  saveDraft({ admin_id: v.length===5 ? v : "" });
+});
+adminIdEl.addEventListener('blur', ()=>{
+  if (adminIdEl.value.length !== 5){
+    adminIdEl.value = "";
+    saveDraft({ admin_id: "" });
+  }
+});
+
+/* 工具：關窗後帶到底部 */
+function scrollToBottom(){
+  requestAnimationFrame(()=>{
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+  });
+}
+
+/* 送出：開窗、驗證、送單、500ms 後重載 */
+let cachedPicks = [];
+document.getElementById('submitBtn').addEventListener('click',(ev)=>{
+  ev.preventDefault();
+  ev.stopPropagation();
+  const picks=[...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
+  if(!picks.length) return;
+  cachedPicks=picks;
+  confirmInput.value=""; clearErr(confirmInput); clearErr(adminIdEl);
+  document.activeElement && document.activeElement.blur();
+  confirmDlg.showModal();
+  confirmDlg.classList.add('pulse');    // 紅框閃爍
+  placeDialogTop(confirmDlg);
+  adminIdEl.focus({preventScroll:true});
+});
+
+document.getElementById('confirmCancel').addEventListener('click',()=>{
+  confirmDlg.classList.remove('pulse');
+  confirmDlg.close();
+  scrollToBottom();
+});
+confirmDlg.addEventListener('cancel', e=>{
+  e.preventDefault();
+  confirmDlg.classList.remove('pulse');
+  confirmDlg.close();
+  scrollToBottom();
+});
+confirmDlg.addEventListener('close', ()=>{
+  confirmDlg.classList.remove('pulse');
+  resetDialogPos(confirmDlg);
+});
+
+document.getElementById('confirmOk').addEventListener('click', async ()=>{
+  const id = (adminIdEl.value || "").toUpperCase();
+  const v  = (confirmInput.value || "").trim();
+  if (id.length !== 5){
+    showErr(confirmInput, "admin_id 需為 5 碼英數。");
+    adminIdEl.focus({preventScroll:true});
+    return;
+  }
+  if (v !== "admin"){
+    showErr(confirmInput, "請輸入 admin。"); confirmInput.value="";
+    confirmInput.focus({preventScroll:true});
+    return;
+  }
+  saveDraft({ admin_id: id });
+  clearErr(confirmInput); clearErr(adminIdEl);
+  confirmDlg.classList.remove('pulse');
+  confirmDlg.close();
+  scrollToBottom();
+
+  try{
+    setFootMsg("送出中…");
+    await softDeleteWithFlag(cachedPicks, id);
+    setFootMsg("完成");
+  }catch(e){
+    setFootMsg("失敗：" + (e?.message||e));
+  }finally{
+    await new Promise(r=>setTimeout(r,500));
+    await loadAndRender();
+  }
+});
+
+/* 載入 */
+async function loadAndRender(){
+  try{
+    statusEl.classList.remove('hidden');
+    setStatus("載入中…");
+    setFootMsg("僅顯示「當日當班」且有效");
+    const rows = await fetchRecentPOST();
+    setNetLight("OK");
+    const g = pickTodayShift(rows);
+    render(g);
+  }catch(e){
+    setNetLight();
+    setStatus("載入失敗..請通知開發人員");
+    statusEl.classList.remove('hidden');
+  }
+}
+document.addEventListener('DOMContentLoaded', loadAndRender);
+
+/* ---- 錯誤提示：輸入框下方青字 ---- */
+function clearErr(inputEl){
+  const next = inputEl && inputEl.nextElementSibling;
+  if(next && next.classList && next.classList.contains('hint-err')) next.remove();
+}
+function showErr(inputEl, msg){
+  clearErr(inputEl);
+  const div = document.createElement('div');
+  div.className = 'hint-err';
+  div.textContent = msg;
+  inputEl.insertAdjacentElement('afterend', div);
+}
+</script>
+</body>
+</html>
