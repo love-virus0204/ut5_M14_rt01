@@ -239,8 +239,6 @@ function showOk(msg){
 /* ===== API（POST urlencoded） ===== */
 // 用 URLSearchParams 組 form-urlencoded
 function submitData(p){
-  var sample_cnt = p.qty > 20 ? 20 : p.qty;
-
   var params = new URLSearchParams();
   params.append('action','submit');
   params.append('date', ymdToSerial(p.date));
@@ -248,7 +246,7 @@ function submitData(p){
   params.append('part_no', p.part_no);
   params.append('lot', p.lot);
   params.append('qty', p.qty);
-  params.append('sample_cnt', sample_cnt);
+  params.append('sample_cnt', p.sample_cnt);
   params.append('z07', p.z07);
   params.append('z08', p.z08);
   params.append('z09', p.z09);
@@ -342,7 +340,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   lotInput.value=motherChild;
 
   const q=Number(qty.value);
-  if(!(q>0)){ setFieldError(qty,qty,'數量需 > 0'); return; }
+  if(!(q>0)){ setFieldError(qty,qty,'數量須 > 0'); return; }
 
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
