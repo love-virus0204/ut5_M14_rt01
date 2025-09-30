@@ -357,10 +357,16 @@ adminIdEl.addEventListener('blur', ()=>{
 });
 
 /* 工具：關窗後帶到底部 */
-function scrollToBottom() {
-  requestAnimationFrame(() => {
-    const h = document.body.scrollHeight;
-    window.scrollTo({ top: h, behavior: 'smooth' });
+function scrollToBottom(){
+  requestAnimationFrame(()=>{
+    const doc = document.documentElement;
+    const body = document.body;
+    const scrollH = Math.max(doc.scrollHeight, body.scrollHeight);
+    const viewportH = window.visualViewport
+      ? window.visualViewport.height
+      : Math.max(window.innerHeight, doc.clientHeight);
+    const maxTop = Math.max(0, scrollH - viewportH);
+    window.scrollTo({ top: maxTop, behavior: 'smooth' });
   });
 }
 
