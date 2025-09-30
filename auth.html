@@ -103,8 +103,6 @@ input, select, textarea { font-size:16px; }
   });
   document.getElementById('startBtn')?.addEventListener('click', () => QRScanner.start());
   document.getElementById('stopBtn') ?.addEventListener('click', () => QRScanner.stop());
-});
-
 // --- Auto start camera once after first render ---
 let _autoStarted = false;
 const autoStartOnce = () => {
@@ -135,10 +133,10 @@ okBtn?.addEventListener('click', (e) => {
   e.preventDefault();
   if (!input) return;
   if (input.value === fixed_key) {
-    // 成功→直接跳轉
+      sessionStorage.setItem("ts", String(Date.now()));
+      sessionStorage.setItem("tokey", fixed_tokey);
     location.replace(admin_URL);
   } else {
-    // 失敗→顯示錯誤並清空
     if (errEl) errEl.textContent = '金鑰不正確';
     input.value = '';
     input.focus();
