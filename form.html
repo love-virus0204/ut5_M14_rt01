@@ -235,7 +235,6 @@ function showOk(msg){
   setTimeout(()=>{ okMsg.classList.remove('show','fade'); okMsg.textContent=''; },5000);
 }
 
-
 /* ===== API（POST urlencoded） ===== */
 // 用 URLSearchParams 組 form-urlencoded
 function submitData(p){
@@ -263,8 +262,6 @@ function submitData(p){
     .then(function(r){ return r.text(); })
     .then(function(t){ try{ return JSON.parse(t); } catch(_){ return {status:'parse_failed', raw:t}; } });
 }
-
-//function submitData(p){ return //apiGet({action:"submit",...p}); }
 
 /* ===== 草稿儲存（B：{料號, 批號, 數量, key, 送出成功時間, 狀態}） ===== */
 function dsStorageKey(ds){ return `draft_${ds.ymdSlash}_${ds.shift}`; }
@@ -300,7 +297,6 @@ function upsertDraftAfterSubmit(payload, status){
   saveDraftList(ds,list);
   return {nowTs};
 }
-
 
 // 草稿A：完整 payload 備份（含 inspector/admin_id；有就寫入，無則空字串）
 function saveDraftA(payload){
@@ -364,7 +360,7 @@ const now=nowCorrected();
     qty: q,
     sample_cnt: q > 20 ? 20 : q,
     inspector: inspectorVal,
-    submitted_at: fmtTW(now),
+    // submitted_at: fmtTW(now),
     key: submitKey,
     key2: `${currentDS.mmdd}|${currentDS.shift}|${part}|${keyLot}|TRUE`
   };
