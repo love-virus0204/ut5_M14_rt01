@@ -393,9 +393,7 @@ function ymdToSerial(ymd){
 (()=>{
   refreshDisplays();
   setInterval(refreshDisplays,1000);
-
   const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
-
   renderDrafts();
 })();
 </script>
