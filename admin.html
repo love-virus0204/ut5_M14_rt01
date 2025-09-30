@@ -405,7 +405,7 @@ document.getElementById('confirmOk').addEventListener('click', async ()=>{
     return;
   }
   if (v !== "admin"){
-    showErr(confirmInput, "請輸入 admin。"); confirmInput.value="";
+    showErr(confirmInput, "請輸入 安全驗證碼"); confirmInput.value="";
     confirmInput.focus({preventScroll:true});
     return;
   }
