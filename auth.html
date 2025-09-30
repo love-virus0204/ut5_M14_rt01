@@ -136,7 +136,8 @@ document.getElementById('manualBtn')?.addEventListener('click', () => {
 
 manualOk.addEventListener('click', function(e) {
   e.preventDefault();
-  if (input.value === fixed_key) {
+  var v = (input.value || '').trim();
+  if (v === fixed_key) {
     location.replace(admin_URL);   // 成功→跳轉
   } else {
     errEl.textContent = '金鑰不正確';
