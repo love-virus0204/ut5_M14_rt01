@@ -456,8 +456,6 @@ function ymdToSerial(ymd){
 }
 
 /* 初始化 + 保溫 */
-document.getElementById('versionTag').textContent=`版本：${FORM_VERSION}`;
-
 (()=>{
   refreshDisplays();
   setInterval(refreshDisplays,1000);
@@ -465,7 +463,6 @@ document.getElementById('versionTag').textContent=`版本：${FORM_VERSION}`;
   const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
 
   renderDrafts();
-
 })();
 </script>
 </body>
