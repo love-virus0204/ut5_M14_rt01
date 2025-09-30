@@ -125,8 +125,6 @@ const manualBtn = document.getElementById('manualBtn');
 const okBtn     = document.getElementById('manualOk');
 const cancelBtn = document.getElementById('manualCancel');
 
-
-
 manualBtn.addEventListener('click', () => {
   try { QRScanner.stop(); } catch(_) {}
   errEl.textContent = '';
@@ -151,7 +149,8 @@ okBtn.addEventListener('click', (e) => {
 });
 
 cancelBtn.addEventListener('click', () => {
-  try { dlg?.close(); } catch(_) {}
+  dlg.classList.remove('blink');
+  dlg.close();
   if (errEl) errEl.textContent = '';
   if (input) input.value = '';
   try { QRScanner.start(); } catch(_) {}
