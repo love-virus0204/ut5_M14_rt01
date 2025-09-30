@@ -315,15 +315,6 @@ async function softDeleteWithFlag(rows, adminId){
   return data;
 }
 
-/* 只控制垂直；水平交給 CSS */
-function placeDialogTop(dlg){
-  const vv = window.visualViewport;
-  if (!vv || !dlg.open) return;
-  const top = Math.max(12, vv.offsetTop + vv.height * 0.15);
-  dlg.style.top = `${top}px`;
-}
-function resetDialogPos(dlg){ dlg.style.top = ''; }
-
 if (window.visualViewport){
   visualViewport.addEventListener('resize', ()=> placeDialogTop(confirmDlg));
   visualViewport.addEventListener('scroll', ()=> placeDialogTop(confirmDlg));
