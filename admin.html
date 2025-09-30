@@ -57,12 +57,12 @@ body {
   .ok{background:#10b981!important;border-color:#10b981!important}
   .err{background:#ef4444!important;border-color:#ef4444!important}
 
-  /* 對話框：水平置中，寬度縮放；內容比例內縮 */
+/* 初始置中 + 高度可捲；dvh 有支援時會覆蓋 */
 dialog {
   position: fixed;
-  top: 15vh;
   left: 50%;
   transform: translateX(-50%);
+  top: 15vh;
   width: min(92vw, 380px);
   margin: 0;
   border: none;
@@ -70,13 +70,13 @@ dialog {
   padding: 0;
   background: #0f172a;
   color: #06edf3;
-  max-height: calc(100svh - 24px);
+  max-height: calc(100dvh - 24px);
   overflow: auto;
 }
   .dlg-body{
     box-sizing:border-box;
-    padding:5% 7%;/* 上下左右內縮比 */
-  }
+    padding:5% 7%; }
+
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
 
@@ -315,18 +315,56 @@ async function softDeleteWithFlag(rows, adminId){
   return data;
 }
 
-/* 只控制垂直；水平交給 CSS */
+/* 對話框垂直定位：依 visualViewport */
 function placeDialogTop(dlg){
+  if (!dlg?.open) return;
   const vv = window.visualViewport;
-  if (!vv || !dlg.open) return;
-  const top = Math.max(12, vv.offsetTop + vv.height * 0.15);
-  dlg.style.top = `${top}px`;
+  if (vv) {
+    const top = Math.max(12, vv.offsetTop + vv.height * 0.15);
+    dlg.style.top = top + 'px';
+  } else {
+    dlg.style.top = '15vh';
+  }
 }
-function resetDialogPos(dlg){ dlg.style.top = ''; }
+function resetDialogPos(dlg){ if (dlg) dlg.style.top = ''; }
 
+document.getElementById('submitBtn').addEventListener('click',(ev)=>{
+  ev.preventDefault();
+  ev.stopPropagation();
+  const picks=[...document.querySelectorAll('.pick:checked')].map(el=>el.value).filter(Boolean);
+  if(!picks.length) return;
+  cachedPicks=picks;
+  confirmInput.value=""; clearErr(confirmInput); clearErr(adminIdEl);
+  document.activeElement && document.activeElement.blur();
+  confirmDlg.showModal();
+  confirmDlg.classList.add('dlg-flash');
+  placeDialogTop(confirmDlg);
+  adminIdEl.focus({preventScroll:true});
+});
+
+document.getElementById('confirmCancel').addEventListener('click',()=>{
+  confirmDlg.classList.remove('dlg-flash');
+  confirmDlg.close();
+  resetDialogPos(confirmDlg);
+  scrollToBottom();
+});
+confirmDlg.addEventListener('cancel', e=>{
+  e.preventDefault();
+  confirmDlg.classList.remove('dlg-flash');
+  confirmDlg.close();
+  resetDialogPos(confirmDlg);
+  scrollToBottom();
+});
+confirmDlg.addEventListener('close', ()=>{
+  confirmDlg.classList.remove('dlg-flash');
+  resetDialogPos(confirmDlg);
+});
+
+/* 跟隨鍵盤/視窗變化 */
 if (window.visualViewport){
-  visualViewport.addEventListener('resize', ()=> placeDialogTop(confirmDlg));
-  visualViewport.addEventListener('scroll', ()=> placeDialogTop(confirmDlg));
+  const reflow = () => placeDialogTop(confirmDlg);
+  visualViewport.addEventListener('resize', reflow);
+  visualViewport.addEventListener('scroll', reflow);
 }
 
 /* 草稿：admin_id */
