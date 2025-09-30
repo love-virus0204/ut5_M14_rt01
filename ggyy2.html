@@ -133,6 +133,8 @@ okBtn?.addEventListener('click', (e) => {
   e.preventDefault();
   if (!input) return;
   if (input.value === fixed_key) {
+      sessionStorage.setItem("ts", String(Date.now()));
+      sessionStorage.setItem("tokey", fixed_tokey);
     location.replace(admin_URL);
   } else {
     if (errEl) errEl.textContent = '金鑰不正確';
