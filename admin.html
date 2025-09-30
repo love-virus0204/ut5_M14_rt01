@@ -47,7 +47,7 @@
   /* 對話框：水平置中，寬度縮放；內容比例內縮 */
   dialog{
     position:fixed;
-    top:15vh; /* 初始垂直位置，JS 僅調整 top */
+    top:15vh; /* 初始垂直位置，JS僅調整 top */
     left:50%;
     transform:translateX(-50%);
     width:min(92vw, 380px); /* 視窗寬度 */
@@ -100,9 +100,8 @@
 }
 
 dialog.dlg-flash {
-  border:4px solid #334155;
-  animation: dlgBorderFlash 1.1s ease-in-out infinite;
-}
+  animation: blinkBorder 0.8s ease-in-out infinite;}
+
 /* 錯誤提示：輸入框下方青字 */
 .hint-err{ color:#06edf3; font-size:12px; margin:6px 2px 0; }
 /* ===== 強制輸入字體大小避免縮放 ===== */
