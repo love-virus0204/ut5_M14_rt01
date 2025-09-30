@@ -134,12 +134,12 @@ document.getElementById('manualBtn')?.addEventListener('click', () => {
   input.focus();
 });
 
-document.getElementById('manualOk').addEventListener('click', function () {
-  var v = (input.value || '').trim();
-  if (v === fixed_key) {
-    location.replace(admin_URL);
+manualOk.addEventListener('click', function(e) {
+  e.preventDefault();
+  if (input.value === fixed_key) {
+    location.replace(admin_URL);   // 成功→跳轉
   } else {
-    if (errEl) errEl.textContent = '金鑰不正確';
+    errEl.textContent = '金鑰不正確';
     input.value = '';
     input.focus();
   }
