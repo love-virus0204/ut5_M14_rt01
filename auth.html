@@ -13,6 +13,13 @@
   #view-wrap.scan{border-color:red;animation:scanblink 1s infinite}
   @keyframes scanblink{0%{border-color:red}50%{border-color:transparent}100%{border-color:red}}
 
+/* 定義閃爍動畫 在 dialog 上套用 */
+@keyframes blinkBorder {
+  0%, 100% { box-shadow: 0 0 0px #ef4444; }
+  50% { box-shadow: 0 0 16px #ef4444; } }
+ #manualDlg.blink {
+animation: blinkBorder 0.8s ease-in-out 3;}
+
   #view{
     aspect-ratio:3/4;
     background:#111827;
