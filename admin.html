@@ -221,7 +221,7 @@ async function fetchRecentPOST(){
   if (!res.ok) throw new Error("HTTP " + res.status + " " + res.statusText);
   const data = await res.json();
   if (data?.status!=="ok" || !Array.isArray(data.fields) || !Array.isArray(data.values)){
-    throw new Error("需 {status:'ok', fields[], values[]}");
+    throw new Error("須 {status:'ok', fields[], values[]}");
   }
   const F = Object.fromEntries(data.fields.map((k,i)=>[k,i]));
   return data.values.map(a => ({
@@ -248,7 +248,7 @@ function pickTodayShift(rows){
 function render(g){
   root.innerHTML = "";
   if (!g.rows.length){
-    setStatus(`沒有 ${toMMDDFromSerial(g.serial)} - ${g.shift} 的有效資料`);
+    setStatus(`沒有 ${toMMDDFromSerial(g.serial)} - ${g.shift} 有效資料`);
     document.getElementById('submitBtn').disabled=true;
     return;
   }
@@ -286,7 +286,7 @@ root.querySelectorAll('.pick').forEach(cb=>{
   updateBtn();
 }
 
-/* 軟刪除：action=soft_delete + admin_id + row1,row2,... */
+/* 軟刪除：action=soft_delete + admin_id + row1, */
 async function softDeleteWithFlag(rows, adminId){
   const body = new URLSearchParams();
   body.append("action", "soft_delete");
