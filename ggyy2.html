@@ -85,7 +85,7 @@ input, select, textarea { font-size:16px; }
 <script type="module">
   import { QRScanner } from './js/QRScanner.js';
 
-  const admin_URL = "index.html";
+  const admin_URL = "admin.html";
   const fixed_key = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
   const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
@@ -133,10 +133,8 @@ okBtn?.addEventListener('click', (e) => {
   e.preventDefault();
   if (!input) return;
   if (input.value === fixed_key) {
-    // 成功→直接跳轉
     location.replace(admin_URL);
   } else {
-    // 失敗→顯示錯誤並清空
     if (errEl) errEl.textContent = '金鑰不正確';
     input.value = '';
     input.focus();
