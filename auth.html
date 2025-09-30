@@ -144,7 +144,7 @@ document.getElementById('manualOk')?.addEventListener('click', () => {
   }
   try { QRScanner.stop(); } catch(_) {}
   dlg.close();
-  location.href = admin_URL;
+  setTimeout(() => { location.href = admin_URL; }, 0)
 });
 
 document.getElementById('manualCancel')?.addEventListener('click', () => {
