@@ -187,9 +187,9 @@ function nowCorrected(){
 /* ===== 班別（0040/0840/1640） ===== */
 function computeShiftByClockFrom(d){
   const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
-  if(mins>=120 && mins<600){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymdSlash:fmtYMDslash(y),shift:'C'}; }
-  if(mins>=600 && mins<1080){ return {baseDate:d,mmdd:fmtMD(d),ymdSlash:fmtYMDslash(d),shift:'A'}; }
-  if(mins>=1080){ return {baseDate:d,mmdd:fmtMD(d),ymdSlash:fmtYMDslash(d),shift:'B'}; }
+  if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymdSlash:fmtYMDslash(y),shift:'C'}; }
+  if(mins>=520 && mins<1000){ return {baseDate:d,mmdd:fmtMD(d),ymdSlash:fmtYMDslash(d),shift:'A'}; }
+  if(mins>=1000){ return {baseDate:d,mmdd:fmtMD(d),ymdSlash:fmtYMDslash(d),shift:'B'}; }
   const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymdSlash:fmtYMDslash(y),shift:'B'};
 }
 let currentDS=null;
