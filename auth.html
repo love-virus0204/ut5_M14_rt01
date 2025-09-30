@@ -138,7 +138,7 @@ manualOk.addEventListener('click', function(e) {
   e.preventDefault();
   var v = (input.value || '').trim();
   if (v === fixed_key) {
-    location.replace(admin_URL);   // 成功→跳轉
+    location.replace(admin_URL);
   } else {
     errEl.textContent = '金鑰不正確';
     input.value = '';
