@@ -95,14 +95,11 @@
   .btn-sec{background:#374151}
 
 @keyframes dlgBorderFlash{
-  0%,100%{ border-color:#ef4444; }
-  50%{ border-color:transparent; }
-}
-
+  0%, 100% { box-shadow: 0 0 0px #ef4444; }
+  50% { box-shadow: 0 0 16px #ef4444; } }
 dialog.dlg-flash {
-  border:4px solid #334155;
-  animation: dlgBorderFlash 1.1s ease-in-out infinite;
-}
+  animation: blinkBorder 0.8s ease-in-out infinite;}
+
 
 /* 錯誤提示：輸入框下方青字 */
 .hint-err{ color:#06edf3; font-size:12px; margin:6px 2px 0; }
