@@ -134,7 +134,7 @@ document.getElementById('manualBtn')?.addEventListener('click', () => {
   input.focus();
 });
 
-document.getElementById('manualOk')?.addEventListener('click', () => {
+document.getElementById('manualOk')?.addEventListener('click', async () => {
   const v = input.value.trim();
   if (v !== fixed_key) {
     errEl.textContent = '金鑰不正確';
@@ -142,10 +142,20 @@ document.getElementById('manualOk')?.addEventListener('click', () => {
     input.focus();
     return;
   }
-  try { QRScanner.stop(); } catch(_) {}
+  errEl.textContent = '';
+  try { await (QRScanner.stop?.() ?? undefined); } catch (_) {}
+  try {
+    const vid = document.getElementById('cam');
+    const stream = vid?.srcObject;
+    if (stream && typeof stream.getTracks === 'function') {
+      stream.getTracks().forEach(t => t.stop());
+    }
+  } catch (_) {}
   dlg.close();
-  setTimeout(() => { location.href = admin_URL; }, 0)
+  setTimeout(() => { location.href = admin_URL; }, 0);
+  // 若不希望回上一頁可改用：location.replace(admin_URL);
 });
+
 
 document.getElementById('manualCancel')?.addEventListener('click', () => {
   dlg.close();
