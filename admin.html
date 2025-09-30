@@ -155,7 +155,7 @@ input, select, textarea { font-size:16px; }
 const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
 const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
-const EXPIRE_MS = 200*60*1000;
+const EXPIRE_MS = 2*60*1000;
 (function gate(){
   const ts = parseInt(sessionStorage.getItem("ts")||"0",10);
   const tk = sessionStorage.getItem("tokey")||"";
