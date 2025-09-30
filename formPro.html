@@ -238,7 +238,7 @@ function parseLot(input){
     const [m,cRaw]=s.split('-',2);
     if(!m || !/^(?!.*[BIO])[A-Z0-9]{3}$/.test(m)) return {ok:false,msg:'母批須剛好 3 碼，且不可含 B / I / O'};
     if(!cRaw) return {ok:false,msg:'有連字號時必須輸入子批（1~2 碼)'};
-    if(!/^[0-9]{1,2}$/.test(cRaw)) return {ok:false,msg:'子批需 1~2 位數字'};
+    if(!/^[0-9]{1,2}$/.test(cRaw)) return {ok:false,msg:'子批須 1~2 位數字'};
     return {ok:true,mother:m,child:cRaw.padStart(2,'0'),hasChild:true};
   }else{
     const m=s;
@@ -386,7 +386,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const part=CANON(partNo.value);
   const prefix=CANON(lotPrefix.value);
 
-  if(!/^[A-Z0-9]{5}$/.test(inspectorVal)){ setFieldError(inspector,inspectorError,'需 5 碼英數'); inspector.focus(); return; }
+  if(!/^[A-Z0-9]{5}$/.test(inspectorVal)){ setFieldError(inspector,inspectorError,'須 5 碼英數'); inspector.focus(); return; }
   setFieldError(inspector,inspectorError,''); persistInspectorIfValid(inspectorVal);
 
   if(!part){ setFieldError(partNo,partError,'料號必填'); partNo.focus(); return; }
@@ -425,7 +425,7 @@ const now=nowCorrected();
     // sample_cnt: gv("sample_cnt"),
     sample_cnt: q > 20 ? 20 : q,
     inspector: inspectorVal,
-    submitted_at: fmtTW(now),
+    // submitted_at: fmtTW(now),
     key: submitKey,
     key2: `${currentDS.mmdd}|${currentDS.shift}|${part}|${keyLot}|TRUE`
   };
@@ -454,13 +454,11 @@ function ymdToSerial(ymd){
   return ((Date.UTC(y, m-1, d) - Date.UTC(1899,11,30)) / 86400000);
 }
 
-/* 初始化 + 保溫 */
+/* 初始化 */
 (()=>{
   refreshDisplays();
   setInterval(refreshDisplays,1000);
-
   const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
-
   renderDrafts();
 })();
 </script>
