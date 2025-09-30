@@ -6,8 +6,16 @@
 <title>外觀記錄表｜管理</title>
 <style>
   :root{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --brand:#0f766e; --ok:#10b981; --err:#ef4444; }
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+
+/* 取代 html,body { height:100% } */
+/* html,body{height:100%} */
+html { height: -webkit-fill-available; }
+body {
+  margin: 0;
+  min-height: 100dvh; /* 不用 100vh */
+  overflow-x: hidden;
+  overscroll-behavior: contain;}
+ body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
   .wrap{width:96%;max-width:980px;margin:12px auto}
   .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
@@ -56,6 +64,7 @@
     border-radius:12px;
     padding:0;
     background:#0f172a;color:#06edf3;
+    top:12px;
   }
   .dlg-body{
     box-sizing:border-box;
@@ -359,13 +368,9 @@ adminIdEl.addEventListener('blur', ()=>{
 /* 工具：關窗後帶到底部 */
 function scrollToBottom(){
   requestAnimationFrame(()=>{
-    const doc = document.documentElement;
-    const body = document.body;
-    const scrollH = Math.max(doc.scrollHeight, body.scrollHeight);
-    const viewportH = window.visualViewport
-      ? window.visualViewport.height
-      : Math.max(window.innerHeight, doc.clientHeight);
-    const maxTop = Math.max(0, scrollH - viewportH);
+    const doc = document.scrollingElement || document.documentElement;
+    const viewportH = (window.visualViewport && window.visualViewport.height) || doc.clientHeight;
+    const maxTop = Math.max(0, doc.scrollHeight - viewportH);
     window.scrollTo({ top: maxTop, behavior: 'smooth' });
   });
 }
