@@ -315,11 +315,6 @@ async function softDeleteWithFlag(rows, adminId){
   return data;
 }
 
-if (window.visualViewport){
-  visualViewport.addEventListener('resize', ()=> placeDialogTop(confirmDlg));
-  visualViewport.addEventListener('scroll', ()=> placeDialogTop(confirmDlg));
-}
-
 /* 草稿：admin_id */
 function loadDraft(){
   const keys = ["draft","FORM_DRAFT","form_draft"];
