@@ -410,13 +410,13 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 const now=nowCorrected();
   const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
   const payload={
-    z07: gv("z07"),
-    z08: gv("z08"),
-    z09: gv("z09"),
-    z10: gv("z10"),
-    z11: gv("z11"),
-    z12: gv("z12"),
-    z13: gv("z13"),
+    z07: gv("z07") || 0,
+    z08: gv("z08") || 0,
+    z09: gv("z09") || 0,
+    z10: gv("z10") || 0,
+    z11: gv("z11") || 0,
+    z12: gv("z12") || 0,
+    z13: gv("z13") || 0,
     remark: gv("remark").trim(),
     date: currentDS.ymdSlash,
     shift: currentDS.shift,
