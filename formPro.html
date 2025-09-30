@@ -161,9 +161,8 @@ input, select, textarea { font-size:16px; }
 /* ===== 版本與 API ===== */
 const API_BASE="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-const gv = id => document.getElementById(id).value;
-
 /* ===== 小工具 ===== */
+const gv = id => document.getElementById(id).value;
 const $=s=>document.querySelector(s);
 function fw2hw(s){return String(s||"").replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g," ")}
 function CANON(s){return fw2hw(s).trim().toUpperCase()}
@@ -187,9 +186,9 @@ function nowCorrected(){
 /* ===== 班別（0040/0840/1640） ===== */
 function computeShiftByClockFrom(d){
   const h=d.getHours(), m=d.getMinutes(), mins=h*60+m;
-  if(mins>=40 && mins<520){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymdSlash:fmtYMDslash(y),shift:'C'}; }
-  if(mins>=520 && mins<1000){ return {baseDate:d,mmdd:fmtMD(d),ymdSlash:fmtYMDslash(d),shift:'A'}; }
-  if(mins>=1000){ return {baseDate:d,mmdd:fmtMD(d),ymdSlash:fmtYMDslash(d),shift:'B'}; }
+  if(mins>=120 && mins<600){ const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymdSlash:fmtYMDslash(y),shift:'C'}; }
+  if(mins>=600 && mins<1080){ return {baseDate:d,mmdd:fmtMD(d),ymdSlash:fmtYMDslash(d),shift:'A'}; }
+  if(mins>=1080){ return {baseDate:d,mmdd:fmtMD(d),ymdSlash:fmtYMDslash(d),shift:'B'}; }
   const y=new Date(d); y.setDate(d.getDate()-1); return {baseDate:y,mmdd:fmtMD(y),ymdSlash:fmtYMDslash(y),shift:'B'};
 }
 let currentDS=null;
