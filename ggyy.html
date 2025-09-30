@@ -8,18 +8,27 @@
   body{font-family:system-ui,Arial;margin:0;background:#0b1220;color:#e6edf3}
   .wrap{max-width:720px;margin:0 auto;padding:16px}
 
-  /* 框：掃描時紅框閃爍（保留樣式但實作交給模組控制） */
+  /* 框：掃描時紅框閃爍 */
   #view-wrap{width:100%;position:relative;aspect-ratio:3/4;border:3px solid transparent;border-radius:12px;animation:none}
   #view-wrap.scan{border-color:red;animation:scanblink 1s infinite}
   @keyframes scanblink{0%{border-color:red}50%{border-color:transparent}100%{border-color:red}}
 
-  #view{aspect-ratio:3/4;background:#111827;border-radius:12px;overflow:hidden}
-  video{width:100%;height:100%;object-fit:cover}
+  #view{
+    aspect-ratio:3/4;
+    background:#111827;
+    border-radius:30px;
+    overflow:hidden}
+  video{
+    width:100%;
+    height:100%;
+    object-fit:cover}
 
   .hint{margin:12px 0;color:#93a4b7;font-size:14px}
 
-  /* 三鍵置中 */
-  .bar{display:flex;gap:10px;justify-content:center;margin-top:12px}
+  .bar{
+    display:flex;gap:10px;
+    justify-content:center;
+    margin-top:24px}
   button{background:#2563eb;color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer}
   button.secondary{background:#374151}
   dialog{border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:560px;width:calc(100% - 32px)}
@@ -31,6 +40,16 @@
   .fld small{color:#94a3b8}
   .err{color:#ef4444;margin-top:6px;min-height:1.2em}
   .dlg-row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+
+  dialog#manualDlg {
+    position: fixed;
+    margin: 0;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+/* ===== 強制輸入字體大小避免縮放 ===== */
+input, select, textarea { font-size:16px; }
 </style>
 </head>
 <body>
@@ -53,12 +72,12 @@
       <input id="manualInput" type="text" maxlength="128"
              autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
              placeholder="輸入 128 字元金鑰">
-      <small>只接受配對的固定 Key，大小寫需完全一致。</small>
+      <small>只接受配對的固定 Key，大小寫須完全一致。</small>
       <div id="manualErr" class="err"></div>
     </div>
     <div class="dlg-row">
       <button id="manualCancel" class="secondary">取消</button>
-      <button id="manualOk">確定</button>
+      <button id="manualOk" type="button">確定</button>
     </div>
   </div>
 </dialog>
@@ -66,12 +85,10 @@
 <script type="module">
   import { QRScanner } from './js/QRScanner.js';
 
-  // 固定值（用你專案的）
-  const admin_URL   = "admin.html";
-  const fixed_key   = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+  const admin_URL = "admin.html";
+  const fixed_key = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
   const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
-  // 掃到正確才停止 → 預設只掃 QR
   QRScanner.mount({
     videoEl: "#cam",
     formats: ["qr"],
@@ -84,10 +101,59 @@
     },
     onError: (err) => console.log("QR err:", err)
   });
-
-  // 若頁面有開始/停止按鈕就綁定，沒有可忽略
   document.getElementById('startBtn')?.addEventListener('click', () => QRScanner.start());
   document.getElementById('stopBtn') ?.addEventListener('click', () => QRScanner.stop());
+// --- Auto start camera once after first render ---
+let _autoStarted = false;
+const autoStartOnce = () => {
+  if (_autoStarted) return;
+  _autoStarted = true;
+  setTimeout(() => {
+    try { QRScanner.start(); } catch (e) { console.log("autoStart error:", e); }
+  }, 0);
+};
+window.addEventListener('DOMContentLoaded', autoStartOnce, { once: true });
+// --- end auto start block ---
+
+// === Manual key dialog handlers ===
+const dlg       = document.getElementById('manualDlg');
+const input     = document.getElementById('manualInput');
+const errEl     = document.getElementById('manualErr');
+const manualBtn = document.getElementById('manualBtn');
+const okBtn     = document.getElementById('manualOk');
+const cancelBtn = document.getElementById('manualCancel');
+
+manualBtn?.addEventListener('click', () => {
+  try { QRScanner.stop(); } catch(_) {}
+  if (errEl) errEl.textContent = '';
+  if (input) { input.value = ''; dlg?.showModal(); input.focus(); }
+});
+
+okBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (!input) return;
+  if (input.value === fixed_key) {
+    // 成功→直接跳轉
+    location.replace(admin_URL);
+  } else {
+    // 失敗→顯示錯誤並清空
+    if (errEl) errEl.textContent = '金鑰不正確';
+    input.value = '';
+    input.focus();
+  }
+});
+
+cancelBtn?.addEventListener('click', () => {
+  try { dlg?.close(); } catch(_) {}
+  if (errEl) errEl.textContent = '';
+  if (input) input.value = '';
+  try { QRScanner.start(); } catch(_) {}
+});
+
+input?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); okBtn?.click(); }
+});
+// === end manual key dialog ===
 </script>
 </body>
 </html>
