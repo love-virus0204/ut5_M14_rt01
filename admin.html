@@ -35,14 +35,17 @@ body {
   /* 底部三區塊：左燈 / 中訊息置中 / 右按鈕 */
   .foot{padding:8px 14px;
     border-top:1px solid var(--line);
-    display:flex;align-items:center;
+    display:flex;
+    align-items:center;
     gap:12px;
-    color:#64748b;font-size:12px}
+    color:#64748b;
+    font-size:12px}
   .foot .left{flex:0 0 auto}
+  .foot .right{flex:0 0 auto}
   .foot .center{flex:1 1 auto;
     text-align:center;
     white-space:nowrap}
-  .foot .right{flex:0 0 auto}
+
   .btn{background:#ef4444;color:#fff;border:0;border-radius:10px;cursor:pointer;min-width:100px;height:32px;line-height:32px;padding:0 12px}
   .btn:disabled{background:#94a3b8;cursor:not-allowed}
 
@@ -63,8 +66,11 @@ body {
     border:none;
     border-radius:12px;
     padding:0;
-    background:#0f172a;color:#06edf3;
-    top:12px;
+    background:#0f172a;
+    color:#06edf3;
+    inset: 12px 16px auto 16px;
+    max-height: calc(100svh - 24px); 
+    overflow: auto;
   }
   .dlg-body{
     box-sizing:border-box;
