@@ -123,13 +123,19 @@ const manualBtn = document.getElementById('manualBtn');
 const okBtn     = document.getElementById('manualOk');
 const cancelBtn = document.getElementById('manualCancel');
 
-manualBtn?.addEventListener('click', () => {
+
+
+manualBtn.addEventListener('click', () => {
   try { QRScanner.stop(); } catch(_) {}
-  if (errEl) errEl.textContent = '';
-  if (input) { input.value = ''; dlg?.showModal(); input.focus(); }
+  errEl.textContent = '';
+  input.value = '';
+  dlg.showModal();
+  input.focus();
+  dlg.classList.add('blink');
+  setTimeout(() => dlg.classList.remove('blink'), 2400);
 });
 
-okBtn?.addEventListener('click', (e) => {
+okBtn.addEventListener('click', (e) => {
   e.preventDefault();
   if (!input) return;
   if (input.value === fixed_key) {
@@ -143,7 +149,7 @@ okBtn?.addEventListener('click', (e) => {
   }
 });
 
-cancelBtn?.addEventListener('click', () => {
+cancelBtn.addEventListener('click', () => {
   try { dlg?.close(); } catch(_) {}
   if (errEl) errEl.textContent = '';
   if (input) input.value = '';
