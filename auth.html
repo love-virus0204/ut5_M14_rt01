@@ -135,8 +135,7 @@ document.getElementById('manualBtn')?.addEventListener('click', () => {
 });
 
 document.getElementById('manualOk').addEventListener('click', function () {
-  var v = (input.value || '').trim();
-  if (v === fixed_key) {
+  if (input.value === fixed_key) {
     dlg.close();
     location.replace(admin_URL);
   } else {
