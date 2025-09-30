@@ -380,7 +380,6 @@ document.getElementById('submitBtn').addEventListener('click',(ev)=>{
   document.activeElement && document.activeElement.blur();
   confirmDlg.showModal();
   confirmDlg.classList.add('dlg-flash');
-  placeDialogTop(confirmDlg);
   adminIdEl.focus({preventScroll:true});
 });
 
@@ -397,7 +396,6 @@ confirmDlg.addEventListener('cancel', e=>{
 });
 confirmDlg.addEventListener('close', ()=>{
   confirmDlg.classList.remove('dlg-flash');
-  resetDialogPos(confirmDlg);
 });
 
 document.getElementById('confirmOk').addEventListener('click', async ()=>{
