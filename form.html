@@ -27,7 +27,7 @@
   .field-error{display:none;color:#d93025;font-weight:700;font-size:13px;margin-top:4px}
   .input-error{ border-color:#d93025 !important; }
 
-  .submit{position:relative;display:flex;justify-content:flex-end;align-items:center;margin-top:10px
+  .submit{position:relative;display:flex;justify-content:flex-end;align-items:center;margin-top:10px;
   box-sizing:border-box;
   padding-right:24px;}
   .submit-center{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px}
@@ -120,8 +120,7 @@ input, select, textarea { font-size:16px; }
 </div>
 
 <script>
-/* ===== 版本與 API ===== */
-const FORM_VERSION="v18.1.1-floating";
+/* ===== API_URL ===== */
 const API_BASE="https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
 /* ===== 小工具 ===== */
@@ -397,8 +396,6 @@ function ymdToSerial(ymd){
 }
 
 /* 初始化 + 保溫 */
-document.getElementById('versionTag').textContent=`版本：${FORM_VERSION}`;
-
 (()=>{
   refreshDisplays();
   setInterval(refreshDisplays,1000);
@@ -406,7 +403,6 @@ document.getElementById('versionTag').textContent=`版本：${FORM_VERSION}`;
   const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
 
   renderDrafts();
-
 })();
 </script>
 </body>
