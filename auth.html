@@ -134,10 +134,11 @@ manualBtn?.addEventListener('click', () => {
 okBtn?.addEventListener('click', (e) => {
   e.preventDefault();
   if (!input) return;
-  var v = (input.value || '').trim();
-  if (v === fixed_key) {
+  if (input.value === fixed_key) {
+    // 成功→直接跳轉
     location.replace(admin_URL);
   } else {
+    // 失敗→顯示錯誤並清空
     if (errEl) errEl.textContent = '金鑰不正確';
     input.value = '';
     input.focus();
@@ -153,9 +154,8 @@ cancelBtn?.addEventListener('click', () => {
 
 input?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); okBtn?.click(); }
-});// Enter 當作確定
+});
 // === end manual key dialog ===
-
 </script>
 </body>
 </html>
