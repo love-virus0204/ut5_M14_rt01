@@ -57,12 +57,12 @@ body {
   .ok{background:#10b981!important;border-color:#10b981!important}
   .err{background:#ef4444!important;border-color:#ef4444!important}
 
-/* 初始置中 + 高度可捲；dvh 有支援時會覆蓋 */
+  /* 對話框：水平置中，寬度縮放；內容比例內縮 */
 dialog {
   position: fixed;
+  top: 15vh;
   left: 50%;
   transform: translateX(-50%);
-  top: 15vh;
   width: min(92vw, 380px);
   margin: 0;
   border: none;
@@ -70,13 +70,13 @@ dialog {
   padding: 0;
   background: #0f172a;
   color: #06edf3;
-  max-height: calc(100dvh - 24px);
+  max-height: calc(100svh - 24px);
   overflow: auto;
 }
   .dlg-body{
     box-sizing:border-box;
-    padding:5% 7%; }
-
+    padding:5% 7%;/* 上下左右內縮比 */
+  }
   .dlg-title{font-weight:700;margin-bottom:8px}
   .fld{display:flex;flex-direction:column;gap:8px}
 
@@ -315,39 +315,20 @@ async function softDeleteWithFlag(rows, adminId){
   return data;
 }
 
-// === 只新增：對話框定位輔助，不改你原本讀取/提交 ===
+/* 只控制垂直；水平交給 CSS */
 function placeDialogTop(dlg){
-  if (!dlg?.open) return;
   const vv = window.visualViewport;
-  if (vv) {
-    const top = Math.max(12, vv.offsetTop + vv.height * 0.15);
-    dlg.style.top = top + 'px';   // 行內 top 覆蓋 CSS 的 15vh
-  } else {
-    dlg.style.top = '15vh';
-  }
+  if (!vv || !dlg.open) return;
+  const top = Math.max(12, vv.offsetTop + vv.height * 0.15);
+  dlg.style.top = `${top}px`;
 }
-function resetDialogPos(dlg){ if (dlg) dlg.style.top = ''; }
+function resetDialogPos(dlg){ dlg.style.top = ''; }
 
-const confirmDlg = document.getElementById('confirmDlg');
-
-// 1) 按下提交鍵後，你的原邏輯會決定是否 showModal()。
-//    我們只在「真的開啟」時做定位，不干擾原流程。
-document.getElementById('submitBtn')?.addEventListener('click', () => {
-  requestAnimationFrame(() => {      // 等同一幀，確保若已開啟則定位
-    if (confirmDlg?.open) placeDialogTop(confirmDlg);
-  });
-});
-
-// 2) 視窗變動（鍵盤彈出/收起）時，若對話框處於開啟狀態則重算 top
 if (window.visualViewport){
-  const reflow = () => { if (confirmDlg?.open) placeDialogTop(confirmDlg); };
-  visualViewport.addEventListener('resize', reflow);
-  visualViewport.addEventListener('scroll', reflow);
+  visualViewport.addEventListener('resize', ()=> placeDialogTop(confirmDlg));
+  visualViewport.addEventListener('scroll', ()=> placeDialogTop(confirmDlg));
 }
 
-// 3) 關閉對話框時，把行內 top 清掉，回到 CSS 初始
-confirmDlg?.addEventListener('close', () => resetDialogPos(confirmDlg));
-// === end ===
 /* 草稿：admin_id */
 function loadDraft(){
   const keys = ["draft","FORM_DRAFT","form_draft"];
