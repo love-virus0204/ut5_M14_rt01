@@ -107,7 +107,17 @@ input, select, textarea { font-size:16px; }
   document.getElementById('manualInput')?.focus();
 });
 
-
+// --- Auto start camera once after first render ---
+let _autoStarted = false;
+const autoStartOnce = () => {
+  if (_autoStarted) return;
+  _autoStarted = true;
+  setTimeout(() => {
+    try { QRScanner.start(); } catch (e) { console.log("autoStart error:", e); }
+  }, 0);
+};
+window.addEventListener('DOMContentLoaded', autoStartOnce, { once: true });
+// --- end auto start block ---
 
 // === Manual key dialog handlers ===
 const dlg       = document.getElementById('manualDlg');
