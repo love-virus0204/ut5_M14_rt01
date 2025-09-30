@@ -147,12 +147,7 @@ okBtn.addEventListener('click', (e) => {
   }
 });
 
-cancelBtn.addEventListener('click', () => {
-  dlg.close();
-  errEl.textContent = '';
-  input.value = '';
-  try { QRScanner.start(); } catch(_) {}
-});
+
 
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); okBtn.click(); }
