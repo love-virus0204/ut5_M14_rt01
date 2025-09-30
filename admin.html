@@ -357,9 +357,10 @@ adminIdEl.addEventListener('blur', ()=>{
 });
 
 /* 工具：關窗後帶到底部 */
-function scrollToBottom(){
-  requestAnimationFrame(()=>{
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    const h = document.body.scrollHeight;
+    window.scrollTo({ top: h, behavior: 'smooth' });
   });
 }
 
