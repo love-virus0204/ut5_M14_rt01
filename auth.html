@@ -17,7 +17,7 @@
     aspect-ratio:3/4;
     background:#111827;
     border-radius:30px;
-    voverflow:hidden}
+    overflow:hidden}
   video{
     width:100%;
     height:100%;
@@ -103,9 +103,6 @@ input, select, textarea { font-size:16px; }
   });
   document.getElementById('startBtn')?.addEventListener('click', () => QRScanner.start());
   document.getElementById('stopBtn') ?.addEventListener('click', () => QRScanner.stop());
-
-document.getElementById('manualBtn')?.addEventListener('click', () => {
-  try { QRScanner.stop(); } catch (_) {}
   document.getElementById('manualDlg')?.showModal();
   document.getElementById('manualInput')?.focus();
 });
@@ -122,11 +119,15 @@ const autoStartOnce = () => {
 window.addEventListener('DOMContentLoaded', autoStartOnce, { once: true });
 // --- end auto start block ---
 
-const dlg = document.getElementById('manualDlg');
-const input = document.getElementById('manualInput');
-const errEl = document.getElementById('manualErr');
+// 手動輸入對話框節點
+const dlg       = document.getElementById('manualDlg');
+const input     = document.getElementById('manualInput');
+const errEl     = document.getElementById('manualErr');
+const manualBtn = document.getElementById('manualBtn');
+const okBtn     = document.getElementById('manualOk');
+const cancelBtn = document.getElementById('manualCancel');
 
-document.getElementById('manualBtn')?.addEventListener('click', () => {
+manualBtn.addEventListener('click', () => {
   try { QRScanner.stop(); } catch(_) {}
   errEl.textContent = '';
   input.value = '';
@@ -134,7 +135,7 @@ document.getElementById('manualBtn')?.addEventListener('click', () => {
   input.focus();
 });
 
-manualOk.addEventListener('click', function(e) {
+okBtn.addEventListener('click', (e) => {
   e.preventDefault();
   var v = (input.value || '').trim();
   if (v === fixed_key) {
@@ -146,21 +147,16 @@ manualOk.addEventListener('click', function(e) {
   }
 });
 
-document.getElementById('manualCancel')?.addEventListener('click', () => {
+cancelBtn.addEventListener('click', () => {
   dlg.close();
   errEl.textContent = '';
   input.value = '';
   try { QRScanner.start(); } catch(_) {}
 });
 
-input?.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('manualOk')?.click(); }
-});
-
-// 讓 Enter 等同按下 OK（可選）
-manualInput?.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); manualOk?.click(); }
-});
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); okBtn.click(); }
+}); // Enter 當作確定
 </script>
 </body>
 </html>
