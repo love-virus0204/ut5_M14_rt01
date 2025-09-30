@@ -134,17 +134,16 @@ document.getElementById('manualBtn')?.addEventListener('click', () => {
   input.focus();
 });
 
-document.getElementById('manualOk')?.addEventListener('click', () => {
-  const v = input.value.trim();
-  if (v !== fixed_key) {
-    errEl.textContent = '金鑰不正確';
+document.getElementById('manualOk').addEventListener('click', function () {
+  var v = (input.value || '').trim();
+  if (v === fixed_key) {
+    dlg.close();
+    location.replace(admin_URL);
+  } else {
+    if (errEl) errEl.textContent = '金鑰不正確';
     input.value = '';
     input.focus();
-    return;
   }
-  try { QRScanner.stop(); } catch(_) {}
-  dlg.close();
-  setTimeout(() => { location.href = admin_URL; }, 0)
 });
 
 document.getElementById('manualCancel')?.addEventListener('click', () => {
