@@ -1,159 +1,142 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Auth</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RT外觀抽驗記錄表 | Index</title>
 <style>
-  body{font-family:system-ui,Arial;margin:0;background:#0b1220;color:#e6edf3}
-  .wrap{max-width:720px;margin:0 auto;padding:16px}
-
-  /* 框：掃描時紅框閃爍 */
-  #view-wrap{width:100%;position:relative;aspect-ratio:3/4;border:3px solid transparent;border-radius:12px;animation:none}
-  #view-wrap.scan{border-color:red;animation:scanblink 1s infinite}
-  @keyframes scanblink{0%{border-color:red}50%{border-color:transparent}100%{border-color:red}}
-
-  #view{
-    aspect-ratio:3/4;
-    background:#111827;
-    border-radius:30px;
-    overflow:hidden}
-  video{
-    width:100%;
-    height:100%;
-    object-fit:cover}
-
-  .hint{margin:12px 0;color:#93a4b7;font-size:14px}
-
-  .bar{
-    display:flex;gap:10px;
-    justify-content:center;
-    margin-top:24px}
-  button{background:#2563eb;color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer}
-  button.secondary{background:#374151}
-  dialog{border:none;border-radius:12px;padding:0;background:#0f172a;color:#e6edf3;max-width:560px;width:calc(100% - 32px)}
-  .dlg-body{padding:16px}
-  .dlg-title{font-weight:700;margin-bottom:8px}
-  .fld{display:flex;flex-direction:column;gap:8px}
-  .fld input{padding:12px 14px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e6edf3;font-family:monospace}
-  .fld input:focus{border-color:#60a5fa;outline:none}
-  .fld small{color:#94a3b8}
-  .err{color:#ef4444;margin-top:6px;min-height:1.2em}
-  .dlg-row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
-
-  dialog#manualDlg {
-    position: fixed;
-    margin: 0;
-    top: 15%;
-    left: 50%;
-    transform: translateX(-50%);
+  :root{
+    --ok:#10b981; --err:#ef4444; --bg:#f8fafc; --brand:#0f766e;
+    --btn1:#ecfeff; --btn2:#f1f5f9; --btn3:#fff7ed; --btn4:#eff6ff;
   }
-/* ===== 強制輸入字體大小避免縮放 ===== */
-input, select, textarea { font-size:16px; }
+  html,body{height:100%}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:#0f172a}
+
+  .wrap{width:100%; margin:22px auto 32px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
+  .hdr{padding:16px 18px 10px;border-bottom:1px solid #e5e7eb;text-align:center}
+  .title{font-size:22px;font-weight:700;color:var(--brand);letter-spacing:0.25em}
+  .sub{color:#475569;font-size:12px;margin-top:4px}
+  .content{padding:14px}
+
+  .grid-wrap{width:75%; margin:10px auto 0;}
+  .grid{display:grid;grid-template-columns:1fr;gap:20px}
+
+  .btn{
+    display:flex;align-items:center;justify-content:center;
+    padding:12px;border-radius:12px;border:1px solid #e5e7eb;
+    color:#0f172a;font-weight:600;text-decoration:none;
+    font-family:"DFKai-SB","標楷體","PMingLiU",serif;
+    font-size:16px;line-height:1.2;text-align:center;
+    letter-spacing:.35em;
+  }
+  .btn1{background:var(--btn1); border-color:#cffafe;}
+  .btn2{background:var(--btn2); border-color:#e2e8f0;}
+  .btn3{background:var(--btn3); border-color:#fed7aa;}
+  .btn4{background:var(--btn4); border-color:#bfdbfe;}
+
+  .status-row{margin-top:28px;display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap}
+  .item{display:flex;align-items:center;gap:8px}
+  .item.gas .label{font-family:"Comic Sans MS","Comic Sans",cursive}
+  .dot{width:12px;height:12px;border-radius:50%;background:#d1d5d9;border:1px solid #cbd5e1}
+  .ok{background:var(--ok)!important;border-color:var(--ok)!important}
+  .err{background:var(--err)!important;border-color:var(--err)!important}
+
+  /* 著作列與版本列像段落換行一樣的距離 */
+  .footline{margin:0 14px 2px;display:flex;align-items:center;justify-content:space-between;
+    color:#475569;font-size:12px;line-height:1.4}
+  .foot{margin:0 14px 8px;display:flex;align-items:center;justify-content:space-between;
+    color:#475569;font-size:12px;line-height:1.4}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div id="status" class="hint">請允許相機權限以開始掃描 QR。</div>
-  <div id="view-wrap">
-    <div id="view"><video id="cam" autoplay playsinline muted></video></div>
-  </div>
-  <div class="bar">
-    <button id="startBtn">開始掃描</button>
-    <button id="stopBtn"  class="secondary">停止相機</button>
-    <button id="manualBtn" class="secondary">輸入金鑰</button>
-  </div>
-</div>
-
-<dialog id="manualDlg">
-  <div class="dlg-body">
-    <div class="dlg-title">輸入 128 位 QR 代碼</div>
-    <div class="fld">
-      <input id="manualInput" type="text" maxlength="128"
-             autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
-             placeholder="輸入 128 字元金鑰">
-      <small>只接受配對的固定 Key，大小寫須完全一致。</small>
-      <div id="manualErr" class="err"></div>
+  <div class="wrap card">
+    <div class="hdr">
+      <div class="title">RT外觀抽驗記錄表</div>
+      <div class="sub">入口導航</div>
     </div>
-    <div class="dlg-row">
-      <button id="manualCancel" class="secondary">取消</button>
-      <button id="manualOk" type="button">確定</button>
+
+    <div class="content">
+      <div class="grid-wrap">
+        <div class="grid">
+          <a class="btn btn1" href="browse.html">每日記錄表</a>
+          <a class="btn btn2" href="form.html">外觀記錄表</a>
+          <a class="btn btn3" href="formPro.html">外觀記錄表</a>
+          <a class="btn btn4" href="auth.html">安全管理員</a>
+        </div>
+      </div>
+
+      <div class="status-row">
+        <div class="item gas"><span id="dot-alive" class="dot"></span><span class="label">GAS</span></div>
+        <div class="item"><span id="dot-file" class="dot"></span><span class="label">檔案</span></div>
+        <div class="item"><span id="dot-sheet" class="dot"></span><span class="label">表名</span></div>
+      </div>
+    </div>
+
+    <div class="footline">
+      <div>著作 by 16F51</div>
+      <div></div>
+    </div>
+    <div class="foot">
+      <div>版本 <span id="ver"></span></div>
+      <div id="now"></div>
     </div>
   </div>
-</dialog>
 
-<script type="module">
-  import { QRScanner } from './js/QRScanner.js';
-
-  const admin_URL = "admin.html";
-  const fixed_key = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
-  const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
-
-  QRScanner.mount({
-    videoEl: "#cam",
-    formats: ["qr"],
-    mode: "stop-on-valid",
-    isValid: (txt) => txt === fixed_key,
-    onOk: () => {
-      sessionStorage.setItem("ts", String(Date.now()));
-      sessionStorage.setItem("tokey", fixed_tokey);
-      location.replace(admin_URL);
-    },
-    onError: (err) => console.log("QR err:", err)
-  });
-  document.getElementById('startBtn')?.addEventListener('click', () => QRScanner.start());
-  document.getElementById('stopBtn') ?.addEventListener('click', () => QRScanner.stop());
-// --- Auto start camera once after first render ---
-let _autoStarted = false;
-const autoStartOnce = () => {
-  if (_autoStarted) return;
-  _autoStarted = true;
-  setTimeout(() => {
-    try { QRScanner.start(); } catch (e) { console.log("autoStart error:", e); }
-  }, 0);
+<script>
+const CFG = {
+  version: "v0.4.8-index-ui",
+  apiBase: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec",
+  targetParam: "check",
+  firstDelayMs: 250,
+  nextDelayMs: 59000
 };
-window.addEventListener('DOMContentLoaded', autoStartOnce, { once: true });
-// --- end auto start block ---
+document.getElementById('ver').textContent = CFG.version;
 
-// === Manual key dialog handlers ===
-const dlg       = document.getElementById('manualDlg');
-const input     = document.getElementById('manualInput');
-const errEl     = document.getElementById('manualErr');
-const manualBtn = document.getElementById('manualBtn');
-const okBtn     = document.getElementById('manualOk');
-const cancelBtn = document.getElementById('manualCancel');
+// 台北時間
+function tick(){
+  const tz = "Asia/Taipei";
+  const now = new Date();
+  const opt = {timeZone:tz, year:'numeric', month:'2-digit', day:'2-digit',
+               hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false};
+  document.getElementById('now').textContent =
+    new Intl.DateTimeFormat('zh-TW', opt).format(now);
+}
+tick(); setInterval(tick, 1000);
 
-manualBtn?.addEventListener('click', () => {
-  try { QRScanner.stop(); } catch(_) {}
-  if (errEl) errEl.textContent = '';
-  if (input) { input.value = ''; dlg?.showModal(); input.focus(); }
-});
+const elAlive=document.getElementById('dot-alive'),
+      elFile=document.getElementById('dot-file'),
+      elSheet=document.getElementById('dot-sheet');
+function setDot(el,state){
+  el.classList.remove('ok','err');
+  if(state==='ok')el.classList.add('ok');
+  else if(state==='err')el.classList.add('err');
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-okBtn?.addEventListener('click', (e) => {
-  e.preventDefault();
-  if (!input) return;
-  if (input.value === fixed_key) {
-    // 成功→直接跳轉
-    location.replace(admin_URL);
-  } else {
-    // 失敗→顯示錯誤並清空
-    if (errEl) errEl.textContent = '金鑰不正確';
-    input.value = '';
-    input.focus();
+async function getStatus(){
+  try{
+    const url=CFG.apiBase+"?target="+encodeURIComponent(CFG.targetParam)+"&_="+Date.now();
+    const res=await fetch(url,{method:"GET",cache:"no-store"});
+    const aliveState=res.ok?'ok':'err';
+
+    let data=null; try{data=await res.json();}catch(_){}
+
+    setDot(elAlive,aliveState);
+    setDot(elFile, data&&data.fileExists===true?'ok':null);
+    setDot(elSheet,data&&data.sheetExists===true?'ok':null);
+  }catch(e){
+    setDot(elAlive,'err'); setDot(elFile,null); setDot(elSheet,null);
   }
-});
+}
 
-cancelBtn?.addEventListener('click', () => {
-  try { dlg?.close(); } catch(_) {}
-  if (errEl) errEl.textContent = '';
-  if (input) input.value = '';
-  try { QRScanner.start(); } catch(_) {}
-});
-
-input?.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); okBtn?.click(); }
-});
-// === end manual key dialog ===
+(async function loop(){
+  while(true){
+    await sleep(CFG.firstDelayMs);
+    await getStatus();
+    await sleep(CFG.nextDelayMs);
+  }
+})();
 </script>
 </body>
 </html>
