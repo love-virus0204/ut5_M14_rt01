@@ -238,9 +238,10 @@ function showOk(msg){
 /* ===== API（POST urlencoded） ===== */
 // 用 URLSearchParams 組 form-urlencoded
 function submitData(p){
+  var d = ymdToSerial(p.date)
   var params = new URLSearchParams();
   params.append('action','submit');
-  params.append('date', ymdToSerial(p.date));
+  params.append('date', d);
   params.append('shift', p.shift);
   params.append('part_no', p.part_no);
   params.append('lot', p.lot);
@@ -255,7 +256,7 @@ function submitData(p){
   params.append('z13', p.z13);
   params.append('inspector', p.inspector);
   params.append('remark', p.remark);
-  params.append('key2', p.key2);
+  params.append('key2', serialToYM(d));
   params.append('key', p.key);
 
   return fetch(API_BASE, { method:'POST', body: params, cache:'no-store' })
@@ -362,6 +363,7 @@ const now=nowCorrected();
     inspector: inspectorVal,
     // submitted_at: fmtTW(now),
     key: submitKey,
+    key2: '',
   };
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
@@ -395,6 +397,7 @@ function serialToYM(serialInt){
   const m = String(d.getMonth() + 1).padStart(2, '0');
   return Number(`${y}${m}`);
 }
+
 /* 初始化 */
 (()=>{
   refreshDisplays();
