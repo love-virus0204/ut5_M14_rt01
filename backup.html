@@ -1,101 +1,103 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>即時備份</title>
 <style>
-  body {
-    margin:0;
-    height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:#f8fafc;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-    color:#334155;
+  :root{color-scheme:light dark}
+  body{
+    margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
+    background:#f8fafc;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#334155
   }
-  .card {
-    background:#fff;
-    padding:2rem;
-    border-radius:12px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.1);
-    text-align:center;
-    width:90%;
-    max-width:320px;
-  }
-  .spinner {
-    width:48px; height:48px;
-    margin:1rem auto;
-    border:6px solid #e2e8f0;
-    border-top-color:#3b82f6;
-    border-radius:50%;
-    animation:spin 1s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .btn {
-    display:inline-block;
-    margin-top:1rem;
-    padding:0.5rem 1rem;
-    border:none;
-    border-radius:6px;
-    background:#3b82f6;
-    color:#fff;
-    font-size:1rem;
-    cursor:pointer;
-  }
+  .card{background:#fff;padding:24px 20px;border-radius:14px;box-shadow:0 6px 18px rgba(15,23,42,.1);
+        width:min(92vw,360px);text-align:center;border:1px solid #e2e8f0}
+  .title{font-size:18px;font-weight:600;margin-bottom:8px}
+  .msg{font-size:14px;opacity:.85}
+  .spinner{width:48px;height:48px;margin:16px auto;border:6px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;
+           animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .row{margin-top:12px;display:flex;gap:8px;justify-content:center}
+  .btn{padding:.5rem .9rem;border-radius:8px;border:1px solid #cbd5e1;cursor:pointer;background:#f8fafc}
+  .btn.primary{background:#3b82f6;color:#fff;border-color:#60a5fa}
+  .hide{display:none}
 </style>
 </head>
 <body>
   <div class="card">
-    <div id="statusTitle">正在準備備份</div>
-    <div class="spinner" id="spinner"></div>
-    <div id="statusMsg">請稍候…</div>
-    <button id="btnBack" class="btn" style="display:none;">返回首頁</button>
+    <div class="title" id="t">正在準備備份</div>
+    <div class="spinner" id="sp"></div>
+    <div class="msg" id="m">請稍候…</div>
+    <div class="row">
+      <button id="retry"  class="btn hide">重試</button>
+      <button id="home"   class="btn primary hide">返回首頁</button>
+    </div>
   </div>
 
 <script>
-const CFG = {
-  apiBase: "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec",
+  const API = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-const titleEl = document.getElementById('statusTitle');
-const msgEl   = document.getElementById('statusMsg');
-const spinner = document.getElementById('spinner');
-const btnBack = document.getElementById('btnBack');
+  const t = document.getElementById('t');
+  const m = document.getElementById('m');
+  const sp = document.getElementById('sp');
+  const btnRetry = document.getElementById('retry');
+  const btnHome  = document.getElementById('home');
 
-function goHome(){
-  window.location.href = "index.html"; // 主頁
-}
+  function goHome(){ location.href = 'index.html'; }
+  btnHome.addEventListener('click', goHome);
+  btnRetry.addEventListener('click', run);
 
-btnBack.addEventListener('click', goHome);
-
-// 延遲 0.5 秒再觸發
-setTimeout(async ()=>{
-  titleEl.textContent = "執行即時備份";
-  msgEl.textContent   = "備份進行中…";
-
-  try {
-    const res = await fetch(CFG.apiBase, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ action:"backup" })
-    });
-    const data = await res.json().catch(()=>({}));
-    if(res.ok && data.status === "ok"){
-      spinner.style.display="none";
-      titleEl.textContent = "備份成功";
-      msgEl.textContent   = "2 秒後返回首頁…";
-      setTimeout(goHome,2000);
-    }else{
-      throw new Error(data.msg || "HTTP "+res.status);
-    }
-  }catch(err){
-    spinner.style.display="none";
-    titleEl.textContent = "備份失敗";
-    msgEl.textContent   = "原因："+(err.message||err)+"。請稍後再試。";
-    btnBack.style.display="inline-block";
+  function showLoading(msg){
+    t.textContent = '執行即時備份';
+    m.textContent = msg || '備份進行中…';
+    sp.classList.remove('hide');
+    btnRetry.classList.add('hide');
+    btnHome.classList.add('hide');
   }
-},500);
+  function showSuccess(){
+    sp.classList.add('hide');
+    t.textContent = '備份成功';
+    m.textContent = '2 秒後返回首頁…';
+    btnHome.classList.remove('hide');
+    setTimeout(goHome, 2000);
+  }
+  function showError(errMsg){
+    sp.classList.add('hide');
+    t.textContent = '備份失敗';
+    m.textContent = '原因：' + errMsg + '。請稍後再試或重試一次。';
+    btnRetry.classList.remove('hide');
+    btnHome.classList.remove('hide');
+  }
+
+  async function callBackup(){
+    // 與主專案一致：使用 x-www-form-urlencoded，避免預檢 405
+    const resp = await fetch(API, {
+      method: 'POST',
+      body: new URLSearchParams({ action: 'backup' })
+    });
+    let data = {};
+    try { data = await resp.json(); } catch(_){}
+    if (resp.ok && data.status === 'ok') return true;
+    const reason = (data && data.msg) ? data.msg : 'HTTP ' + resp.status;
+    throw new Error(reason);
+  }
+
+  async function run(){
+    if (!API || API.includes('PASTE_YOUR_GAS_EXEC_URL_HERE')) {
+      showError('尚未設定 GAS /exec 網址');
+      return;
+    }
+    showLoading('備份進行中…');
+    try {
+      await callBackup();
+      showSuccess();
+    } catch (e) {
+      showError(e.message || String(e));
+    }
+  }
+
+  // 開頁延遲 0.5 秒自動執行
+  setTimeout(run, 500);
 </script>
 </body>
 </html>
