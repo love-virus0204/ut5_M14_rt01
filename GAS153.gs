@@ -25,7 +25,7 @@ function doGet(e){
     ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     payload.fileExists = true;
   } catch (_) {
-    return _json(payload); // 檔案不存在就直接回，不崩潰
+    return _json(payload); // 檔案不在就直接回
   }
   var found = ss.getSheets().some(function(sh){ return sh.getName() === SHEET_NAME; });
   if (found) payload.sheetExists = true;
@@ -57,31 +57,21 @@ function doPost(e){
   if (action === "list_recent") return _listRecent(sheet);
   if (action === "ping")        return _json({status:"ok"});
 
-  // 寫入/軟刪：加鎖
+// 寫入/軟刪：加鎖（與寄件共用同一把鎖）
   if (action === "submit" || action === "upsert" || action === "soft_delete"){
-    var lock = LockService.getScriptLock();
-    var deadline = Date.now() + 10000; // 10s
-    while (!lock.tryLock(250)) {
-      if (Date.now() > deadline) return _json({status:"error", msg:"busy"});
-    }
-    try {
+    return withLock(60000, () => {
       if (action === "soft_delete") return _softDelete(sheet, p);
       return _submit(sheet, p);
-    } finally {
-      lock.releaseLock();
-    }
+    });
+  }
+    return _json({status:"error", msg:"unknown_action"});
   }
 
-  return _json({status:"error", msg:"unknown_action"});
-}
-
 /* 寫入1..19：命中 key 覆寫 1..19
-   依需求：
    - 維護一份一維 row，更新與新增共用；deleted 一律寫 "TRUE"
 */
 function _submit(sheet, p){
   var submittedAt = Utilities.formatDate(new Date(), TZ, 'yyyy/MM/dd HH:mm:ss');
-
   var row = [
     p.date,               //1
     p.shift,              //2
@@ -106,19 +96,17 @@ function _submit(sheet, p){
 
   var hitRow = _findRowByKey(sheet, String(p.key));
   if (hitRow > 0){
-    sheet.getRange(hitRow, 1, 1, 19).setValues([row]); // 覆寫 1..19
-    sheet.getRange(hitRow, 1).setNumberFormat('mm/dd');  // 把該列第1欄改成 m/d
+    sheet.getRange(hitRow, 1, 2, 19).setValues([row]); // 覆寫 1..19
     return _json({status:"ok", mode:"更新"});
   } else {
     sheet.appendRow([...row, "", ""]);
-    var last = sheet.getLastRow();                   // 新增的那一列
-    sheet.getRange(last, 1).setNumberFormat('mm/dd');  // 把第1欄改成 m/d
+    var last = sheet.getLastRow();
+    sheet.getRange(last, 1).setNumberFormat('mm/dd');
     return _json({status:"ok", mode:"新增"});
   }
 }
 
-/* 軟刪：只覆寫 18..21；16/17 不變；key 直接改為 "DEL" */
-/* 軟刪：逐筆覆寫 18..21；16/17 不變；key→"DEL" */
+/* 軟刪：逐筆覆寫 18..21 ；key→"DEL" */
 function _softDelete(sheet, p){
   var admin_id = String(p.admin_id || "");
   if (!admin_id) 
@@ -162,7 +150,7 @@ function _listRecent(sheet){
     row.push(startRow + i);
   });
   //values.reverse(); // 由新到舊
-  // 依第16欄 submitted_at (index=15) 降冪排序
+  //依第16欄 submitted_at (index=15) 降冪
   values.sort(function(a,b){ return b[15] - a[15]; });
   // values.sort(function(a,b){
   //    return String(b[15]).localeCompare(String(a[15]));
@@ -195,13 +183,13 @@ function _findRowByKey(sheet, key){
   return 0;
 }
 
-/*** 新增：日期序號轉換（Google/Excel 基準：1899-12-30） ***/
+/*** 日期序號轉換（Excel 基準：1899-12-30） ***/
 function _toSerialInt(v, epoch){
   if (typeof v === "number") return Math.floor(v);
   if (Object.prototype.toString.call(v) === "[object Date]"){
     return Math.floor((v.getTime() - epoch) / 86400000);
   }
-  return 0; // 其餘直接 0
+  return 0;
 }
 
 function _json(obj){
