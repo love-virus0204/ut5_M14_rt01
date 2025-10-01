@@ -362,7 +362,6 @@ const now=nowCorrected();
     inspector: inspectorVal,
     // submitted_at: fmtTW(now),
     key: submitKey,
-    key2: `${currentDS.mmdd}|${currentDS.shift}|${part}|${keyLot}|TRUE`
   };
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
@@ -384,11 +383,18 @@ const now=nowCorrected();
   }
 });
 
+const EPOCH = Date.UTC(1899, 11, 30);
 function ymdToSerial(ymd){
   const [y,m,d] = ymd.split('/').map(Number);
-  return ((Date.UTC(y, m-1, d) - Date.UTC(1899,11,30)) / 86400000);
+  return ((Date.UTC(y, m-1, d) - EPOCH) / 86400000);
 }
 
+function serialToYM(serialInt){
+  const d = new Date(EPOCH + serialInt * 86400000);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return Number(`${y}${m}`);
+}
 /* 初始化 */
 (()=>{
   refreshDisplays();
