@@ -362,7 +362,7 @@ const now=nowCorrected();
     inspector: inspectorVal,
     // submitted_at: fmtTW(now),
     key: submitKey,
-    key2: serialToYM(date),
+    key2: serialToYM(currentDS.ymdSlash),
   };
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
