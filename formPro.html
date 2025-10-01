@@ -427,7 +427,7 @@ const now=nowCorrected();
     inspector: inspectorVal,
     // submitted_at: fmtTW(now),
     key: submitKey,
-    key2: `${currentDS.mmdd}|${currentDS.shift}|${part}|${keyLot}|TRUE`
+    key2: serialToYM(currentDS.ymdSlash)
   };
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
@@ -452,6 +452,11 @@ const now=nowCorrected();
 function ymdToSerial(ymd){
   const [y,m,d] = ymd.split('/').map(Number);
   return ((Date.UTC(y, m-1, d) - Date.UTC(1899,11,30)) / 86400000);
+}
+
+function serialToYM(ymd){
+  const [y, m, d] = ymd.split('/');
+  return Number(y + m.padStart(2,'0'));
 }
 
 /* 初始化 */
