@@ -362,7 +362,7 @@ const now=nowCorrected();
     inspector: inspectorVal,
     // submitted_at: fmtTW(now),
     key: submitKey,
-    key2: serialToYM(currentDS.ymdSlash),
+    key2: `${currentDS.mmdd}|${currentDS.shift}|${part}|${keyLot}|TRUE`
   };
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
@@ -384,15 +384,9 @@ const now=nowCorrected();
   }
 });
 
-const EPOCH = Date.UTC(1899, 11, 30);
 function ymdToSerial(ymd){
   const [y,m,d] = ymd.split('/').map(Number);
-  return ((Date.UTC(y, m-1, d) - EPOCH) / 86400000);
-}
-
-function serialToYM(ymd){
-  const [y, m] = ymd.split('/');
-  return Number(y + m.padStart(2,'0'));
+  return ((Date.UTC(y, m-1, d) - Date.UTC(1899,11,30)) / 86400000);
 }
 
 /* 初始化 */
