@@ -160,50 +160,47 @@ async function getStatus(){
     await sleep(CFG.nextDelayMs);
   }
 })();
+// 放在 loop() 後面；不要在其他地方呼叫 openModal()
 const modal = document.getElementById('backupModal');
 const msgEl = document.getElementById('backupMsg');
 const btnBackup = document.getElementById('btnBackup');
-
-const BACKUP_COOLDOWN_MS = 5 * 60 * 1000;
+const BACKUP_COOLDOWN_MS = 5*60*1000;
 const BACKUP_KEY = 'backup_last_ts';
 
-btnBackup.addEventListener('click', async () => {
-  const now = Date.now();
-  const last = Number(localStorage.getItem(BACKUP_KEY) || 0);
-  if (now - last < BACKUP_COOLDOWN_MS) {
-    const remain = Math.ceil((BACKUP_COOLDOWN_MS - (now - last)) / 1000);
-    alert(`5 分鐘內僅能執行一次，請 ${remain} 秒後再試。`);
-    return;
-  }
+function openModal(text){ if(modal){ modal.classList.add('show'); if(msgEl) msgEl.textContent = text || '處理中…'; } }
+function closeModal(delay=2000){ setTimeout(()=> modal && modal.classList.remove('show'), delay); }
 
-  modal.hidden = false;
-  msgEl.textContent = '處理中…';
-
-  try {
-    const res = await fetch(CFG.apiBase, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'backup' })
-    });
-    const data = await res.json().catch(()=>({}));
-    if (res.ok && data.status === 'ok') {
-      msgEl.textContent = '備份完成';
-      localStorage.setItem(BACKUP_KEY, String(now));
-    } else {
-      msgEl.textContent = '備份失敗：' + (data.msg || `HTTP ${res.status}`);
+if (btnBackup && modal && msgEl){
+  btnBackup.addEventListener('click', async ()=>{
+    const now = Date.now();
+    const last = Number(localStorage.getItem(BACKUP_KEY) || 0);
+    if (now - last < BACKUP_COOLDOWN_MS){
+      const remain = Math.ceil((BACKUP_COOLDOWN_MS - (now - last))/1000);
+      alert(`5 分鐘內僅能執行一次，請 ${remain} 秒後再試。`);
+      return;
     }
-  } catch (err) {
-    msgEl.textContent = '錯誤：' + (err.message || err);
-  }
 
-  setTimeout(()=>{ modal.hidden = true; }, 2000);
-});
-</script>
-<div id="backupModal" class="modal" hidden>
-  <div class="modal-content">
-    <div class="spinner"></div>
-    <div id="backupMsg">處理中…</div>
-  </div>
-</div>
+    openModal('處理中…');
+
+    try{
+      const res = await fetch(CFG.apiBase, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({action:'backup'})
+      });
+      const data = await res.json().catch(()=>({}));
+      if (res.ok && data.status === 'ok'){
+        localStorage.setItem(BACKUP_KEY, String(now));
+        msgEl.textContent = '備份完成';
+      }else{
+        msgEl.textContent = '備份失敗：' + (data.msg || `HTTP ${res.status}`);
+      }
+    }catch(err){
+      msgEl.textContent = '錯誤：' + (err?.message || String(err));
+    }finally{
+      closeModal(2000);
+    }
+  });
+}
 </body>
 </html>
