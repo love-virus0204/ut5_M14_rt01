@@ -1,13 +1,33 @@
 /**
- * RT 外觀記錄表 GAS v1.5.3（POST-only，無欄位驗證）
- * 路由：submit|upsert（寫入）/ soft_delete（軟刪）/ list_recent（讀取）/ ping（心跳）
- * 鎖：ScriptLock，250ms 重試，10s 逾時
+ * RT 外觀記錄表 GAS v1.5.3（無欄位驗證）
+ * 路由：
+ * backup（即時備份)
+ * submit|upsert（寫入)
+ * soft_delete（軟刪)
+ * list_recent（讀取)
+ * ping（心跳）
  * 欄位 A..U (1..21)：
- *  1 date(前端提供；可為序號或字串) 2 shift 3 part_no 4 lot 5 qty 6 sample_cnt
- *  7 z7 8 z8 9 z9 10 z10 11 z11 12 z12 13 z13
- * 14 inspector 15 remark
- * 16 submitted_at(String, 以 Asia/Taipei 格式化的系統時間) 17 key2(String) 18 key(String, 唯一)
- * 19 deleted("TRUE"/"FALSE") 20 admin_id(String) 21 deleted_at(String, Asia/Taipei) */
+ *  1 date
+ *  2 shift 
+ *  3 part_no 
+ *  4 lot 
+ *  5 qty 
+ *  6 sample_cnt
+ *  7 z7 
+ *  8 z8 
+ *  9 z9 
+ *  10 z10 
+ *  11 z11
+ *  12 z12 
+ *  13 z13
+ *  14 inspector 
+ *  15 remark
+ *  16 submitted_at(系統時間|Asia/Taipei)
+ *  17 key2
+ *  18 key
+ *  19 deleted("TRUE"/"FALSE")
+ *  20 admin_id
+ *  21 deleted_at(系統時間|Asia/Taipei) */
 
 /*
 const SPREADSHEET_ID = '1AYD5Poy7DQmXw-QSHUkFUq0iT7TIxF76BpNilyPsz-U';
@@ -18,14 +38,14 @@ const SHEET_NAME     = 'Records';
 function doGet(e){
   var p = (e && e.parameter) || {};
   var target = String(p.target || "");
-  var payload = { status:"ok", msg:"get_disabled" }; // 只要能回就是活著
+  var payload = { status:"ok", msg:"get_disabled" }; // 只要能回
   if (!target) return _json(payload);
   var ss;
   try {
     ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     payload.fileExists = true;
   } catch (_) {
-    return _json(payload); // 檔案不在就直接回
+    return _json(payload); // 檔案不在直回
   }
   var found = ss.getSheets().some(function(sh){ return sh.getName() === SHEET_NAME; });
   if (found) payload.sheetExists = true;
@@ -50,14 +70,24 @@ function doPost(e){
   var action = String(p.action||"").toLowerCase();
   if (!action) return _json({status:"error", msg:"unknown_action"});
 
+  if (action === "ping") return _json({status:"ok"});
   var sheet = _sheet();
   if (!sheet) return _json({status:"error", msg:"sheet_not_found"});
 
-  // 讀取路徑
-  if (action === "list_recent") return _listRecent(sheet);
-  if (action === "ping")        return _json({status:"ok"});
+  // 呼叫備份涵式｜該涵式已自鎖
+if (action === "backup") {
+  try {
+    exportFilteredXlsxAndMail();
+    return _json({status:"ok", msg:"backup_done"});
+  } catch (err) {
+    return _json({status:"error", msg:"backup_failed", detail:String(err)});
+  }
+}
 
-// 寫入/軟刪：加鎖（與寄件共用同一把鎖）
+// 讀表
+  if (action === "list_recent") return _listRecent(sheet);
+
+// 寫入/軟刪：加鎖
   if (action === "submit" || action === "upsert" || action === "soft_delete"){
     return withLock(60000, () => {
       if (action === "soft_delete") return _softDelete(sheet, p);
