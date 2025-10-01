@@ -165,7 +165,7 @@ async function getStatus(){
     await getStatus();
     await sleep(CFG.nextDelayMs);
   }
-})();
+})()
 // 放在 loop() 後面；不要在其他地方呼叫 openModal()
 const modal = document.getElementById('backupModal');
 const msgEl = document.getElementById('backupMsg');
