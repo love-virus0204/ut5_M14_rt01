@@ -238,10 +238,9 @@ function showOk(msg){
 /* ===== API（POST urlencoded） ===== */
 // 用 URLSearchParams 組 form-urlencoded
 function submitData(p){
-  var d = ymdToSerial(p.date)
   var params = new URLSearchParams();
   params.append('action','submit');
-  params.append('date', d);
+  params.append('date', ymdToSerial(p.date));
   params.append('shift', p.shift);
   params.append('part_no', p.part_no);
   params.append('lot', p.lot);
@@ -256,7 +255,7 @@ function submitData(p){
   params.append('z13', p.z13);
   params.append('inspector', p.inspector);
   params.append('remark', p.remark);
-  params.append('key2', serialToYM(d));
+  params.append('key2', p.key2;
   params.append('key', p.key);
 
   return fetch(API_BASE, { method:'POST', body: params, cache:'no-store' })
@@ -363,7 +362,7 @@ const now=nowCorrected();
     inspector: inspectorVal,
     // submitted_at: fmtTW(now),
     key: submitKey,
-    key2: '',
+    key2: serialToYM(date),
   };
 
   const btn=document.getElementById('sendBtn'); btn.disabled=true; showCenter('資料傳送中…');
@@ -391,11 +390,9 @@ function ymdToSerial(ymd){
   return ((Date.UTC(y, m-1, d) - EPOCH) / 86400000);
 }
 
-function serialToYM(serialInt){
-  const d = new Date(EPOCH + serialInt * 86400000);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  return Number(`${y}${m}`);
+function serialToYM(ymd){
+  const [y, m] = ymd.split('/');
+  return Number(y + m.padStart(2,'0'));
 }
 
 /* 初始化 */
