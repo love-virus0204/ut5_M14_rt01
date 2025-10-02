@@ -91,19 +91,26 @@ input, select, textarea { font-size:16px; }
   const fixed_key = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
   const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
-  QRScanner.mount({
-    videoEl: "#cam",
-    formats: ["qr"],
-    mode: "stop-on-valid",
-    isValid: (txt) => txt === fixed_key,
-    blink: true,
-    onOk: () => {
-      sessionStorage.setItem("ts", String(Date.now()));
+QRScanner.mount({
+  videoEl: "#cam",
+  formats: ["qr"],
+  mode: "stop-on-valid",
+  isValid: (txt) => {
+    const v = txt.trim();
+    return v === fixed_key128 || v === fixed_key64;
+  },
+  blink: true,
+  onOk: (txt) => {
+    if (v === fixed_key128) {
+    sessionStorage.setItem("ts", String(Date.now()));
       sessionStorage.setItem("tokey", fixed_tokey);
-      location.replace(admin_URL);
-    },
-    onError: (err) => console.log("QR err:", err)
-  });
+      location.replace(admin_URL_128);
+    } else if (v === fixed_key64) {
+      location.replace(admin_URL_64);
+    }
+  },
+  onError: (err) => console.log("QR err:", err)
+});
   document.getElementById('startBtn')?.addEventListener('click', () => QRScanner.start());
   document.getElementById('stopBtn') ?.addEventListener('click', () => QRScanner.stop());
 // --- Auto start camera once after first render ---
