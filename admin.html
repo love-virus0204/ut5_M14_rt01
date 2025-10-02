@@ -168,16 +168,30 @@ input, select, textarea { font-size:16px; }
 /* API */
 const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-const FIXED_TOKEY = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
-const EXPIRE_MS = 2*60*1000;
-(function gate(){
-  const ts = parseInt(sessionStorage.getItem("ts")||"0",10);
-  const tk = sessionStorage.getItem("tokey")||"";
-  if (!ts || !tk || tk!==FIXED_TOKEY || (Date.now()-ts)>EXPIRE_MS){
+const EXPIRE_MS   = 2 * 60 * 1000;
+const F_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
+
+function enforceGate(){
+  const ts = parseInt(sessionStorage.getItem("ts") || "0", 10);
+  const tk = sessionStorage.getItem("tokey") || "";
+  if (!ts || !tk || tk !== F_tokey || (Date.now() - ts) > EXPIRE_MS) {
     sessionStorage.clear();
-    location.replace("auth.html");
+    location.replace("index.html");
   }
-})();
+}
+
+// 進入頁面立即檢查
+enforceGate();
+
+// 從背景被激活時再檢查
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) enforceGate();
+});
+window.addEventListener("focus", enforceGate);
+window.addEventListener("pageshow", (e) => {
+  if (e.persisted) enforceGate();
+});
+
 
 /* 狀態燈 */
 function setNetLight(msg){
