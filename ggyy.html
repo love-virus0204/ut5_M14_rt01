@@ -87,15 +87,22 @@ input, select, textarea { font-size:16px; }
 <script type="module">
   import { QRScanner } from './js/QRScanner.js';
 
-  const admin_URL = "admin.html";
-  const fixed_key = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
+  const admin_URL_64 = "backup.html";
+  const fixed_key64  = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
+
+  const admin_URL_128 = "admin.html";
+  const fixed_key128  = "f58f84dfd91a46d68f130d4a2ca2a783eaf649fe96284ef09395571e030106aab70b6258691887e3d22ce185105a943ff88b8c7f536aae149ea23d2bd83ffe3f";
   const fixed_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
   QRScanner.mount({
     videoEl: "#cam",
     formats: ["qr"],
     mode: "stop-on-valid",
-    isValid: (txt) => txt === fixed_key,
+    isValid: (txt) => {
+      if (txt === fixed_key128){ lastKind = '128'; return true; }
+      if (txt === fixed_key64 ){ lastKind = '64';  return true; }
+      return false;
+    },
     blink: true,
     onOk: () => {
       sessionStorage.setItem("ts", String(Date.now()));
@@ -137,12 +144,14 @@ manualBtn.addEventListener('click', () => {
 
 okBtn.addEventListener('click', (e) => {
   e.preventDefault();
-  if (!input) return;
-  if (input.value === fixed_key) {
+    const v = input.value.trim();
+    if (v === fixed_key128){
       sessionStorage.setItem("ts", String(Date.now()));
-      sessionStorage.setItem("tokey", fixed_tokey);
-    location.replace(admin_URL);
-  } else {
+      sessionStorage.setItem("tokey", fixed_tok128);
+      location.replace(admin_URL_128);
+    } else if (v === fixed_key64){
+      location.replace(admin_URL_64);
+    } else {
     if (errEl) errEl.textContent = '金鑰不正確';
     input.value = '';
     input.focus();
