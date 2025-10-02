@@ -148,11 +148,10 @@ manualBtn.addEventListener('click', () => {
 
 okBtn.addEventListener('click', (e) => {
   e.preventDefault();
-      location.replace('index.html');
     const v = input.value.trim();
     if (v === fixed_key128){
       sessionStorage.setItem("ts", String(Date.now()));
-      sessionStorage.setItem("tokey", fixed_tok128);
+      sessionStorage.setItem("tokey", fixed_tokey);
       location.replace(admin_URL_128);
     } else if (v === fixed_key64){
       location.replace(admin_URL_64);
