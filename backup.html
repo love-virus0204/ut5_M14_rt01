@@ -75,9 +75,9 @@ window.addEventListener('pageshow', e=>{ if (e.persisted) enforceAuth(); });
   function showSuccess(){
     sp.classList.add('hide');
     t.textContent = '備份成功';
-    m.textContent = '2 秒後返回首頁…';
+    m.textContent = '3 秒後返回首頁…';
     btnHome.classList.remove('hide');
-    setTimeout(goHome, 2000);
+    setTimeout(goHome, 3000);
   }
   function showError(errMsg){
     sp.classList.add('hide');
@@ -100,16 +100,13 @@ window.addEventListener('pageshow', e=>{ if (e.persisted) enforceAuth(); });
   }
 
   async function run(){
-    if (!API || API.includes('PASTE_YOUR_GAS_EXEC_URL_HERE')) {
-      showError('尚未設定 GAS /exec 網址');
-      return;
-    }
     showLoading('備份進行中…');
     try {
+      if (!API) throw new Error("無法連線伺服器...");
       await callBackup();
       showSuccess();
-    } catch (e) {
-      showError(e.message || String(e));
+    } catch (_) {
+      showError("無法連線伺服器...");
     }
   }
 
