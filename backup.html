@@ -35,39 +35,30 @@
   </div>
 
 <script>
-// ==== 檢查：key64；逾時立即回首頁 ====
-const HOME_URL   = 'index.html';
-const MAX_MS = 2 * 60 * 1000;
-const f_key64  = "L2q7v5pM9HsX1k3RdE8yCfJ4tU0aZ6nVgQwBhTmYcKoNrPiSjDlFxGuObWe";
+/* API */
+const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-function isAuthed(){
-  const ts  = +sessionStorage.getItem("ts") || 0;
-  const tok = sessionStorage.getItem("tokey") || "";
-  const age = Date.now() - ts;
-  console.log({tok, ts, age});
-  return tok === f_key64 && ts > 0 && age <= MAX_MS;
+const EXPIRE_MS   = 2 * 60 * 1000;
+const F_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
+
+function enforceGate(){
+  const ts = parseInt(sessionStorage.getItem("ts") || "0", 10);
+  const tk = sessionStorage.getItem("tokey") || "";
+  if (!ts || !tk || tk !== F_tokey || (Date.now() - ts) > EXPIRE_MS) {
+    sessionStorage.clear();
+    location.replace("index.html");
+  }
 }
 
-function goHome(delayMs = 0){
-  setTimeout(() => {
-    try { location.replace(HOME_URL); }
-    catch { location.href = HOME_URL; }
-  }, delayMs);
-}
+enforceGate();
 
-function enforceAuth(){ if (!isAuthed()) goHome(); }
-
-enforceAuth();
-
-["visibilitychange","focus","pageshow"].forEach(evt=>{
-  window.addEventListener(evt, () => {
-    if (evt==="visibilitychange" && document.hidden) return;
-    if (evt==="pageshow" && !event.persisted) return;
-    enforceAuth();
-  });
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) enforceGate();
 });
-
-  const API = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+window.addEventListener("focus", enforceGate);
+window.addEventListener("pageshow", (e) => {
+  if (e.persisted) enforceGate();
+});
 
   const t = document.getElementById('t');
   const m = document.getElementById('m');
@@ -102,7 +93,7 @@ enforceAuth();
   }
 
   async function callBackup(){
-    const resp = await fetch(API, {
+    const resp = await fetch(API_BASE, {
       method: 'POST',
       body: new URLSearchParams({ action: 'backup' })
     });
@@ -116,7 +107,7 @@ enforceAuth();
   async function run(){
     showLoading('備份進行中…');
     try {
-      if (!API) throw new Error("無法連線伺服器...");
+      if (!API_BASE) throw new Error("無法連線伺服器...");
       await callBackup();
       showSuccess();
     } catch (_) {
