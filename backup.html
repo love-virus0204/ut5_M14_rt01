@@ -37,26 +37,6 @@
 <script>
   const API = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-// ==== 檢查：ts + tokey ====
-const HOME_URL   = 'index.html';
-const MAX_AGE_MS = 1 * 60 * 1000;
-
-function isAuthed(){
-  const ts  = Number(sessionStorage.getItem('ts') || 0);
-  const tok = sessionStorage.getItem('tokey') || '';
-  return !!tok && ts > 0 && (Date.now() - ts) <= MAX_AGE_MS;
-}
-function goHomeHard(){ try{ location.replace(HOME_URL); }catch(_){ location.href = HOME_URL; } }
-function enforceAuth(){ if (!isAuthed()) goHomeHard(); }
-
-// 進頁立即檢查
-enforceAuth();
-
-// 回到前景時檢查（包含 bfcache）
-document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) enforceAuth(); });
-window.addEventListener('focus', enforceAuth);
-window.addEventListener('pageshow', (e)=>{ if (e.persisted) enforceAuth(); });
-
   const t = document.getElementById('t');
   const m = document.getElementById('m');
   const sp = document.getElementById('sp');
