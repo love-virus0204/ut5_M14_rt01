@@ -37,21 +37,33 @@
 <script>
 // ==== 檢查：key64；逾時立即回首頁 ====
 const HOME_URL   = 'index.html';
-const MAX_AGE_MS = 2 * 60 * 1000;
+const MAX_MS = 2 * 60 * 1000;
 const f_key64  = "L2q7v5pM9HsX1k3RdE8yCfJ4tU0aZ6nVgQwBhTmYcKoNrPiSjDlFxGuObWe";
 
 function isAuthed(){
-  const ts  = Number(sessionStorage.getItem('ts') || 0);
-  const tok = sessionStorage.getItem('tokey') || '';
-  return tok === f_ket64 && ts > 0 && (Date.now() - ts) <= MAX_AGE_MS;
+  const ts  = +sessionStorage.getItem("ts") || 0;
+  const tok = sessionStorage.getItem("tokey") || "";
+  return tok === f_key64 && ts > 0 && (Date.now() - ts) <= MAX_MS;
 }
-function goHome(){ try{ location.replace(HOME_URL); }catch(_){ location.href = HOME_URL; } }
+
+function goHome(delayMs = 0){
+  setTimeout(() => {
+    try { location.replace(HOME_URL); }
+    catch { location.href = HOME_URL; }
+  }, delayMs);
+}
+
 function enforceAuth(){ if (!isAuthed()) goHome(); }
 
 enforceAuth();
-document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) enforceAuth(); });
-window.addEventListener('focus', enforceAuth);
-window.addEventListener('pageshow', e=>{ if (e.persisted) enforceAuth(); });
+
+["visibilitychange","focus","pageshow"].forEach(evt=>{
+  window.addEventListener(evt, () => {
+    if (evt==="visibilitychange" && document.hidden) return;
+    if (evt==="pageshow" && !event.persisted) return;
+    enforceAuth();
+  });
+});
 
   const API = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
@@ -109,16 +121,6 @@ window.addEventListener('pageshow', e=>{ if (e.persisted) enforceAuth(); });
       showError("無法連線伺服器...");
     }
   }
-
-function goHome(delayMs = 0){
-  setTimeout(() => {
-    try {
-      location.replace(HOME_URL);
-    } catch {
-      location.href = HOME_URL;
-    }
-  }, delayMs);
-}
 
   // 開頁延遲 0.5 秒自動執行
   setTimeout(run, 500);
