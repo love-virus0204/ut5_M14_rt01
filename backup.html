@@ -43,7 +43,9 @@ const f_key64  = "L2q7v5pM9HsX1k3RdE8yCfJ4tU0aZ6nVgQwBhTmYcKoNrPiSjDlFxGuObWe";
 function isAuthed(){
   const ts  = +sessionStorage.getItem("ts") || 0;
   const tok = sessionStorage.getItem("tokey") || "";
-  return tok === f_key64 && ts > 0 && (Date.now() - ts) <= MAX_MS;
+  const age = Date.now() - ts;
+  console.log({tok, ts, age});
+  return tok === f_key64 && ts > 0 && age <= MAX_MS;
 }
 
 function goHome(delayMs = 0){
