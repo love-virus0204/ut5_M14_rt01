@@ -104,6 +104,7 @@ QRScanner.mount({
   },
   blink: true,
   onOk: (txt) => {
+    const v = (txt || '').trim();
     if (v === fixed_key128) {
       sessionStorage.setItem("ts", String(Date.now()));
       sessionStorage.setItem("tokey", fixed_tokey);
