@@ -98,15 +98,17 @@ QRScanner.mount({
   videoEl: "#cam",
   formats: ["qr"],
   mode: "stop-on-valid",
-  isValid: (txt) => (txt === fixed_key128 || txt === fixed_key64),
+  isValid: (txt) => {
+    const v = txt.trim();
+    return v === fixed_key128 || v === fixed_key64;
+  },
   blink: true,
   onOk: (txt) => {
-    sessionStorage.setItem("ts", String(Date.now()));
-    if (txt === fixed_key128) {
-      sessionStorage.setItem("tokey", fixed_tok128);
+    if (v === fixed_key128) {
+      sessionStorage.setItem("ts", String(Date.now()));
+      sessionStorage.setItem("tokey", fixed_tokey);
       location.replace(admin_URL_128);
-    } else if (txt === fixed_key64) {
-      sessionStorage.setItem("tokey", fixed_tok64);
+    } else if (v === fixed_key64) {
       location.replace(admin_URL_64);
     }
   },
