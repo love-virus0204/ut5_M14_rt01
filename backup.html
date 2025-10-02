@@ -35,88 +35,76 @@
   </div>
 
 <script>
-/* API */
-const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+<script>
+/* 固定參數 */
+const API_BASE  = "YOUR_GAS_EXEC_URL";
+const EXPIRE_MS = 2 * 60 * 1000;
+const F_TOKEY   = "你的64位token";
 
-const EXPIRE_MS   = 2 * 60 * 1000;
-const F_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
-
-function enforceGate(){
-  const ts = parseInt(sessionStorage.getItem("ts") || "0", 10);
+/* 進頁與激活都做的門檻檢查 */
+(function enforceGate(){
+  const ts = +sessionStorage.getItem("ts") || 0;
   const tk = sessionStorage.getItem("tokey") || "";
-  if (!ts || !tk || tk !== F_tokey || (Date.now() - ts) > EXPIRE_MS) {
+  if (!ts || tk !== F_TOKEY || Date.now() - ts > EXPIRE_MS) {
     sessionStorage.clear();
     location.replace("index.html");
   }
+})();
+addEventListener("visibilitychange", () => { if (!document.hidden) enforceGate(); });
+addEventListener("focus", enforceGate);
+addEventListener("pageshow", e => { if (e.persisted) enforceGate(); });
+
+/* UI */
+const t = document.getElementById('t');
+const m = document.getElementById('m');
+const sp = document.getElementById('sp');
+const btnRetry = document.getElementById('retry');
+const btnHome  = document.getElementById('home');
+
+function showLoading(msg){
+  t && (t.textContent = '執行即時備份');
+  m && (m.textContent = msg || '備份進行中…');
+  sp?.classList.remove('hide'); btnRetry?.classList.add('hide'); btnHome?.classList.add('hide');
+}
+function showSuccess(){
+  sp?.classList.add('hide');
+  t && (t.textContent = '備份成功');
+  m && (m.textContent = '3 秒後返回首頁…');
+  btnHome?.classList.remove('hide');
+  setTimeout(()=>location.replace('index.html'), 3000);
+}
+function showError(){
+  sp?.classList.add('hide');
+  t && (t.textContent = '備份失敗');
+  m && (m.textContent = '無法連線伺服器…');
+  btnRetry?.classList.remove('hide'); btnHome?.classList.remove('hide');
 }
 
-enforceGate();
-
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) enforceGate();
-});
-window.addEventListener("focus", enforceGate);
-window.addEventListener("pageshow", (e) => {
-  if (e.persisted) enforceGate();
-});
-
-  const t = document.getElementById('t');
-  const m = document.getElementById('m');
-  const sp = document.getElementById('sp');
-  const btnRetry = document.getElementById('retry');
-  const btnHome  = document.getElementById('home');
-
-  function goHome(){ location.href = 'index.html'; }
-  btnHome.addEventListener('click', goHome);
-  btnRetry.addEventListener('click', run);
-
-  function showLoading(msg){
-    t.textContent = '執行即時備份';
-    m.textContent = msg || '備份進行中…';
-    sp.classList.remove('hide');
-    btnRetry.classList.add('hide');
-    btnHome.classList.add('hide');
-  }
-  function showSuccess(){
-    sp.classList.add('hide');
-    t.textContent = '備份成功';
-    m.textContent = '3 秒後返回首頁…';
-    btnHome.classList.remove('hide');
-    setTimeout(goHome, 3000);
-  }
-  function showError(errMsg){
-    sp.classList.add('hide');
-    t.textContent = '備份失敗';
-    m.textContent = '原因：' + errMsg + '。請稍後再試或重試一次。';
-    btnRetry.classList.remove('hide');
-    btnHome.classList.remove('hide');
-  }
-
-  async function callBackup(){
+/* 呼叫 GAS */
+async function callBackup(){
+  const ac = new AbortController(); const id = setTimeout(()=>ac.abort(), 15000);
+  try{
     const resp = await fetch(API_BASE, {
-      method: 'POST',
-      body: new URLSearchParams({ action: 'backup' })
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+      body: new URLSearchParams({action:'backup'}).toString(),
+      signal: ac.signal
     });
-    let data = {};
-    try { data = await resp.json(); } catch(_){}
+    const data = await resp.json().catch(()=>({}));
     if (resp.ok && data.status === 'ok') return true;
-    const reason = (data && data.msg) ? data.msg : 'HTTP ' + resp.status;
-    throw new Error(reason);
-  }
+    throw new Error('fail');
+  } finally { clearTimeout(id); }
+}
 
-  async function run(){
-    showLoading('備份進行中…');
-    try {
-      if (!API_BASE) throw new Error("無法連線伺服器...");
-      await callBackup();
-      showSuccess();
-    } catch (_) {
-      showError("無法連線伺服器...");
-    }
-  }
+/* 流程：進頁 0.5s 後 POST，期間顯示動畫 */
+async function run(){
+  showLoading('備份進行中…');
+  try { await callBackup(); showSuccess(); }
+  catch { showError(); }
+}
 
-  // 開頁延遲 0.5 秒自動執行
-  setTimeout(run, 500);
+/* 自動觸發 */
+setTimeout(run, 500);
 </script>
 </body>
 </html>
