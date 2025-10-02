@@ -35,75 +35,103 @@
   </div>
 
 <script>
-/* API */
-const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+/* === 常數 === */
+const API_BASE   = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
+const TIMEOUT_MS = 80000; // 80 秒
+const EXPIRE_MS  = 2 * 60 * 1000;
+const F_tokey    = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
 
-const EXPIRE_MS   = 2 * 60 * 1000;
-const F_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
-
-(function enforceGate(){
-  const ts = +sessionStorage.getItem("ts") || 0;
+/* === 驗證授權 === */
+function enforceGate(){
+  const ts = parseInt(sessionStorage.getItem("ts") || "0", 10);
   const tk = sessionStorage.getItem("tokey") || "";
-  if (!ts || tk !== F_tokey || Date.now() - ts > EXPIRE_MS) {
+  const ok = (tk === F_tokey) && ts > 0 && (Date.now() - ts) <= EXPIRE_MS;
+  if (!ok){
     sessionStorage.clear();
     location.replace("index.html");
   }
-})();
-addEventListener("visibilitychange", () => { if (!document.hidden) enforceGate(); });
-addEventListener("focus", enforceGate);
-addEventListener("pageshow", e => { if (e.persisted) enforceGate(); });
+}
+enforceGate();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) enforceGate(); });
+window.addEventListener("focus", enforceGate);
+window.addEventListener("pageshow", e => { if (e.persisted) enforceGate(); });
 
-/* UI */
+/* === DOM === */
 const t = document.getElementById('t');
 const m = document.getElementById('m');
 const sp = document.getElementById('sp');
 const btnRetry = document.getElementById('retry');
 const btnHome  = document.getElementById('home');
 
+/* === 導航 === */
+function goHome(delay=0){
+  setTimeout(() => {
+    try { location.replace('index.html'); }
+    catch { location.href = 'index.html'; }
+  }, delay);
+}
+btnHome.addEventListener('click', () => goHome());
+btnRetry.addEventListener('click', run);
+
+/* === UI === */
 function showLoading(msg){
-  t && (t.textContent = '執行即時備份');
-  m && (m.textContent = msg || '備份進行中…');
-  sp?.classList.remove('hide'); btnRetry?.classList.add('hide'); btnHome?.classList.add('hide');
+  t.textContent = '執行即時備份';
+  m.textContent = msg || '備份進行中…';
+  sp.classList.remove('hide');
+  btnRetry.classList.add('hide');
+  btnHome.classList.add('hide');
 }
 function showSuccess(){
-  sp?.classList.add('hide');
-  t && (t.textContent = '備份成功');
-  m && (m.textContent = '3 秒後返回首頁…');
-  btnHome?.classList.remove('hide');
-  setTimeout(()=>location.replace('index.html'), 3000);
+  sp.classList.add('hide');
+  t.textContent = '備份成功';
+  m.textContent = '3 秒後返回首頁…';
+  btnHome.classList.remove('hide');
+  goHome(3000);
 }
-function showError(){
-  sp?.classList.add('hide');
-  t && (t.textContent = '備份失敗');
-  m && (m.textContent = '無法連線伺服器…');
-  btnRetry?.classList.remove('hide'); btnHome?.classList.remove('hide');
+function showError(msg){
+  sp.classList.add('hide');
+  t.textContent = '備份失敗';
+  m.textContent = msg || '無法連線伺服器…';
+  btnRetry.classList.remove('hide');
+  btnHome.classList.remove('hide');
 }
 
+/* === 呼叫 API（加上 80s 逾時） === */
 async function callBackup(){
-  const ac = new AbortController(); const id = setTimeout(()=>ac.abort(), 15000);
-  try{
+  const ac  = new AbortController();
+  const tid = setTimeout(() => ac.abort(), TIMEOUT_MS);
+  try {
     const resp = await fetch(API_BASE, {
-      method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-      body: new URLSearchParams({action:'backup'}).toString(),
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+      body: new URLSearchParams({ action: 'backup' }).toString(),
       signal: ac.signal
     });
-    const data = await
-    resp.json().catch(()=>({}));
+    let data = {};
+    try { data = await resp.json(); } catch(_){}
     if (resp.ok && data.status === 'ok') return true;
-    throw new Error('fail');
-  } finally { clearTimeout(id); }
+    throw new Error(data && data.msg ? data.msg : 'HTTP ' + resp.status);
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('請求逾時(>80s)');
+    throw e;
+  } finally {
+    clearTimeout(tid);
+  }
 }
 
-  async function run(){
-    showLoading('備份進行中…');
-    try {
-      await callBackup();showSuccess();
+/* === 流程：進頁 0.5s 後 POST，期間顯示動畫 === */
+async function run(){
+  showLoading('備份進行中…');
+  try {
+    await callBackup();
+    showSuccess();
+  } catch (err) {
+    showError(err.message || '無法連線伺服器…');
   }
-    catch { showError(); }
-  }
+}
 
-  setTimeout(run, 500);
+/* 自動觸發 */
+setTimeout(run, 500);
 </script>
 </body>
 </html>
