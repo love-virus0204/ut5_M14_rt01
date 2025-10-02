@@ -38,12 +38,12 @@
 // ==== 檢查：key64；逾時立即回首頁 ====
 const HOME_URL   = 'index.html';
 const MAX_AGE_MS = 2 * 60 * 1000;
-
+const f_key64  = "L2q7v5pM9HsX1k3RdE8yCfJ4tU0aZ6nVgQwBhTmYcKoNrPiSjDlFxGuObWe";
 
 function isAuthed(){
   const ts  = Number(sessionStorage.getItem('ts') || 0);
   const tok = sessionStorage.getItem('tokey') || '';
-  return tok === fixed_tok64 && ts > 0 && (Date.now() - ts) <= MAX_AGE_MS;
+  return tok === f_ket64 && ts > 0 && (Date.now() - ts) <= MAX_AGE_MS;
 }
 function goHome(){ try{ location.replace(HOME_URL); }catch(_){ location.href = HOME_URL; } }
 function enforceAuth(){ if (!isAuthed()) goHome(); }
@@ -88,7 +88,6 @@ window.addEventListener('pageshow', e=>{ if (e.persisted) enforceAuth(); });
   }
 
   async function callBackup(){
-    // 與主專案一致：使用 x-www-form-urlencoded，避免預檢 405
     const resp = await fetch(API, {
       method: 'POST',
       body: new URLSearchParams({ action: 'backup' })
