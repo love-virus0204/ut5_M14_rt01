@@ -35,6 +35,24 @@
   </div>
 
 <script>
+// ==== 檢查：key64；逾時立即回首頁 ====
+const HOME_URL   = 'index.html';
+const MAX_AGE_MS = 2 * 60 * 1000;
+
+
+function isAuthed(){
+  const ts  = Number(sessionStorage.getItem('ts') || 0);
+  const tok = sessionStorage.getItem('tokey') || '';
+  return tok === fixed_tok64 && ts > 0 && (Date.now() - ts) <= MAX_AGE_MS;
+}
+function goHome(){ try{ location.replace(HOME_URL); }catch(_){ location.href = HOME_URL; } }
+function enforceAuth(){ if (!isAuthed()) goHome(); }
+
+enforceAuth();
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) enforceAuth(); });
+window.addEventListener('focus', enforceAuth);
+window.addEventListener('pageshow', e=>{ if (e.persisted) enforceAuth(); });
+
   const API = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
   const t = document.getElementById('t');
