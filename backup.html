@@ -35,17 +35,16 @@
   </div>
 
 <script>
-<script>
-/* 固定參數 */
-const API_BASE  = "YOUR_GAS_EXEC_URL";
-const EXPIRE_MS = 2 * 60 * 1000;
-const F_TOKEY   = "你的64位token";
+/* API */
+const API_BASE = "https://script.google.com/macros/s/AKfycbz02U3mY1UTzWFJP6h0EkdTn3DZYAZRg5YnDWvFTncWV9CFibK6XDVj6gIxNx7ehNei/exec";
 
-/* 進頁與激活都做的門檻檢查 */
+const EXPIRE_MS   = 2 * 60 * 1000;
+const F_tokey = "c7b5e18a4f3d29b6d01c84a57de239f8146bc9e2fa518a7d3c0ef492a5bdc876";
+
 (function enforceGate(){
   const ts = +sessionStorage.getItem("ts") || 0;
   const tk = sessionStorage.getItem("tokey") || "";
-  if (!ts || tk !== F_TOKEY || Date.now() - ts > EXPIRE_MS) {
+  if (!ts || tk !== F_tokey || Date.now() - ts > EXPIRE_MS) {
     sessionStorage.clear();
     location.replace("index.html");
   }
@@ -80,7 +79,6 @@ function showError(){
   btnRetry?.classList.remove('hide'); btnHome?.classList.remove('hide');
 }
 
-/* 呼叫 GAS */
 async function callBackup(){
   const ac = new AbortController(); const id = setTimeout(()=>ac.abort(), 15000);
   try{
@@ -90,21 +88,22 @@ async function callBackup(){
       body: new URLSearchParams({action:'backup'}).toString(),
       signal: ac.signal
     });
-    const data = await resp.json().catch(()=>({}));
+    const data = await
+    resp.json().catch(()=>({}));
     if (resp.ok && data.status === 'ok') return true;
     throw new Error('fail');
   } finally { clearTimeout(id); }
 }
 
-/* 流程：進頁 0.5s 後 POST，期間顯示動畫 */
-async function run(){
-  showLoading('備份進行中…');
-  try { await callBackup(); showSuccess(); }
-  catch { showError(); }
-}
+  async function run(){
+    showLoading('備份進行中…');
+    try {
+      await callBackup();showSuccess();
+  }
+    catch { showError(); }
+  }
 
-/* 自動觸發 */
-setTimeout(run, 500);
+  setTimeout(run, 500);
 </script>
 </body>
 </html>
