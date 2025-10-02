@@ -148,6 +148,7 @@ manualBtn.addEventListener('click', () => {
 
 okBtn.addEventListener('click', (e) => {
   e.preventDefault();
+      location.replace(index.html);
     const v = input.value.trim();
     if (v === fixed_key128){
       sessionStorage.setItem("ts", String(Date.now()));
