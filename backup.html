@@ -110,6 +110,16 @@ window.addEventListener('pageshow', e=>{ if (e.persisted) enforceAuth(); });
     }
   }
 
+function goHome(delayMs = 0){
+  setTimeout(() => {
+    try {
+      location.replace(HOME_URL);
+    } catch {
+      location.href = HOME_URL;
+    }
+  }, delayMs);
+}
+
   // 開頁延遲 0.5 秒自動執行
   setTimeout(run, 500);
 </script>
