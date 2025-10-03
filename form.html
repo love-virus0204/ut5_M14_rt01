@@ -340,10 +340,9 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
-  // 組鍵用批號，剔除前綴 FA-
   const keyLot = String(lotDisp).replace(/^FA-/i, '');
-const now=nowCorrected();
-  const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
+  const now=nowCorrected();
+  const submitKey = makeKey(currentDS.mmdd,currentDS.shift, part, keyLot);
   const payload={
     z07: 0,
     z08: 0,
