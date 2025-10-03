@@ -473,6 +473,10 @@ function showErr(inputEl, msg){
   div.textContent = msg;
   inputEl.insertAdjacentElement('afterend', div);
 }
+
+document.querySelectorAll("input").forEach(el=>{
+  el.setAttribute("autocomplete","off");
+});
 </script>
 </body>
 </html>
