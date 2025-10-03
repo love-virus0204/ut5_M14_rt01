@@ -394,7 +394,11 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     const __mode = (data && data.mode) ? data.mode.toString().trim() : '';
     await handleSubmitSuccess(payload, __mode);
     hideCenter(); showOk((__mode==='更新' ? '✅ 已更新' : '✅ 已新增'));
-    lotInput.value=''; qty.value=''; clearPartOnce=true; lotPrefix.selectedIndex=0;
+  clearPartOnce=true;
+  lotInput.value='';
+  qty.value='';
+  lotPrefix.selectedIndex = 0;
+  lotUnit.selectedIndex = 0;
   }catch(err){
     hideCenter(); showCenter('❌ 例外：'+String(err)); setTimeout(hideCenter,1600);
   }finally{
