@@ -21,6 +21,14 @@ function exportFilteredXlsxAndMail(){
     }
     if (!rows.length) return;
 
+  rows = rows.map(row => {
+    const v = String(row[5]);
+    const isPcs = v.endsWith('Pcs');
+    const base  = v.slice(0, -3);
+    row.splice(6, 0, isPcs ? base : '');
+    row[5] = isPcs ? '' : base;
+    return row;
+  });
     rows.push(HEAD);
     const out = rows.reverse();
 
