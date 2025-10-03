@@ -105,11 +105,11 @@ input, select, textarea { font-size:16px; }
       <select id="lotUnit">
         <option value="">請選擇</option>
         <option value="PNL">PNL</option>
-        <option value="pcs">Pcs</option>
+        <option value="PCS">Pcs</option>
       </select>
-      <div id="lotUnitErr" class="field-error"></div>
     </div>
   </div>
+  <div id="lotUnitErr" class="field-error"></div>
 
   <div class="submit" id="submit-row">
     <div class="submit-center"><div id="okMsg" class="ok-msg"></div></div>
@@ -353,12 +353,12 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const q=Number(qty.value);
   if(!(q>0)){ setFieldError(qty,qty,'數量須 > 0'); return; }
 
-if (!lotUnit.value) {
-  lotUnitErr.textContent = "請選擇批量單位";
-  e.preventDefault();
-  return;
-}
-lotUnitErr.textContent = "";
+  if (!lotUnit.value) {
+     setFieldError(lotUnit, lotUnitErr, '請選擇批量單位');
+    e.preventDefault();
+    return;
+  }
+  setFieldError(lotUnit, lotUnitErr, '');
 
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
