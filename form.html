@@ -227,6 +227,8 @@ lotInput.addEventListener('blur',()=>{
   lotInput.value=r.mother+(r.hasChild?('-'+r.child):'');
 });
 
+lotUnit.addEventListener('change', () => clearErr(lotUnit));
+
 /* 中央提示 */
 function ensureCenterBox(){
   let box=document.getElementById("center-status");
@@ -350,6 +352,12 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 
   const q=Number(qty.value);
   if(!(q>0)){ setFieldError(qty,qty,'數量須 > 0'); return; }
+
+  if (!lotUnit.value) {
+    showErr(lotUnit, '請選擇批量單位');
+    e.preventDefault();
+    return;
+  }
 
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
