@@ -153,8 +153,8 @@ function computeShiftByClockFrom(d){
 }
 let currentDS=null;
 function refreshDisplays(){
-  const now=nowCorrected();
-  currentDS=computeShiftByClockFrom(now);
+  const now = nowCorrected();
+  currentDS = computeShiftByClockFrom(now);
   document.getElementById('dsView').textContent=`${currentDS.mmdd} - ${currentDS.shift}`;
   document.getElementById('tsView').textContent=fmtTW(now);
 }
@@ -286,11 +286,11 @@ function renderDrafts(){
 }
 
 function upsertDraftAfterSubmit(payload, status){
-  const ds=currentDS;
-  const list=getDraftList(ds);
+  const ds = currentDS;
+  const list = getDraftList(ds);
   const key = String(payload.key);
-  const nowTs=Date.now();
-  const item={part_no:payload.part_no, lot:payload.lot, qty:Number(payload.qty), key, ts:nowTs, status};
+  const nowTs = Date.now();
+  const item = {part_no:payload.part_no, lot:payload.lot, qty:Number(payload.qty), key, ts:nowTs, status};
   const idx=list.findIndex(x=>x.key===key);
   if(idx>=0) list[idx]=item; else list.push(item);
   if(list.length>50) list.splice(0, list.length-50);
@@ -341,7 +341,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
   const keyLot = String(lotDisp).replace(/^FA-/i, '');
-  const now = nowCorrected();
   const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
   const payload={
     z07: 0,
@@ -359,7 +358,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     qty: q,
     sample_cnt: q > 20 ? 20 : q,
     inspector: inspectorVal,
-    // submitted_at: fmtTW(now),
     key: submitKey,
     key2: serialToYM(currentDS.ymdSlash)
   };
