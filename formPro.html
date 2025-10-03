@@ -409,6 +409,12 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const q=Number(qty.value);
   if(!(q>0)){ setFieldError(qty,qty,'數量須 > 0'); return; }
 
+  if (!lotUnit.value) {
+     setFieldError(lotUnit, lotUnitErr, '　　　請選擇批量單位');
+    return;
+  }
+  setFieldError(lotUnit, lotUnitErr, '');
+
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
   const keyLot = String(lotDisp).replace(/^FA-/i, '');
