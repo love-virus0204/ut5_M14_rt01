@@ -331,7 +331,7 @@ function saveDraftA(payload){
 }
 async function handleSubmitSuccess(payload, modeStr){
   upsertDraftAfterSubmit(payload, modeStr || '新增');
-  await renderDrafts();
+  await renderDrafts(payload);
 }
 
 /* 送出 */
@@ -431,7 +431,7 @@ document.querySelectorAll("input").forEach(el=>{
   refreshDisplays();
   setInterval(refreshDisplays,1000);
   const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
-  renderDrafts();
+  renderDrafts({ date: currentDS.ymdSlash, shift: currentDS.shift });
 })();
 </script>
 </body>
