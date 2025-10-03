@@ -267,6 +267,8 @@ lotInput.addEventListener('blur',()=>{
   lotInput.value=r.mother+(r.hasChild?('-'+r.child):'');
 });
 
+lotUnit.addEventListener('change', () => setFieldError(lotUnit, lotUnitErr, ''));
+
 ["z07","z08","z09","z10","z11","z12","z13"].forEach(id=>{
   const i = document.getElementById(id);
   i.addEventListener("input", ()=>{
