@@ -220,7 +220,7 @@ inspector.addEventListener('input',()=>{ setFieldError(inspector,inspectorError,
 inspector.addEventListener('blur',()=>{
   const v=CANON(inspector.value);
   if(!v) return setFieldError(inspector,inspectorError,'工號必填');
-  if(!/^[A-Z0-9]{5}$/.test(v)) return setFieldError(inspector,inspectorError,'需 5 碼英數');
+  if(!/^[A-Z0-9]{5}$/.test(v)) return setFieldError(inspector,inspectorError,'須 5 碼英數');
   persistInspectorIfValid(v);
 });
 partNo.addEventListener('input',()=> setFieldError(partNo,partError,''));
@@ -400,13 +400,12 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   lotInput.value=motherChild;
 
   const q=Number(qty.value);
-  if(!(q>0)){ setFieldError(qty,qty,'數量需 > 0'); return; }
+  if(!(q>0)){ setFieldError(qty,qty,'數量須 > 0'); return; }
 
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
-  // 組鍵用批號，剔除前綴 FA-
   const keyLot = String(lotDisp).replace(/^FA-/i, '');
-const now=nowCorrected();
+  const now=nowCorrected();
   const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
   const payload={
     z07: gv("z07") || 0,
