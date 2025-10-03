@@ -227,7 +227,7 @@ lotInput.addEventListener('blur',()=>{
   lotInput.value=r.mother+(r.hasChild?('-'+r.child):'');
 });
 
-lotUnit.addEventListener('change', () => clearErr(lotUnit));
+lotUnit.addEventListener('change', () => setFieldError(lotUnit, lotUnitErr, ''));
 
 /* 中央提示 */
 function ensureCenterBox(){
