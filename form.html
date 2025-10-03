@@ -94,7 +94,12 @@ input, select, textarea { font-size:16px; }
     </div>
   </div>
 
-  <div class="row lot-unit">
+  <div class="row">
+    <div class="label">數　量：</div>
+    <div class="ctrl"><input id="qty" type="number" min="1" step="1" placeholder="輸入 批量"></div>
+  </div>
+
+  <div class="row lot-type">
     <div class="label">單　位：</div>
     <div class="ctrl">
       <select id="lotUnit">
@@ -104,11 +109,6 @@ input, select, textarea { font-size:16px; }
       </select>
       <div></div>
     </div>
-  </div>
-
-  <div class="row">
-    <div class="label">數　量：</div>
-    <div class="ctrl"><input id="qty" type="number" min="1" step="1" placeholder="輸入 批量"></div>
   </div>
 
   <div class="submit" id="submit-row">
