@@ -193,8 +193,8 @@ function computeShiftByClockFrom(d){
 }
 let currentDS=null;
 function refreshDisplays(){
-  const now=nowCorrected();
-  currentDS=computeShiftByClockFrom(now);
+  const now = nowCorrected();
+  currentDS = computeShiftByClockFrom(now);
   document.getElementById('dsView').textContent=`${currentDS.mmdd} - ${currentDS.shift}`;
   document.getElementById('tsView').textContent=fmtTW(now);
 }
@@ -263,14 +263,6 @@ lotInput.addEventListener('blur',()=>{
     if(i.value === "") i.value = "0";
   });
 });
-
-//const sc = document.getElementById("sample_cnt");
-//sc.addEventListener("input", ()=>{
-//  let v = parseInt(sc.value, 10);
-//  if (isNaN(v) || v <= 0) {
-//    sc.value = "0";
-//  }
-//});
 
 /* 中央提示 */
 function ensureCenterBox(){
@@ -405,7 +397,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
   const keyLot = String(lotDisp).replace(/^FA-/i, '');
-  const now=nowCorrected();
   const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
   const payload={
     z07: gv("z07") || 0,
@@ -424,7 +415,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     // sample_cnt: gv("sample_cnt"),
     sample_cnt: q > 20 ? 20 : q,
     inspector: inspectorVal,
-    // submitted_at: fmtTW(now),
     key: submitKey,
     key2: serialToYM(currentDS.ymdSlash)
   };
