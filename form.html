@@ -394,6 +394,10 @@ function serialToYM(ymd){
   return Number(y + m.padStart(2,'0'));
 }
 
+document.querySelectorAll("input").forEach(el=>{
+  el.setAttribute("autocomplete","off");
+});
+
 /* 初始化 */
 (()=>{
   refreshDisplays();
