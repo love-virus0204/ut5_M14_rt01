@@ -376,7 +376,7 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     shift: currentDS.shift,
     part_no: part,
     lot: lotDisp,
-    qty: q,
+    qty: q + lotUnit.value,
     sample_cnt: q > 20 ? 20 : q,
     inspector: inspectorVal,
     key: submitKey,
