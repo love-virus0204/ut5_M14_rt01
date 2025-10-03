@@ -353,7 +353,12 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const q=Number(qty.value);
   if(!(q>0)){ setFieldError(qty,qty,'數量須 > 0'); return; }
 
-  if (!lotUnit.value){ setFieldError(lotUnit,lotUnit,'批量單位必選'); return; }
+  if (!lotUnit.value) {
+    setFieldError(lotUnit, lotUnitErr, '批量單位必選');
+    e.preventDefault();
+    return;
+  }
+  setFieldError(lotUnit, lotUnitErr, '');
 
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
