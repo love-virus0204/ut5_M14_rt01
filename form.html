@@ -180,7 +180,7 @@ inspector.addEventListener('input',()=>{ setFieldError(inspector,inspectorError,
 inspector.addEventListener('blur',()=>{
   const v=CANON(inspector.value);
   if(!v) return setFieldError(inspector,inspectorError,'工號必填');
-  if(!/^[A-Z0-9]{5}$/.test(v)) return setFieldError(inspector,inspectorError,'需 5 碼英數');
+  if(!/^[A-Z0-9]{5}$/.test(v)) return setFieldError(inspector,inspectorError,'須 5 碼英數');
   persistInspectorIfValid(v);
 });
 partNo.addEventListener('input',()=> setFieldError(partNo,partError,''));
@@ -341,8 +341,8 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
   const lotDisp = prefix ? `${prefix}-${motherChild}` : motherChild;
 
   const keyLot = String(lotDisp).replace(/^FA-/i, '');
-  const now=nowCorrected();
-  const submitKey = makeKey(currentDS.mmdd,currentDS.shift, part, keyLot);
+  const now = nowCorrected();
+  const submitKey = makeKey(currentDS.mmdd, currentDS.shift, part, keyLot);
   const payload={
     z07: 0,
     z08: 0,
