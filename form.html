@@ -99,17 +99,17 @@ input, select, textarea { font-size:16px; }
     <div class="ctrl"><input id="qty" type="number" min="1" step="1" placeholder="輸入 批量"></div>
   </div>
 
-  <div class="row lot-type">
-    <div class="label">單　位：</div>
-    <div class="ctrl">
-      <select id="lotUnit">
-        <option value="">請選擇</option>
-        <option value="PNL">PNL</option>
-        <option value="PCS">Pcs</option>
-      </select>
-    </div>
+<div class="row lot-type">
+  <div class="label">單　位：</div>
+  <div class="ctrl">
+    <select id="lotUnit">
+      <option value="">請選擇</option>
+      <option value="PNL">PNL</option>
+      <option value="Pcs">Pcs</option>
+    </select>
+    <div id="lotUnitErr" class="field-error"></div>
   </div>
-  <div id="lotUnitErr" class="field-error"></div>
+</div>
 
   <div class="submit" id="submit-row">
     <div class="submit-center"><div id="okMsg" class="ok-msg"></div></div>
@@ -119,7 +119,7 @@ input, select, textarea { font-size:16px; }
   </div>
   <hr>
   <div class="bottom-info">
-    <div id="versionTag" class="ver-left">版本：v18.1.1-floating</div>
+    <div id="versionTag" class="ver-left">版本：v18.1.2-floating</div>
     <div id="tsView" class="time-right"></div>
   </div>
 
@@ -355,7 +355,6 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
 
   if (!lotUnit.value) {
      setFieldError(lotUnit, lotUnitErr, '請選擇批量單位');
-    e.preventDefault();
     return;
   }
   setFieldError(lotUnit, lotUnitErr, '');
