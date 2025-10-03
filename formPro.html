@@ -157,7 +157,7 @@ input, select, textarea { font-size:16px; }
   </div>
   <hr>
   <div class="bottom-info">
-    <div id="versionTag" class="ver-left">版本：v18.0.9-floating</div>
+    <div id="versionTag" class="ver-left">版本：v18.1.4-floating</div>
     <div id="tsView" class="time-right"></div>
   </div>
 
@@ -334,40 +334,45 @@ function submitData(p){
 //function submitData(p){ return //apiGet({action:"submit",...p}); }
 
 /* ===== 草稿儲存（B：{料號, 批號, 數量, key, 送出成功時間, 狀態}） ===== */
-function dsStorageKey(ds){ return `draft_${ds.ymdSlash}_${ds.shift}`; }
-function getDraftList(ds){ try{ return JSON.parse(localStorage.getItem(dsStorageKey(ds))||'[]'); }catch{ return []; } }
-function saveDraftList(ds,list){ localStorage.setItem(dsStorageKey(ds), JSON.stringify(list||[])); }
-function makeKey(mmdd,shift,part,lot){ return `${mmdd}|${shift}|${part}|${lot}`; }
+const dsStorageKey = p => `draft_${p.date}_${p.shift}`;
+const getDraftList = p => JSON.parse(localStorage.getItem(dsStorageKey(p)) || '[]');
+const saveDraftList = (p, list=[]) => localStorage.setItem(dsStorageKey(p), JSON.stringify(list));
+const makeKey = (mmdd, shift, part, lot) => `${mmdd}|${shift}|${part}|${lot}`;
 
-function renderDrafts(){
-  const list=getDraftList(currentDS).slice().sort((a,b)=> (b.ts||0)-(a.ts||0));
-  const body=document.getElementById('recordList');
-  body.innerHTML='';
-  if(!list.length){
-    body.innerHTML='<tr><td colspan="3" style="color:#888">（當班無草稿）</td></tr>';
+function renderDrafts(p){
+  const list = getDraftList(p).slice().sort((a,b)=> (b.ts||0)-(a.ts||0));
+  const body = document.getElementById('recordList');
+  body.innerHTML = '';
+  if (!list.length){
+    body.innerHTML = '<tr><td colspan="3" style="color:#888">（當班無草稿）</td></tr>';
     return;
   }
-  for(const it of list){
-    const tr=document.createElement('tr');
-    tr.style.color = (it.status==='更新') ? '#ff4d94' : '#1a7f37';
+  for (const it of list){
+    const tr = document.createElement('tr');
+    tr.style.color = (it.status === '更新') ? '#ff4d94' : '#1a7f37';
     tr.innerHTML = `<td>${it.part_no}</td><td>${it.lot}</td><td>${it.qty}</td>`;
     body.appendChild(tr);
   }
 }
 
 function upsertDraftAfterSubmit(payload, status){
-  const ds=currentDS;
-  const list=getDraftList(ds);
-  const key = String(payload.key);
-  const nowTs=Date.now();
-  const item={part_no:payload.part_no, lot:payload.lot, qty:Number(payload.qty), key, ts:nowTs, status};
-  const idx=list.findIndex(x=>x.key===key);
-  if(idx>=0) list[idx]=item; else list.push(item);
-  if(list.length>50) list.splice(0, list.length-50);
-  saveDraftList(ds,list);
-  return {nowTs};
+  const list = getDraftList(payload);
+  const key  = String(payload.key);
+  const ts   = Date.now();
+  const item = {
+    part_no: payload.part_no,
+    lot:     payload.lot,
+    qty:     String(payload.qty),
+    key,
+    ts,
+    status   // "新增"/"更新"
+  };
+  const i = list.findIndex(x => x.key === key);
+  if (i >= 0) list[i] = item; else list.push(item);
+  if (list.length > 50) list.splice(0, list.length - 50);
+  saveDraftList(payload, list);
+  return { nowTs: ts };
 }
-
 
 // 草稿A：完整 payload 備份（含 inspector/admin_id；有就寫入，無則空字串）
 function saveDraftA(payload){
@@ -381,7 +386,7 @@ function saveDraftA(payload){
 }
 async function handleSubmitSuccess(payload, modeStr){
   upsertDraftAfterSubmit(payload, modeStr || '新增');
-  await renderDrafts();
+  await renderDrafts(payload);
 }
 
 /* 送出 */
@@ -478,7 +483,7 @@ document.querySelectorAll("input").forEach(el=>{
   refreshDisplays();
   setInterval(refreshDisplays,1000);
   const savedId = localStorage.getItem(INSPECTOR_STORE)||''; if(savedId) inspector.value = savedId;
-  renderDrafts();
+  renderDrafts({ date: currentDS.ymdSlash, shift: currentDS.shift });
 })();
 </script>
 </body>
